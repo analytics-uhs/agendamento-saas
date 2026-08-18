@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { CalendarDays, Clock3, ExternalLink, Home, LogOut, Palette, Settings2, Store } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { classes } from "@/lib/classes";
-import { publicDomain } from "@/mocks/app";
-import { useMockApp } from "@/components/mock-app-provider";
+import { publicDomain } from "@/lib/public-url";
 import type { CurrentBusiness } from "@/lib/repositories/businesses";
 import { Logo } from "@/components/ui/logo";
 import { ThemeControl } from "@/components/theme/theme-control";
@@ -20,10 +19,9 @@ const nav = [
   { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
 ];
 
-export function AdminShell({ children, currentBusiness }: { children: React.ReactNode; currentBusiness: CurrentBusiness | null }) {
+export function AdminShell({ children, currentBusiness }: { children: React.ReactNode; currentBusiness: CurrentBusiness }) {
   const pathname = usePathname();
-  const { state } = useMockApp();
-  const business = currentBusiness ?? state.business;
+  const business = currentBusiness;
   const active = (href: string, exact?: boolean) => exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   return <div className="min-h-screen bg-surface">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background px-4 py-6 lg:flex">

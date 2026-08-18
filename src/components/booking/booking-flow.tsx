@@ -11,19 +11,19 @@ import { Logo } from "@/components/ui/logo";
 import { classes } from "@/lib/classes";
 import { businessHourFor, formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import { availableSlots } from "@/lib/slots";
-import { palettes } from "@/mocks/app";
+import { palettes } from "@/lib/palettes";
 
 function Section({ number, title, children }: { number: number; title: string; children: React.ReactNode }) {
   return <section className="step-in mt-7"><h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">{number}</span>{title}</h2>{children}</section>;
 }
 
-export function BookingFlow({ preview = false }: { preview?: boolean }) {
+export function BookingFlow({ preview = false, paletteId }: { preview?: boolean; paletteId?: string }) {
   const router = useRouter();
   const { state } = useMockApp();
   const [group1, setGroup1] = useState<string | null>(null), [group2, setGroup2] = useState<string | null>(null);
   const [windowStart, setWindowStart] = useState(todayISO()), [date, setDate] = useState<string | null>(null), [time, setTime] = useState<string | null>(null);
   const [blocks, setBlocks] = useState(1), [customer, setCustomer] = useState(""), [whatsapp, setWhatsapp] = useState("");
-  const palette = palettes.find((item) => item.id === state.paletteId) ?? palettes[0];
+  const palette = palettes.find((item) => item.id === (paletteId ?? state.paletteId)) ?? palettes[0];
   const style = { "--primary": palette.primary, "--accent": palette.accent, "--background": palette.background, "--surface": palette.surface, "--foreground": palette.text, "--muted": palette.muted, "--border": palette.border, "--card": palette.background } as CSSProperties;
   const group1Done = !state.group1.enabled || Boolean(group1), group2Done = group1Done && (!state.group2.enabled || Boolean(group2));
   const duration = useMemo(() => state.duration.mode === "group2" ? state.group2.options.find((item) => item.name === group2)?.durationMinutes ?? 30 : state.duration.fixedMinutes * (state.duration.mode === "fixed-multiple" ? blocks : 1), [state.duration, state.group2.options, group2, blocks]);
