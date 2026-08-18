@@ -13,5 +13,5 @@ export default async function AgendaPage() {
     listAppointments(business.id, today),
     getAppointmentSchedulingConfig(business.id),
   ]);
-  return <AgendaPageContent initialDate={today} initialAppointments={appointments} config={config} />;
+  return <AgendaPageContent initialDate={today} initialAppointments={appointments} config={config} businessActive={business.active} />;
 }

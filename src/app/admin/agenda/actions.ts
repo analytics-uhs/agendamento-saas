@@ -41,6 +41,7 @@ export async function loadAdminAppointments(date: string): Promise<AppointmentAc
 export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {
   if (!datePattern.test(input.date) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId)) return { ok: false, message: "Seleção inválida." };
   const business = await requireCurrentBusiness();
+  if (!business.active) return { ok: false, message: "Este estabelecimento está inativo e não aceita novos agendamentos." };
   const result = await getAdminAvailability({ businessSlug: business.slug, ...input });
   return result.error ? actionError(result.error.message, result.error.code) : { ok: true, message: "Horários atualizados.", data: result.data };
 }
@@ -50,6 +51,7 @@ export async function createManualAppointment(input: ManualAppointmentInput): Pr
   if (input.customerName.trim().length < 2) return { ok: false, message: "Informe o nome do cliente." };
   if (!validateWhatsapp(input.customerWhatsapp)) return { ok: false, message: "Informe um WhatsApp válido com DDD." };
   const business = await requireCurrentBusiness();
+  if (!business.active) return { ok: false, message: "Este estabelecimento está inativo e não aceita novos agendamentos." };
   const error = await createAdminAppointment({ ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) });
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");

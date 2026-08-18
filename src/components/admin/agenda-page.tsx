@@ -41,7 +41,7 @@ const statusActions: { status: "completed" | "no_show" | "cancelled"; label: str
   { status: "cancelled", label: "Cancelar", Icon: Ban, variant: "danger" },
 ];
 
-export function AgendaPageContent({ initialDate, initialAppointments, config }: { initialDate: string; initialAppointments: AdminAppointment[]; config: AppointmentSchedulingConfig }) {
+export function AgendaPageContent({ initialDate, initialAppointments, config, businessActive }: { initialDate: string; initialAppointments: AdminAppointment[]; config: AppointmentSchedulingConfig; businessActive: boolean }) {
   const [windowStart, setWindowStart] = useState(initialDate);
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [appointments, setAppointments] = useState(initialAppointments);
@@ -146,7 +146,7 @@ export function AgendaPageContent({ initialDate, initialAppointments, config }: 
 
   return <><PageHeading title="Agenda" description="Visualize e gerencie os agendamentos." />
     <div className="mt-6"><DateStrip allowPast windowStart={windowStart} onWindowStartChange={(value) => { setWindowStart(value); selectDate(value); }} selected={selectedDate} onSelect={selectDate} /></div>
-    <div className="mt-6 flex items-center justify-between gap-3"><p className="truncate text-sm font-medium capitalize">{formatLongDate(selectedDate)}</p><Button size="sm" disabled={selectedDate < todayISO() || configurationInvalid} onClick={creating ? () => setCreating(false) : openCreation}>{creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{creating ? "Fechar" : "Novo"}</Button></div>
+    <div className="mt-6 flex items-center justify-between gap-3"><p className="truncate text-sm font-medium capitalize">{formatLongDate(selectedDate)}</p><Button size="sm" disabled={!businessActive || selectedDate < todayISO() || configurationInvalid} onClick={creating ? () => setCreating(false) : openCreation}>{creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{creating ? "Fechar" : "Novo"}</Button></div>
 
     {configurationInvalid ? <p className="mt-4 rounded-xl border border-dashed p-5 text-center text-sm text-muted">Configure opções ativas nos grupos antes de criar agendamentos manuais.</p> : null}
     {creating ? <section className="step-in mt-4 rounded-xl border bg-background p-4"><h2 className="font-semibold">Novo agendamento</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">

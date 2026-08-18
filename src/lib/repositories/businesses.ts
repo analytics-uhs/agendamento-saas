@@ -7,6 +7,7 @@ export type CurrentBusiness = {
   id: string;
   name: string;
   slug: string;
+  active: boolean;
   role: BusinessRole;
 };
 
@@ -14,7 +15,7 @@ export async function getCurrentBusiness(userId: string): Promise<CurrentBusines
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("business_members")
-    .select("role, businesses!inner(id, name, slug)")
+    .select("role, businesses!inner(id, name, slug, active)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .limit(1)
@@ -24,7 +25,7 @@ export async function getCurrentBusiness(userId: string): Promise<CurrentBusines
   if (!data) return null;
 
   const business = data.businesses;
-  return { id: business.id, name: business.name, slug: business.slug, role: data.role };
+  return { id: business.id, name: business.name, slug: business.slug, active: business.active, role: data.role };
 }
 
 export async function requireCurrentBusiness() {
