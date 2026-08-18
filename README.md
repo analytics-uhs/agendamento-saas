@@ -19,6 +19,7 @@ O projeto já possui autenticação, fundação multiempresa, configuração rea
 - criação atômica de appointments com proteção contra reservas concorrentes;
 - Dashboard e Agenda administrativos com dados reais, detalhes e alteração segura de status;
 - criação manual delegada ao mesmo motor de disponibilidade do fluxo público;
+- painel Super Admin com métricas, negócios paginados, detalhe e ativação controlada;
 - seed sem credenciais, testes pgTAP e testes unitários das regras de formulário e disponibilidade.
 
 A página pública e as telas administrativas leem o Supabase. Apenas o preview de Aparência conserva conteúdo fictício para permitir edição visual sem criar reservas.
@@ -67,7 +68,7 @@ A página pública mantém a janela móvel de sete dias (hoje + seis dias), não
 - `src/app`: rotas, actions de autenticação, onboarding e configurações;
 - `src/components`: UI aprovada conectada progressivamente aos dados reais;
 - `src/lib/supabase`: clients SSR/browser e renovação da sessão;
-- `src/lib/repositories`: acesso tipado ao negócio, configurações, appointments e leitura pública;
+- `src/lib/repositories`: acesso tipado ao negócio, configurações, appointments, leitura pública e operações server-only de plataforma;
 - `src/types/database.ts`: tipos do schema Supabase;
 - `src/mocks`: dados ainda usados pelas telas não migradas;
 - `supabase/migrations`: schema e RLS versionados;
@@ -98,7 +99,16 @@ A criação manual não faz `INSERT` direto. A RPC autenticada `create_admin_app
 
 Na Data API, `authenticated` conserva apenas `SELECT` em `appointments`, sempre filtrado pelas policies RLS do negócio. `INSERT`, `UPDATE` e `DELETE` diretos são revogados: criação passa pelas RPCs controladas, mudanças de status passam por `set_appointment_status` e não existe exclusão física no MVP.
 
+## Super Admin
+
+As rotas `/super-admin` e `/super-admin/negocios` são protegidas no servidor pela allow-list privada `private.platform_admins`. O painel exibe métricas reais, busca e paginação calculadas no banco, configuração de cada negócio, membros e até 20 agendamentos recentes. E-mail de membro é retornado somente pela RPC administrativa controlada; `auth.users` nunca é exposto ao browser.
+
+A ativação passa por `set_platform_business_active`, registra ator e horário e não exclui dados. Um negócio inativo continua acessível aos seus membros com um aviso no painel, mas sua página pública, disponibilidade e criação pública ou administrativa de appointments permanecem bloqueadas pelo banco. Owners podem editar os campos públicos do negócio, mas não conseguem alterar `active` diretamente pela Data API.
+
+Não existe cadastro público de Super Admin. Consulte [docs/database.md](docs/database.md#promover-o-primeiro-super-admin) para o procedimento administrativo de promoção inicial.
+
 ## Ainda não implementado
 
 - cadastro de novos usuários;
+- planos, cobrança do SaaS, trial, limites, impersonação e relatórios avançados;
 - WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.
