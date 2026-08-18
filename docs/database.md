@@ -56,6 +56,7 @@ As migrations são aplicadas em ordem:
 
 1. `20260818020000_initial_multitenant_schema.sql` — enums, tabelas, constraints, triggers e helpers;
 2. `20260818020100_rls_and_public_booking_api.sql` — grants, policies e RPC pública.
+3. `20260818030000_business_onboarding_and_logos.sql` — onboarding transacional e bucket seguro de logos.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -64,3 +65,23 @@ npx supabase gen types typescript --linked > src/types/database.ts
 ```
 
 Revise o diff gerado antes do commit.
+
+## Onboarding e telas conectadas
+
+Um usuário autenticado sem memberships é enviado de `/admin` para `/onboarding`. Quem já pertence a um negócio é enviado do onboarding para o painel, inclusive quando o negócio está inativo, evitando loops de redirect.
+
+Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o primeiro negócio do usuário e executa uma única transação. A função usa `create_business_with_owner` e persiste nomes, estados e opções ordenadas dos Grupos 1 e 2, os sete dias de `business_hours`, modo de duração, paleta e preferência de tema.
+
+O slug é normalizado e validado na aplicação, mas a constraint única do banco continua sendo a garantia final. Conflitos PostgreSQL `23505` são convertidos em uma mensagem amigável.
+
+As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
+
+## Storage de logos
+
+O bucket `business-logos` é público porque o logo aparece na página anônima, mas aceita somente PNG, JPEG e WebP de até 2 MB. A URL pública serve a imagem, sem liberar listagem anônima dos metadados de `storage.objects`.
+
+Uploads usam o caminho `<business_id>/logo`. As policies permitem SELECT/INSERT/UPDATE/DELETE somente a `owner` ou `admin` do negócio indicado nesse prefixo, além do Super Admin. O upload usa a sessão autenticada e nunca uma service-role key no browser.
+
+## Mocks restantes
+
+Dashboard, Agenda, appointments, cálculo de disponibilidade e envio do agendamento público continuam mockados. O preview de Aparência ainda usa conteúdo fictício de agendamento, aplicando a paleta persistida.

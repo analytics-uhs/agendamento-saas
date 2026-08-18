@@ -4,18 +4,21 @@ SaaS multiempresa de agendamentos. A interface Next.js foi adaptada do MVP visua
 
 ## Estado atual
 
-Esta etapa entrega a fundação real de autenticação e dados:
+O projeto já possui autenticação, fundação multiempresa e configuração real do estabelecimento:
 
 - login, logout, sessão SSR e proteção de `/admin` com Supabase Auth;
 - modelo multiempresa isolado por estabelecimento;
 - migrations, constraints, índices e Row Level Security (RLS);
-- resolução do primeiro negócio ativo do usuário autenticado;
+- resolução do negócio atual do usuário autenticado;
 - clients Supabase separados para browser, Server Components e proxy;
-- tipos TypeScript e repositories iniciais;
+- repositories tipados e Server Actions autenticadas;
 - RPC anônima curada para a futura página pública;
-- seed sem credenciais e testes pgTAP de autorização.
+- onboarding real para o primeiro estabelecimento;
+- persistência de Meu negócio, Configuração da agenda, Horários e Aparência;
+- upload restrito de logos pelo Supabase Storage;
+- seed sem credenciais, testes pgTAP e testes unitários das regras de formulário.
 
-As telas administrativas e o fluxo visual de agendamento ainda usam majoritariamente `src/mocks`. O motor de disponibilidade e a criação pública de agendamentos não fazem parte desta etapa.
+Dashboard, Agenda e o fluxo público ainda usam `src/mocks`. O motor de disponibilidade e a criação pública de agendamentos não fazem parte desta etapa.
 
 ## Configuração local
 
@@ -24,6 +27,7 @@ Copie `.env.example` para `.env.local` e configure:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_APP_DOMAIN=agenda.local
 ```
 
 `NEXT_PUBLIC_SUPABASE_ANON_KEY` também é aceito para projetos que ainda usam a chave legada. Nenhuma service-role key é necessária no frontend e secrets não devem ser versionados.
@@ -57,10 +61,10 @@ A página pública mantém a janela móvel de sete dias (hoje + seis dias), não
 
 ## Estrutura
 
-- `src/app`: rotas, actions de autenticação e callback;
-- `src/components`: UI aprovada, ainda conectada progressivamente aos dados reais;
+- `src/app`: rotas, actions de autenticação, onboarding e configurações;
+- `src/components`: UI aprovada conectada progressivamente aos dados reais;
 - `src/lib/supabase`: clients SSR/browser e renovação da sessão;
-- `src/lib/repositories`: acesso básico aos dados com tipos;
+- `src/lib/repositories`: acesso tipado ao negócio e suas configurações;
 - `src/types/database.ts`: tipos do schema Supabase;
 - `src/mocks`: dados ainda usados pelas telas não migradas;
 - `supabase/migrations`: schema e RLS versionados;
@@ -71,7 +75,7 @@ Veja [docs/database.md](docs/database.md) para o modelo, RLS, Super Admin e supe
 
 ## Ainda não implementado
 
-- cadastro real e conclusão do onboarding;
-- CRUD real em todas as telas administrativas;
+- cadastro de novos usuários;
+- agendamentos reais no Dashboard e na Agenda;
 - motor de disponibilidade, reservas concorrentes e criação pública de appointments;
 - WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.
