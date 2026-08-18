@@ -92,14 +92,16 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
     setSlots([]);
     setMessage(null);
     if (preview) {
-      const hour = booking.hours.find((item) => item.weekday === parseISO(selectedDate).getDay());
-      if (!hour) return;
+      const dayHours = booking.hours.filter((item) => item.weekday === parseISO(selectedDate).getDay());
+      if (!dayHours.length) return;
       const base = booking.settings.durationMode === "group_2" ? groupTwo?.options.find((option) => option.id === group2)?.durationMinutes ?? 30 : booking.settings.fixedDurationMinutes;
-      const [startHour = 0, startMinute = 0] = hour.startTime.split(":").map(Number);
-      const [endHour = 0, endMinute = 0] = hour.endTime.split(":").map(Number);
-      const start = startHour * 60 + startMinute;
-      const end = endHour * 60 + endMinute;
-      setSlots(Array.from({ length: Math.max(0, Math.floor((end - start) / base)) }, (_, index) => ({ startTime: `${String(Math.floor((start + index * base) / 60)).padStart(2, "0")}:${String((start + index * base) % 60).padStart(2, "0")}`, durationMinutes: base, maxBlocks: Math.min(3, Math.floor((end - start - index * base) / base)) })));
+      setSlots(dayHours.flatMap((hour) => {
+        const [startHour = 0, startMinute = 0] = hour.startTime.split(":").map(Number);
+        const [endHour = 0, endMinute = 0] = hour.endTime.split(":").map(Number);
+        const start = startHour * 60 + startMinute;
+        const end = endHour * 60 + endMinute;
+        return Array.from({ length: Math.max(0, Math.floor((end - start) / base)) }, (_, index) => ({ startTime: `${String(Math.floor((start + index * base) / 60)).padStart(2, "0")}:${String((start + index * base) % 60).padStart(2, "0")}`, durationMinutes: base, maxBlocks: Math.min(3, Math.floor((end - start - index * base) / base)) }));
+      }));
       return;
     }
     startSlotsTransition(async () => {

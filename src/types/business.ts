@@ -7,8 +7,9 @@ export type BusinessGroupForm = {
   id?: string; position: 1 | 2; label: string; active: boolean; required: boolean;
   options: BusinessOptionForm[];
 };
+export type BusinessHourWindowForm = { id?: string; startTime: string; endTime: string };
 export type BusinessHourForm = {
-  id?: string; weekday: number; label: string; active: boolean; startTime: string; endTime: string;
+  weekday: number; label: string; active: boolean; windows: BusinessHourWindowForm[];
 };
 export type BusinessForm = {
   id?: string; name: string; slug: string; whatsapp: string; logoUrl: string | null;

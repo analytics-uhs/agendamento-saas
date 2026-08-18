@@ -8,7 +8,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     supabase.from("businesses").select("id, name, slug, whatsapp, logo_url, address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).single(),
     supabase.from("booking_groups").select("id, position, label, active, required").eq("business_id", businessId).order("position"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes, sort_order").eq("business_id", businessId).order("sort_order"),
-    supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday"),
+    supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday").order("start_time"),
     supabase.from("business_settings").select("duration_mode, fixed_duration_minutes, palette, theme_preference").eq("business_id", businessId).single(),
   ]);
 
@@ -37,6 +37,20 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     ? palette.id
     : "original";
 
+  const hours = weekdayLabels.map((label, weekday) => {
+    const rows = hoursResult.data.filter((hour) => hour.weekday === weekday);
+    return {
+      weekday,
+      label,
+      active: rows.some((hour) => hour.active),
+      windows: rows.map((hour) => ({
+        id: hour.id,
+        startTime: hour.start_time.slice(0, 5),
+        endTime: hour.end_time.slice(0, 5),
+      })),
+    };
+  });
+
   return {
     id: businessResult.data.id,
     name: businessResult.data.name,
@@ -48,14 +62,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     instagramUrl: businessResult.data.instagram_url ?? "",
     facebookUrl: businessResult.data.facebook_url ?? "",
     groups,
-    hours: hoursResult.data.map((hour) => ({
-      id: hour.id,
-      weekday: hour.weekday,
-      label: weekdayLabels[hour.weekday],
-      active: hour.active,
-      startTime: hour.start_time.slice(0, 5),
-      endTime: hour.end_time.slice(0, 5),
-    })),
+    hours,
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,
     paletteId,

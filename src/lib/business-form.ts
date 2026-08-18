@@ -1,4 +1,4 @@
-import type { BusinessForm, VisualThemePreference } from "@/types/business";
+import type { BusinessForm, BusinessHourForm, BusinessHourWindowForm, VisualThemePreference } from "@/types/business";
 import type { DurationMode } from "@/types/database";
 import { getPalette } from "@/lib/palettes";
 
@@ -73,8 +73,8 @@ export function validateBusinessForm(form: BusinessForm) {
     if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao Grupo ${group.position}.`;
     if (group.options.some((option) => !option.name.trim())) return `Preencha todas as opções do Grupo ${group.position}.`;
   }
-  if (form.hours.length !== 7) return "Configure os sete dias da semana.";
-  if (form.hours.some((hour) => hour.active && hour.startTime >= hour.endTime)) return "O horário final deve ser posterior ao inicial.";
+  const hoursError = validateBusinessHours(form.hours);
+  if (hoursError) return hoursError;
   return validateDuration(form.durationMode, form.fixedDurationMinutes, form.groups[1].options.map((option) => option.durationMinutes));
 }
 
@@ -93,7 +93,11 @@ export function toOnboardingPayload(form: BusinessForm) {
         sort_order,
       })),
     })),
-    hours: form.hours.map((hour) => ({ weekday: hour.weekday, active: hour.active, start_time: hour.startTime, end_time: hour.endTime })),
+    hours: form.hours.map((hour) => ({
+      weekday: hour.weekday,
+      active: hour.active && hour.windows.length > 0,
+      windows: hour.windows.map((window) => ({ start_time: window.startTime, end_time: window.endTime })),
+    })),
     settings: {
       duration_mode: form.durationMode,
       fixed_duration_minutes: form.fixedDurationMinutes,
@@ -114,8 +118,43 @@ export function createEmptyBusinessForm(): BusinessForm {
     ],
     hours: weekdayLabels.map((label, weekday) => ({
       weekday, label, active: weekday >= 1 && weekday <= 6,
-      startTime: weekday === 6 ? "09:00" : "08:00", endTime: weekday === 6 ? "14:00" : "18:00",
+      windows: [{ startTime: weekday === 6 ? "09:00" : "08:00", endTime: weekday === 6 ? "14:00" : "18:00" }],
     })),
     durationMode: "fixed", fixedDurationMinutes: 60, paletteId: "original", themePreference: "light",
   };
+}
+
+function minutes(value: string) {
+  const [hour = 0, minute = 0] = value.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function time(value: number) {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+}
+
+export function validateBusinessHours(hours: BusinessHourForm[]) {
+  if (hours.length !== 7 || new Set(hours.map((hour) => hour.weekday)).size !== 7) return "Configure os sete dias da semana.";
+  for (const hour of hours) {
+    const sorted = [...hour.windows].sort((first, second) => first.startTime.localeCompare(second.startTime));
+    if (sorted.some((window) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.endTime) || window.startTime >= window.endTime)) return "O horário final deve ser posterior ao inicial.";
+    if (sorted.some((window, index) => index > 0 && sorted[index - 1].endTime > window.startTime)) return `Os horários de ${hour.label} não podem se sobrepor.`;
+  }
+  return null;
+}
+
+export function cloneBusinessHourWindows(windows: BusinessHourWindowForm[]) {
+  return windows.map(({ startTime, endTime }) => ({ startTime, endTime }));
+}
+
+export function nextBusinessHourWindow(windows: BusinessHourWindowForm[]): BusinessHourWindowForm | null {
+  if (!windows.length) return { startTime: "08:00", endTime: "18:00" };
+  const sorted = [...windows].sort((first, second) => first.startTime.localeCompare(second.startTime));
+  let cursor = 8 * 60;
+  for (const window of sorted) {
+    const start = minutes(window.startTime);
+    if (start - cursor >= 60) return { startTime: time(cursor), endTime: time(cursor + 60) };
+    cursor = Math.max(cursor, minutes(window.endTime));
+  }
+  return cursor + 60 <= 23 * 60 + 59 ? { startTime: time(cursor), endTime: time(cursor + 60) } : null;
 }

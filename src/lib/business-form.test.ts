@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createEmptyBusinessForm, normalizeOptionalUrl, normalizeSlug, normalizeVisualTheme, slugCandidate, toOnboardingPayload, validateBusinessContact, validateDuration, validateSlug } from "./business-form";
+import { cloneBusinessHourWindows, createEmptyBusinessForm, nextBusinessHourWindow, normalizeOptionalUrl, normalizeSlug, normalizeVisualTheme, slugCandidate, toOnboardingPayload, validateBusinessContact, validateBusinessHours, validateDuration, validateSlug } from "./business-form";
 
 test("normaliza slug com espaços, acentos e caixa alta", () => {
   assert.equal(normalizeSlug("  Clínica São João  "), "clinica-sao-joao");
@@ -65,4 +65,26 @@ test("transforma formulário em payload persistível e preserva a ordem", () => 
   assert.deepEqual(payload.groups[0].options.map((option) => option.duration_minutes), [null, null]);
   assert.equal(payload.groups[1].options[0].duration_minutes, 60);
   assert.equal(payload.hours.length, 7);
+  assert.equal(payload.hours[1].windows.length, 1);
+});
+
+test("valida janelas adjacentes e rejeita sobreposição", () => {
+  const hours = createEmptyBusinessForm().hours;
+  hours[1].windows = [{ startTime: "08:00", endTime: "11:00" }, { startTime: "11:00", endTime: "14:00" }];
+  assert.equal(validateBusinessHours(hours), null);
+  hours[1].windows[1].startTime = "10:30";
+  assert.match(validateBusinessHours(hours) ?? "", /não podem se sobrepor/);
+});
+
+test("copia todas as janelas sem compartilhar referências", () => {
+  const monday = [{ startTime: "08:00", endTime: "11:00" }, { startTime: "14:00", endTime: "20:00" }];
+  const copied = cloneBusinessHourWindows(monday);
+  copied[0].startTime = "09:00";
+  assert.equal(monday[0].startTime, "08:00");
+  assert.deepEqual(copied[1], monday[1]);
+});
+
+test("sugere novo período sem sobrepor os existentes", () => {
+  assert.deepEqual(nextBusinessHourWindow([{ startTime: "08:00", endTime: "11:00" }, { startTime: "14:00", endTime: "20:00" }]), { startTime: "11:00", endTime: "12:00" });
+  assert.deepEqual(nextBusinessHourWindow([]), { startTime: "08:00", endTime: "18:00" });
 });

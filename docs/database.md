@@ -10,7 +10,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 
 - `booking_groups`: exatamente posições 1 ou 2, com nome e estado configuráveis;
 - `booking_options`: opções genéricas ligadas ao grupo; `duration_minutes` serve ao modo `group_2`;
-- `business_hours`: sete dias, de 0 (domingo) a 6 (sábado);
+- `business_hours`: janelas normalizadas por dia, de 0 (domingo) a 6 (sábado); cada linha representa um único período de funcionamento;
 - `business_settings`: duração, paleta e preferência de tema;
 - `appointments`: reservas públicas ou administrativas; `source` registra `public`/`admin`, e os estados não cancelados bloqueiam disponibilidade.
 - `appointment_series`: definição administrativa de uma recorrência semanal em um único dia/horário; `repeat_count` nulo significa permanente e `appointments.series_id` distingue ocorrências materializadas de reservas avulsas.
@@ -88,6 +88,10 @@ Os links públicos são normalizados na aplicação e validados novamente por co
 
 Os horários começam na abertura e avançam pela duração base. Dias fechados, datas passadas, horários já iniciados no dia atual e intervalos que ultrapassam o fechamento não são oferecidos. Appointments `scheduled`, `completed` e `no_show` bloqueiam; `cancelled` não bloqueia.
 
+Um dia pode conter várias linhas em `business_hours`. O motor gera candidatos separadamente em cada janela ativa e exige que o appointment inteiro caiba em uma delas. Assim, com `08:00–11:00` e `14:00–20:00`, não existem slots no almoço nem um appointment `10:30–11:30`. A mesma regra é reutilizada pela criação pública, criação administrativa e materialização de séries semanais.
+
+A constraint `business_hours_no_overlapping_windows` usa intervalos `[início, fim)`: duplicatas e sobreposições no mesmo negócio/dia são rejeitadas, mas `08:00–11:00` seguido de `11:00–14:00` é válido. A RPC autenticada `replace_business_hours` troca atomicamente todas as janelas do negócio resolvido pela membership, sem ampliar os grants diretos ou permitir a escolha de outro `business_id`.
+
 - `fixed`: exatamente um bloco de `fixed_duration_minutes`;
 - `fixed_multiple`: a RPC informa quantos blocos livres e consecutivos cabem em cada início;
 - `group_2`: usa `duration_minutes` da opção ativa do Grupo 2 e aceita exatamente um bloco.
@@ -143,6 +147,7 @@ As migrations são aplicadas em ordem:
 9. `20260818080000_appointment_whatsapp_reminders.sql` — registro controlado do último lembrete administrativo.
 10. `20260818090000_recurring_appointment_schema.sql` — séries semanais, vínculo das ocorrências, índices, triggers e RLS.
 11. `20260818091000_recurring_appointment_rpcs.sql` — criação, materialização idempotente e cancelamento transacional das séries.
+12. `20260818100000_multiple_business_hours.sql` — múltiplas janelas normalizadas, proteção contra sobreposição e motor/onboarding atualizados.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -156,11 +161,11 @@ Revise o diff gerado antes do commit.
 
 Um usuário autenticado sem memberships é enviado de `/admin` para `/onboarding`. Quem já pertence a um negócio é enviado do onboarding para o painel, inclusive quando o negócio está inativo, evitando loops de redirect.
 
-Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o primeiro negócio do usuário e executa uma única transação. A função usa `create_business_with_owner` e persiste nome, contatos públicos opcionais, estados e opções ordenadas dos Grupos 1 e 2, os sete dias de `business_hours`, modo de duração, paleta e preferência de tema.
+Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o primeiro negócio do usuário e executa uma única transação. A função usa `create_business_with_owner` e persiste nome, contatos públicos opcionais, estados e opções ordenadas dos Grupos 1 e 2, todas as janelas dos sete dias em `business_hours`, modo de duração, paleta e preferência de tema.
 
 O slug é derivado automaticamente do nome completo e exibido apenas como preview. Em conflito, a Server Action tenta sufixos numéricos simples (`nome-2`, `nome-3` etc.); a constraint única do banco continua sendo a garantia final e nenhum campo editável de slug é exigido no onboarding.
 
-As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
+As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Em Horários, ativar um dia, adicionar/remover períodos e copiar a segunda-feira operam sobre a lista completa de janelas; remover a última janela fecha o dia. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
 
 `business_settings.theme_preference` conserva o enum legado no schema por compatibilidade, mas a aplicação oferece somente `light` e `dark`. A migration converte registros `system` para `light`, altera o default e as leituras defensivas também normalizam qualquer valor legado para claro. O seletor é exclusivamente por ícone.
 
