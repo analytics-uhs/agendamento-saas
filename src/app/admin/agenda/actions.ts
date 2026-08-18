@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
-import { createAdminAppointment, getAdminAvailability, listAppointments, updateAppointmentStatus } from "@/lib/repositories/appointments";
-import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, ManualAppointmentInput } from "@/types/appointments";
+import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, listAppointments, updateAppointmentStatus } from "@/lib/repositories/appointments";
+import { formatNumericDate } from "@/lib/date";
+import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -17,6 +18,12 @@ function validOption(value: string | null) {
 }
 
 function actionError(message: string, code?: string): AppointmentActionResult<never> {
+  if (message.includes("recurring_conflicts:")) {
+    try {
+      const conflicts = JSON.parse(message.slice(message.indexOf("recurring_conflicts:") + 20)) as { date: string; start_time: string }[];
+      return { ok: false, conflict: true, message: `Não foi possível criar a recorrência. Existem conflitos em:\n\n${conflicts.map((item) => `${formatNumericDate(item.date)} às ${item.start_time}`).join("\n")}` };
+    } catch { return { ok: false, conflict: true, message: "Não foi possível criar a recorrência porque um ou mais horários estão ocupados." }; }
+  }
   if (code === "23P01" || message.includes("booking_conflict")) return { ok: false, conflict: true, message: "Este horário acabou de ser reservado. Escolha outro horário disponível." };
   if (message.includes("booking_invalid_group")) return { ok: false, staleSelection: true, message: "Uma opção selecionada não está mais disponível." };
   if (message.includes("appointment_invalid_status_transition")) return { ok: false, message: "Este agendamento não permite mais essa alteração de status." };
@@ -57,6 +64,29 @@ export async function createManualAppointment(input: ManualAppointmentInput): Pr
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   return { ok: true, message: "Agendamento criado.", data: await listAppointments(business.id, input.date) };
+}
+
+export async function createRecurringAppointment(input: RecurringAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
+  if (!datePattern.test(input.date) || !timePattern.test(input.startTime) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId) || !Number.isInteger(input.blocks) || input.blocks < 1 || (input.repeatCount !== null && (!Number.isInteger(input.repeatCount) || input.repeatCount < 2))) return { ok: false, message: "Revise os dados da recorrência." };
+  if (input.customerName.trim().length < 2) return { ok: false, message: "Informe o nome do cliente." };
+  if (!validateWhatsapp(input.customerWhatsapp)) return { ok: false, message: "Informe um WhatsApp válido com DDD." };
+  const business = await requireCurrentBusiness();
+  if (!business.active) return { ok: false, message: "Este estabelecimento está inativo e não aceita novos agendamentos." };
+  const error = await createRecurringAppointmentSeries({ ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) });
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin");
+  revalidatePath("/admin/agenda");
+  return { ok: true, message: "Recorrência criada.", data: await listAppointments(business.id, input.date) };
+}
+
+export async function cancelRecurringAppointment(appointmentId: string, scope: RecurringCancellationScope, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {
+  if (!uuid.test(appointmentId) || !datePattern.test(date) || !["single", "future"].includes(scope)) return { ok: false, message: "Cancelamento inválido." };
+  const business = await requireCurrentBusiness();
+  const error = await cancelRecurringAppointmentRepository(appointmentId, scope);
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin");
+  revalidatePath("/admin/agenda");
+  return { ok: true, message: scope === "single" ? "Esta ocorrência foi cancelada." : "Esta ocorrência e as próximas foram canceladas. A série foi encerrada.", data: await listAppointments(business.id, date) };
 }
 
 export async function changeAppointmentStatus(appointmentId: string, status: AppointmentStatus, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {

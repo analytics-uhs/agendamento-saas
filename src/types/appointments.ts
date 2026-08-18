@@ -2,6 +2,15 @@ import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types
 import type { BookingSlot } from "@/types/public-booking";
 
 export type AppointmentGroupSelection = { label: string; name: string };
+export type AppointmentSeriesSummary = {
+  id: string;
+  weekday: number;
+  startTime: string;
+  startsOn: string;
+  repeatCount: number | null;
+  active: boolean;
+  occurrenceNumber: number;
+};
 
 export type AdminAppointment = {
   id: string;
@@ -15,6 +24,7 @@ export type AdminAppointment = {
   source: AppointmentSource;
   reminderSentAt: string | null;
   reminderSentBy: string | null;
+  series: AppointmentSeriesSummary | null;
   group1: AppointmentGroupSelection | null;
   group2: AppointmentGroupSelection | null;
 };
@@ -36,6 +46,12 @@ export type ManualAppointmentInput = {
   customerName: string;
   customerWhatsapp: string;
 };
+
+export type RecurringAppointmentInput = ManualAppointmentInput & {
+  repeatCount: number | null;
+};
+
+export type RecurringCancellationScope = "single" | "future";
 
 export type AppointmentActionResult<T = undefined> =
   | { ok: true; message: string; data: T }

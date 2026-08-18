@@ -15,6 +15,7 @@ const appointment: AdminAppointment = {
   source: "public",
   reminderSentAt: null,
   reminderSentBy: null,
+  series: null,
   group1: { label: "Profissional", name: "Rebeca" },
   group2: { label: "Serviço", name: "Corte + barba" },
 };
