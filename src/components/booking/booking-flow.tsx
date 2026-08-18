@@ -14,7 +14,7 @@ import { classes } from "@/lib/classes";
 import { normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
 import { getPalette } from "@/lib/palettes";
-import type { BookingSlot, PublicBookingData } from "@/types/public-booking";
+import type { BookingConfirmation, BookingSlot, PublicBookingData } from "@/types/public-booking";
 import type { VisualThemePreference } from "@/types/business";
 import type { MockAppState } from "@/types/scheduling";
 
@@ -125,7 +125,11 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
         setMessage(result.message);
         return;
       }
-      sessionStorage.setItem(`booking-confirmation:${booking.business.slug}`, JSON.stringify(result.data));
+      sessionStorage.setItem(`booking-confirmation:${booking.business.slug}`, JSON.stringify({
+        ...result.data,
+        business: { ...result.data.business, whatsapp: booking.business.whatsapp },
+        appearance: { palette: booking.settings.palette, themePreference: booking.settings.themePreference },
+      } satisfies BookingConfirmation));
       router.push(`/agendar/${booking.business.slug}/confirmacao`);
     });
   }
