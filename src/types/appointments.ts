@@ -13,6 +13,8 @@ export type AdminAppointment = {
   durationMinutes: number;
   status: AppointmentStatus;
   source: AppointmentSource;
+  reminderSentAt: string | null;
+  reminderSentBy: string | null;
   group1: AppointmentGroupSelection | null;
   group2: AppointmentGroupSelection | null;
 };
@@ -40,3 +42,4 @@ export type AppointmentActionResult<T = undefined> =
   | { ok: false; message: string; conflict?: boolean; staleSelection?: boolean };
 
 export type AppointmentAvailabilityResult = AppointmentActionResult<BookingSlot[]>;
+export type AppointmentReminderResult = AppointmentActionResult<{ reminderSentAt: string }>;
