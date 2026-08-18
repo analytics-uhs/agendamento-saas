@@ -12,7 +12,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 - `booking_options`: opções genéricas ligadas ao grupo; `duration_minutes` serve ao modo `group_2`;
 - `business_hours`: sete dias, de 0 (domingo) a 6 (sábado);
 - `business_settings`: duração, paleta e preferência de tema;
-- `appointments`: reservas reais criadas pelo fluxo público; os estados não cancelados bloqueiam disponibilidade.
+- `appointments`: reservas públicas ou administrativas; `source` registra `public`/`admin`, e os estados não cancelados bloqueiam disponibilidade.
 
 Foreign keys compostas impedem que opções de outra empresa sejam referenciadas. Um trigger também valida que `group_1_option_id` e `group_2_option_id` apontem para as posições lógicas corretas. Outro trigger impede remover ou rebaixar o último owner.
 
@@ -24,7 +24,7 @@ Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private`
 - `private.has_business_role(business_id, roles[])`;
 - `private.is_platform_admin()`.
 
-Um usuário autenticado lê e altera somente o próprio profile. Membros leem o negócio e seus dados. `owner` e `admin` gerenciam configurações, opções, horários e appointments; somente `owner` gerencia memberships. Toda operação continua limitada ao `business_id` autorizado.
+Um usuário autenticado lê e altera somente o próprio profile. Membros leem o negócio e seus dados. `owner` e `admin` gerenciam configurações, opções, horários e appointments; somente `owner` gerencia memberships. Toda operação continua limitada ao `business_id` autorizado. O frontend nunca escolhe livremente um `business_id`: pages e Server Actions resolvem a primeira membership da sessão.
 
 `public.create_business_with_owner` é a primitiva atômica de onboarding: cria negócio, owner, dois grupos, sete dias de horários e settings padrão. Inserção direta em `businesses` não é concedida ao cliente autenticado.
 
@@ -84,6 +84,22 @@ Antes do insert, `create_public_appointment` obtém um advisory transaction lock
 
 Duas requisições para o mesmo slot são serializadas; a segunda recebe `booking_conflict` (`23P01`). A Server Action converte isso em mensagem amigável e recarrega a disponibilidade. O cliente nunca recebe mensagens internas do PostgreSQL.
 
+## Agenda administrativa
+
+Membros autenticados consultam appointments do próprio negócio através de repositories server-only e RLS. Dashboard e Agenda não recebem `business_id` do browser. Os detalhes exibem cliente, WhatsApp, duração, grupos, status e origem, sem mostrar identificadores técnicos.
+
+`create_admin_appointment(...)` resolve a membership `owner`/`admin`, define um contexto transacional de origem e chama `create_public_appointment`. O trigger de insert registra `source = admin` e `created_by = auth.uid()`; fora desse contexto, a origem é `public` e `created_by` permanece nulo.
+
+Na Data API, `authenticated` possui somente `SELECT` em `appointments`, ainda limitado pela RLS ao negócio do membro. Os privilégios diretos de `INSERT`, `UPDATE` e `DELETE` são revogados. Assim, a criação não contorna o motor compartilhado, a alteração de estado só ocorre por `set_appointment_status` e não há exclusão física de reservas no MVP. As RPCs são `security definer`, têm `search_path` fixo e continuam operando com os privilégios de seu proprietário, não com os grants do chamador.
+
+`set_appointment_status(id, status)` também resolve autorização no banco e aceita somente:
+
+- `scheduled → completed`;
+- `scheduled → cancelled`;
+- `scheduled → no_show`.
+
+Um trigger aplica a mesma regra inclusive para updates diretos autorizados. `source`, `created_by` e `business_id` são imutáveis. Cancelar remove o intervalo da constraint parcial e devolve o horário ao motor público.
+
 ## Migrations e tipos
 
 As migrations são aplicadas em ordem:
@@ -92,6 +108,8 @@ As migrations são aplicadas em ordem:
 2. `20260818020100_rls_and_public_booking_api.sql` — grants, policies e RPC pública.
 3. `20260818030000_business_onboarding_and_logos.sql` — onboarding transacional e bucket seguro de logos.
 4. `20260818040000_booking_engine.sql` — disponibilidade pública, criação atômica e proteção contra sobreposição.
+5. `20260818050000_admin_appointments.sql` — origem, criação manual compartilhada e transições administrativas.
+6. `20260818051000_restrict_appointment_mutations.sql` — mantém leitura via RLS e revoga mutações diretas em appointments.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -119,4 +137,4 @@ Uploads usam o caminho `<business_id>/logo`. As policies permitem SELECT/INSERT/
 
 ## Mocks restantes
 
-Dashboard e Agenda administrativos continuam mockados. O preview de Aparência ainda usa conteúdo fictício para permitir edição sem criar reservas; a página pública, sua disponibilidade e a criação de appointments usam dados reais.
+Somente o preview de Aparência usa conteúdo fictício para permitir edição sem criar reservas. Dashboard, Agenda, disponibilidade e criação de appointments usam dados reais.

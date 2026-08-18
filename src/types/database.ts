@@ -4,6 +4,7 @@ export type BusinessRole = "owner" | "admin";
 export type DurationMode = "fixed" | "fixed_multiple" | "group_2";
 export type ThemePreference = "light" | "dark" | "system";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_show";
+export type AppointmentSource = "public" | "admin";
 
 type Timestamps = { created_at: string; updated_at: string };
 
@@ -53,25 +54,28 @@ export interface Database {
         Relationships: [{ foreignKeyName: "business_settings_business_id_fkey"; columns: ["business_id"]; isOneToOne: true; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       appointments: {
-        Row: { id: string; business_id: string; group_1_option_id: string | null; group_2_option_id: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status: AppointmentStatus; created_at: string; created_by: string | null };
-        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status?: AppointmentStatus; created_at?: string; created_by?: string | null };
-        Update: { group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; appointment_date?: string; start_time?: string; end_time?: string; duration_minutes?: number; status?: AppointmentStatus; created_by?: string | null };
+        Row: { id: string; business_id: string; group_1_option_id: string | null; group_2_option_id: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status: AppointmentStatus; source: AppointmentSource; created_at: string; created_by: string | null };
+        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status?: AppointmentStatus; source?: AppointmentSource; created_at?: string; created_by?: string | null };
+        Update: { group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; appointment_date?: string; start_time?: string; end_time?: string; duration_minutes?: number; status?: AppointmentStatus; source?: AppointmentSource; created_by?: string | null };
         Relationships: [{ foreignKeyName: "appointments_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
     };
     Views: Record<string, never>;
     Functions: {
       complete_business_onboarding: { Args: { p_payload: Json }; Returns: string };
+      create_admin_appointment: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
+      set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
     };
     Enums: {
       business_role: BusinessRole;
       duration_mode: DurationMode;
       theme_preference: ThemePreference;
       appointment_status: AppointmentStatus;
+      appointment_source: AppointmentSource;
     };
     CompositeTypes: Record<string, never>;
   };

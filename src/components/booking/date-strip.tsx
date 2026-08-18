@@ -4,15 +4,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { addDays, dateWindow, dayNumber, toISO, todayISO, weekdayShort } from "@/lib/date";
 import { classes } from "@/lib/classes";
 
-export function DateStrip({ windowStart, onWindowStartChange, selected, onSelect, isUnavailable }: {
+export function DateStrip({ windowStart, onWindowStartChange, selected, onSelect, isUnavailable, allowPast = false }: {
   windowStart: string; onWindowStartChange: (date: string) => void; selected: string | null;
-  onSelect: (date: string) => void; isUnavailable?: (date: string) => boolean;
+  onSelect: (date: string) => void; isUnavailable?: (date: string) => boolean; allowPast?: boolean;
 }) {
   const today = todayISO();
   const days = dateWindow(windowStart);
   return <div>
     <div className="mb-3 flex items-center justify-between gap-2">
-      <button type="button" disabled={windowStart <= today} onClick={() => onWindowStartChange(toISO(addDays(windowStart, -7)))} aria-label="7 dias anteriores" className="focus-ring grid h-9 w-9 place-items-center rounded-lg border disabled:opacity-35"><ChevronLeft className="h-4 w-4" /></button>
+      <button type="button" disabled={!allowPast && windowStart <= today} onClick={() => onWindowStartChange(toISO(addDays(windowStart, -7)))} aria-label="7 dias anteriores" className="focus-ring grid h-9 w-9 place-items-center rounded-lg border disabled:opacity-35"><ChevronLeft className="h-4 w-4" /></button>
       <button type="button" onClick={() => onWindowStartChange(today)} className="focus-ring rounded-lg px-3 py-1.5 text-sm font-medium text-muted hover:text-foreground">Hoje</button>
       <button type="button" onClick={() => onWindowStartChange(toISO(addDays(windowStart, 7)))} aria-label="Próximos 7 dias" className="focus-ring grid h-9 w-9 place-items-center rounded-lg border"><ChevronRight className="h-4 w-4" /></button>
     </div>
