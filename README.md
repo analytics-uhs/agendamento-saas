@@ -20,6 +20,7 @@ O projeto já possui autenticação, fundação multiempresa, configuração rea
 - Dashboard e Agenda administrativos com dados reais, detalhes e alteração segura de status;
 - criação manual delegada ao mesmo motor de disponibilidade do fluxo público;
 - painel Super Admin com métricas, negócios paginados, detalhe e ativação controlada;
+- temas visuais binários (claro/escuro) e contatos públicos opcionais do estabelecimento;
 - seed sem credenciais, testes pgTAP e testes unitários das regras de formulário e disponibilidade.
 
 A página pública e as telas administrativas leem o Supabase. Apenas o preview de Aparência conserva conteúdo fictício para permitir edição visual sem criar reservas.
@@ -63,6 +64,8 @@ Os únicos modos de duração são:
 
 A página pública mantém a janela móvel de sete dias (hoje + seis dias), não uma semana fixa.
 
+A experiência visual oferece somente tema claro ou escuro. O controle é um botão por ícone (lua quando o tema claro está ativo e sol quando o escuro está ativo). Valores legados `system` são normalizados para `light` e novos cadastros não persistem preferência do sistema.
+
 ## Estrutura
 
 - `src/app`: rotas, actions de autenticação, onboarding e configurações;
@@ -85,6 +88,8 @@ A rota `/agendar/[slug]` carrega apenas a configuração pública curada. Ao esc
 
 A confirmação é devolvida pela RPC sem dados administrativos e mantida somente no `sessionStorage` do dispositivo, evitando dados pessoais na URL. Consulte [docs/database.md](docs/database.md) para as garantias de concorrência e a superfície pública.
 
+O cabeçalho público pode exibir endereço e links opcionais para WhatsApp, Google Maps, Instagram e Facebook. A RPC retorna apenas esses campos públicos curados; tabelas administrativas continuam indisponíveis para `anon`. Links aceitam exclusivamente HTTP(S), abrem em nova aba e não recebem contexto da aba de origem.
+
 ### Concorrência por recurso
 
 No MVP, o Grupo 1 define o recurso independente da agenda. Quando ele está ativo, cada `group_1_option_id` possui sua própria disponibilidade: duas quadras diferentes ou dois profissionais diferentes podem receber reservas no mesmo horário, mas a mesma quadra ou o mesmo profissional não pode ter intervalos sobrepostos. Quando o Grupo 1 está inativo, o estabelecimento inteiro é um único recurso e, portanto, só pode existir uma reserva por intervalo.
@@ -106,6 +111,8 @@ As rotas `/super-admin` e `/super-admin/negocios` são protegidas no servidor pe
 A ativação passa por `set_platform_business_active`, registra ator e horário e não exclui dados. Um negócio inativo continua acessível aos seus membros com um aviso no painel, mas sua página pública, disponibilidade e criação pública ou administrativa de appointments permanecem bloqueadas pelo banco. Owners podem editar os campos públicos do negócio, mas não conseguem alterar `active` diretamente pela Data API.
 
 Não existe cadastro público de Super Admin. Consulte [docs/database.md](docs/database.md#promover-o-primeiro-super-admin) para o procedimento administrativo de promoção inicial.
+
+No onboarding, o endereço público é gerado automaticamente a partir do nome completo. O usuário vê apenas o preview; se o slug já existir, a aplicação tenta sufixos numéricos simples, enquanto a constraint única do banco permanece a garantia definitiva.
 
 ## Ainda não implementado
 

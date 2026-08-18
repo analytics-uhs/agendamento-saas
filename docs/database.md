@@ -4,7 +4,7 @@
 
 `profiles` estende `auth.users` em uma relação 1:1 e não duplica e-mail. O trigger `on_auth_user_created` cria o perfil automaticamente.
 
-`businesses` representa o estabelecimento. `business_members` é a relação N:N entre usuários e empresas e começa com os papéis `owner` e `admin`; não existe a premissa de um único usuário por negócio.
+`businesses` representa o estabelecimento e guarda também os contatos públicos opcionais `address`, `google_maps_url`, `instagram_url` e `facebook_url`. Os três links aceitam somente HTTP(S) e têm constraints de tamanho e protocolo no banco. `business_members` é a relação N:N entre usuários e empresas e começa com os papéis `owner` e `admin`; não existe a premissa de um único usuário por negócio.
 
 Todos os registros de negócio carregam ou derivam `business_id`:
 
@@ -60,7 +60,7 @@ O e-mail é usado apenas para localizar o UUID durante a operação privilegiada
 
 ### Negócios inativos
 
-Somente `set_platform_business_active` altera `businesses.active`. O grant genérico de `UPDATE` foi substituído por grants de coluna para `name`, `slug`, `whatsapp` e `logo_url`, impedindo que owner/admin se reative pela Data API.
+Somente `set_platform_business_active` altera `businesses.active`. O grant genérico de `UPDATE` foi substituído por grants de coluna para `name`, `slug`, `whatsapp`, `logo_url`, `address`, `google_maps_url`, `instagram_url` e `facebook_url`, impedindo que owner/admin se reative pela Data API.
 
 Um negócio inativo preserva membros, configurações e histórico. Seus proprietários continuam acessando `/admin` e veem um aviso, mas não podem criar novos agendamentos. `get_public_booking_page` deixa de publicar o negócio, `get_booking_availability` retorna uma lista vazia e `create_public_appointment` rejeita a criação. Como `create_admin_appointment` delega ao mesmo motor, a criação administrativa também é rejeitada. A reativação restaura a superfície pública sem recriar dados.
 
@@ -74,12 +74,14 @@ Um negócio inativo preserva membros, configurações e histórico. Seus proprie
 
 A configuração pública contém apenas:
 
-- nome, slug, WhatsApp e logo de um negócio ativo;
+- nome, slug, WhatsApp, logo, endereço e links sociais/localização opcionais de um negócio ativo;
 - grupos e opções ativos;
 - horários ativos;
 - settings indispensáveis para renderização e duração.
 
 Profiles, memberships, appointments existentes e dados de outros clientes nunca são retornados. Os IDs públicos de negócio e opções são usados apenas como referências opacas e são revalidados contra o slug e o estado ativo no banco.
+
+Os links públicos são normalizados na aplicação e validados novamente por constraints. Protocolos executáveis, como `javascript:` e `data:`, são rejeitados. A interface usa nova aba com `noopener noreferrer`. A RPC não concede `SELECT` anônimo em `businesses` nem inclui `active`, timestamps ou outros campos administrativos.
 
 ### Disponibilidade e duração
 
@@ -136,6 +138,7 @@ As migrations são aplicadas em ordem:
 5. `20260818050000_admin_appointments.sql` — origem, criação manual compartilhada e transições administrativas.
 6. `20260818051000_restrict_appointment_mutations.sql` — mantém leitura via RLS e revoga mutações diretas em appointments.
 7. `20260818060000_super_admin.sql` — RPCs globais controladas, auditoria de status e privilégios de ativação.
+8. `20260818070000_mvp_visual_polish.sql` — contatos públicos opcionais, tema binário padrão e atualização curada das RPCs de onboarding/página pública.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -149,11 +152,13 @@ Revise o diff gerado antes do commit.
 
 Um usuário autenticado sem memberships é enviado de `/admin` para `/onboarding`. Quem já pertence a um negócio é enviado do onboarding para o painel, inclusive quando o negócio está inativo, evitando loops de redirect.
 
-Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o primeiro negócio do usuário e executa uma única transação. A função usa `create_business_with_owner` e persiste nomes, estados e opções ordenadas dos Grupos 1 e 2, os sete dias de `business_hours`, modo de duração, paleta e preferência de tema.
+Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o primeiro negócio do usuário e executa uma única transação. A função usa `create_business_with_owner` e persiste nome, contatos públicos opcionais, estados e opções ordenadas dos Grupos 1 e 2, os sete dias de `business_hours`, modo de duração, paleta e preferência de tema.
 
-O slug é normalizado e validado na aplicação, mas a constraint única do banco continua sendo a garantia final. Conflitos PostgreSQL `23505` são convertidos em uma mensagem amigável.
+O slug é derivado automaticamente do nome completo e exibido apenas como preview. Em conflito, a Server Action tenta sufixos numéricos simples (`nome-2`, `nome-3` etc.); a constraint única do banco continua sendo a garantia final e nenhum campo editável de slug é exigido no onboarding.
 
 As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
+
+`business_settings.theme_preference` conserva o enum legado no schema por compatibilidade, mas a aplicação oferece somente `light` e `dark`. A migration converte registros `system` para `light`, altera o default e as leituras defensivas também normalizam qualquer valor legado para claro. O seletor é exclusivamente por ícone.
 
 ## Storage de logos
 
