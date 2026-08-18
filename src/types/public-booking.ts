@@ -24,7 +24,7 @@ export type PublicBookingData = {
 };
 export type BookingSlot = { startTime: string; durationMinutes: number; maxBlocks: number };
 export type BookingConfirmation = {
-  business: { name: string; slug: string; logoUrl: string | null };
+  business: { name: string; slug: string; logoUrl: string | null; whatsapp?: string | null };
   group1: { label: string; name: string } | null;
   group2: { label: string; name: string } | null;
   appointmentDate: string;
@@ -32,5 +32,6 @@ export type BookingConfirmation = {
   endTime: string;
   durationMinutes: number;
   customerName: string;
+  appearance?: { palette: Palette; themePreference: VisualThemePreference };
 };
 export type PublicActionResult<T> = { ok: true; data: T } | { ok: false; message: string; conflict?: boolean; staleSelection?: boolean };
