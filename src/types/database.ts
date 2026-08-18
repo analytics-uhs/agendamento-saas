@@ -54,9 +54,9 @@ export interface Database {
         Relationships: [{ foreignKeyName: "business_settings_business_id_fkey"; columns: ["business_id"]; isOneToOne: true; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       appointments: {
-        Row: { id: string; business_id: string; group_1_option_id: string | null; group_2_option_id: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status: AppointmentStatus; source: AppointmentSource; created_at: string; created_by: string | null };
-        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status?: AppointmentStatus; source?: AppointmentSource; created_at?: string; created_by?: string | null };
-        Update: { group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; appointment_date?: string; start_time?: string; end_time?: string; duration_minutes?: number; status?: AppointmentStatus; source?: AppointmentSource; created_by?: string | null };
+        Row: { id: string; business_id: string; group_1_option_id: string | null; group_2_option_id: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status: AppointmentStatus; source: AppointmentSource; created_at: string; created_by: string | null; reminder_sent_at: string | null; reminder_sent_by: string | null };
+        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name: string; customer_whatsapp: string; appointment_date: string; start_time: string; end_time: string; duration_minutes: number; status?: AppointmentStatus; source?: AppointmentSource; created_at?: string; created_by?: string | null; reminder_sent_at?: string | null; reminder_sent_by?: string | null };
+        Update: { group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; appointment_date?: string; start_time?: string; end_time?: string; duration_minutes?: number; status?: AppointmentStatus; source?: AppointmentSource; created_by?: string | null; reminder_sent_at?: string | null; reminder_sent_by?: string | null };
         Relationships: [{ foreignKeyName: "appointments_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
     };
@@ -72,6 +72,7 @@ export interface Database {
       get_platform_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
       is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       list_platform_businesses: { Args: { p_search?: string | null; p_active?: boolean | null; p_page?: number; p_page_size?: number }; Returns: Json };
+      mark_appointment_reminder_sent: { Args: { p_appointment_id: string }; Returns: string };
       set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
       set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
     };
