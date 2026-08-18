@@ -42,6 +42,10 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
       slug: business.slug,
       whatsapp: typeof business.whatsapp === "string" ? business.whatsapp : null,
       logoUrl: typeof business.logo_url === "string" ? business.logo_url : null,
+      address: typeof business.address === "string" ? business.address : null,
+      googleMapsUrl: typeof business.google_maps_url === "string" ? business.google_maps_url : null,
+      instagramUrl: typeof business.instagram_url === "string" ? business.instagram_url : null,
+      facebookUrl: typeof business.facebook_url === "string" ? business.facebook_url : null,
     },
     groups,
     hours,
@@ -50,7 +54,7 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
       fixedDurationMinutes: typeof settings.fixed_duration_minutes === "number" ? settings.fixed_duration_minutes : 60,
       allowMultipleBlocks: settings.allow_multiple_blocks === true,
       palette,
-      themePreference: settings.theme_preference === "light" || settings.theme_preference === "dark" ? settings.theme_preference : "system",
+      themePreference: settings.theme_preference === "dark" ? "dark" : "light",
     },
   };
 }

@@ -10,18 +10,16 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
-    { media: "(prefers-color-scheme: dark)", color: "#181818" },
-  ],
+  themeColor: "#FFFFFF",
 };
 
 const themeScript = `
   try {
-    const theme = localStorage.getItem('agenda-theme') || 'system';
-    const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-    document.documentElement.classList.toggle('dark', dark);
+    const theme = localStorage.getItem('agenda-theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
     document.documentElement.dataset.theme = theme;
+    localStorage.setItem('agenda-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#181818' : '#FFFFFF');
   } catch (_) {}
 `;
 

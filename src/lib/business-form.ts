@@ -1,4 +1,4 @@
-import type { BusinessForm } from "@/types/business";
+import type { BusinessForm, VisualThemePreference } from "@/types/business";
 import type { DurationMode } from "@/types/database";
 import { getPalette } from "@/lib/palettes";
 
@@ -7,6 +7,44 @@ export const weekdayLabels = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta"
 export function normalizeSlug(value: string) {
   return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-");
+}
+
+export function slugCandidate(value: string, attempt = 1) {
+  const base = normalizeSlug(value).slice(0, 80);
+  if (attempt <= 1) return base;
+  const suffix = `-${attempt}`;
+  return `${base.slice(0, 80 - suffix.length).replace(/-+$/g, "")}${suffix}`;
+}
+
+export function normalizeOptionalUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    if (!["http:", "https:"].includes(url.protocol) || !url.hostname.includes(".")) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeVisualTheme(value: string): VisualThemePreference {
+  return value === "dark" ? "dark" : "light";
+}
+
+export function validateBusinessContact(form: Pick<BusinessForm, "address" | "googleMapsUrl" | "instagramUrl" | "facebookUrl">) {
+  if (form.address.trim().length > 500) return "O endereço deve ter no máximo 500 caracteres.";
+  const links = [
+    [form.googleMapsUrl, "Google Maps"],
+    [form.instagramUrl, "Instagram"],
+    [form.facebookUrl, "Facebook"],
+  ] as const;
+  for (const [value, label] of links) {
+    if (value.trim() && !normalizeOptionalUrl(value)) return `Informe um link HTTP ou HTTPS válido para ${label}.`;
+    if (value.trim().length > 2048) return `O link de ${label} deve ter no máximo 2048 caracteres.`;
+  }
+  return null;
 }
 
 export function validateSlug(value: string) {
@@ -28,6 +66,8 @@ export function validateBusinessForm(form: BusinessForm) {
   if (form.name.trim().length < 2) return "Informe o nome do negócio.";
   const slugError = validateSlug(form.slug);
   if (slugError) return slugError;
+  const contactError = validateBusinessContact(form);
+  if (contactError) return contactError;
   for (const group of form.groups) {
     if (!group.label.trim()) return `Informe o nome do Grupo ${group.position}.`;
     if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao Grupo ${group.position}.`;
@@ -41,6 +81,10 @@ export function validateBusinessForm(form: BusinessForm) {
 export function toOnboardingPayload(form: BusinessForm) {
   return {
     name: form.name.trim(), slug: normalizeSlug(form.slug), whatsapp: form.whatsapp.trim() || null,
+    address: form.address.trim() || null,
+    google_maps_url: normalizeOptionalUrl(form.googleMapsUrl),
+    instagram_url: normalizeOptionalUrl(form.instagramUrl),
+    facebook_url: normalizeOptionalUrl(form.facebookUrl),
     groups: form.groups.map((group) => ({
       position: group.position, label: group.label.trim(), active: group.active, required: group.required,
       options: group.options.map((option, sort_order) => ({
@@ -55,14 +99,15 @@ export function toOnboardingPayload(form: BusinessForm) {
       fixed_duration_minutes: form.fixedDurationMinutes,
       allow_multiple_blocks: form.durationMode === "fixed_multiple",
       palette: getPalette(form.paletteId),
-      theme_preference: form.themePreference,
+      theme_preference: normalizeVisualTheme(form.themePreference),
     },
   };
 }
 
 export function createEmptyBusinessForm(): BusinessForm {
   return {
-    name: "", slug: "", whatsapp: "", logoUrl: null,
+    name: "", slug: "", whatsapp: "", logoUrl: null, address: "",
+    googleMapsUrl: "", instagramUrl: "", facebookUrl: "",
     groups: [
       { position: 1, label: "Grupo 1", active: true, required: true, options: [] },
       { position: 2, label: "Grupo 2", active: true, required: true, options: [] },
@@ -71,6 +116,6 @@ export function createEmptyBusinessForm(): BusinessForm {
       weekday, label, active: weekday >= 1 && weekday <= 6,
       startTime: weekday === 6 ? "09:00" : "08:00", endTime: weekday === 6 ? "14:00" : "18:00",
     })),
-    durationMode: "fixed", fixedDurationMinutes: 60, paletteId: "original", themePreference: "system",
+    durationMode: "fixed", fixedDurationMinutes: 60, paletteId: "original", themePreference: "light",
   };
 }

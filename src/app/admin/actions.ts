@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
-import { normalizeSlug, validateDuration, validateSlug } from "@/lib/business-form";
+import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import type { ActionResult, BusinessGroupForm, BusinessHourForm } from "@/types/business";
-import type { DurationMode, ThemePreference } from "@/types/database";
+import type { ActionResult, BusinessForm, BusinessGroupForm, BusinessHourForm, VisualThemePreference } from "@/types/business";
+import type { DurationMode } from "@/types/database";
 
 async function context() {
   const user = await requireAuthenticatedUser();
@@ -22,15 +22,21 @@ function databaseMessage(message: string, code?: string) {
   return "Não foi possível salvar agora. Tente novamente.";
 }
 
-export async function saveBusiness(input: { name: string; whatsapp: string; slug: string }): Promise<ActionResult> {
+export async function saveBusiness(input: Pick<BusinessForm, "name" | "whatsapp" | "slug" | "address" | "googleMapsUrl" | "instagramUrl" | "facebookUrl">): Promise<ActionResult> {
   const current = await context();
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   if (input.name.trim().length < 2) return { ok: false, message: "Informe o nome do negócio." };
   const slugError = validateSlug(input.slug);
   if (slugError) return { ok: false, message: slugError };
+  const contactError = validateBusinessContact(input);
+  if (contactError) return { ok: false, message: contactError };
 
   const { error } = await current.supabase.from("businesses").update({
     name: input.name.trim(), whatsapp: input.whatsapp.trim() || null, slug: normalizeSlug(input.slug),
+    address: input.address.trim() || null,
+    google_maps_url: normalizeOptionalUrl(input.googleMapsUrl),
+    instagram_url: normalizeOptionalUrl(input.instagramUrl),
+    facebook_url: normalizeOptionalUrl(input.facebookUrl),
   }).eq("id", current.business.id);
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin", "layout");
@@ -107,10 +113,10 @@ export async function saveHours(hours: BusinessHourForm[]): Promise<ActionResult
   return { ok: true, message: "Horários salvos." };
 }
 
-export async function saveAppearance(input: { paletteId: string; themePreference: ThemePreference }): Promise<ActionResult> {
+export async function saveAppearance(input: { paletteId: string; themePreference: VisualThemePreference }): Promise<ActionResult> {
   const current = await context();
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
-  if (!(["light", "dark", "system"] as ThemePreference[]).includes(input.themePreference)) return { ok: false, message: "Preferência de tema inválida." };
+  if (!(["light", "dark"] as VisualThemePreference[]).includes(input.themePreference)) return { ok: false, message: "Preferência de tema inválida." };
   const { error } = await current.supabase.from("business_settings").update({
     palette: getPalette(input.paletteId), theme_preference: input.themePreference,
   }).eq("business_id", current.business.id);

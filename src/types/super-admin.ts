@@ -1,4 +1,5 @@
-import type { AppointmentSource, AppointmentStatus, BusinessRole, DurationMode, ThemePreference } from "@/types/database";
+import type { AppointmentSource, AppointmentStatus, BusinessRole, DurationMode } from "@/types/database";
+import type { VisualThemePreference } from "@/types/business";
 
 export type PlatformMetrics = {
   totalBusinesses: number;
@@ -35,6 +36,10 @@ export type PlatformBusinessDetail = {
     slug: string;
     whatsapp: string | null;
     logoUrl: string | null;
+    address: string | null;
+    googleMapsUrl: string | null;
+    instagramUrl: string | null;
+    facebookUrl: string | null;
     active: boolean;
     createdAt: string;
     updatedAt: string;
@@ -46,7 +51,7 @@ export type PlatformBusinessDetail = {
     fixedDurationMinutes: number;
     allowMultipleBlocks: boolean;
     palette: { id?: string; primary?: string; accent?: string };
-    themePreference: ThemePreference;
+    themePreference: VisualThemePreference;
   } | null;
   groups: {
     position: 1 | 2;
@@ -73,4 +78,3 @@ export type PlatformBusinessDetail = {
 
 export type BusinessStatusFilter = "all" | "active" | "inactive";
 export type PlatformBusinessQuery = { search: string; status: BusinessStatusFilter; page: number };
-

@@ -32,7 +32,7 @@ export function AdminShell({ children, currentBusiness, platformAdmin }: { child
       </nav>
       <div className="mt-auto space-y-3">
         <ThemeControl />
-        {business.active ? <Link href={`/agendar/${business.slug}`} className="focus-ring block rounded-xl border p-3">
+        {business.active ? <Link href={`/agendar/${business.slug}`} target="_blank" rel="noopener noreferrer" className="focus-ring block rounded-xl border p-3">
           <span className="text-xs text-muted">Página pública</span>
           <span className="mt-1 flex items-center gap-1 text-sm font-medium text-primary"><span className="truncate">{publicDomain}/{business.slug}</span><ExternalLink className="h-3.5 w-3.5" /></span>
         </Link> : <div className="rounded-xl border border-accent/35 bg-accent/10 p-3"><span className="text-xs font-medium text-foreground">Página pública indisponível</span><p className="mt-1 text-xs text-muted">Negócio inativo pela plataforma.</p></div>}
@@ -41,7 +41,7 @@ export function AdminShell({ children, currentBusiness, platformAdmin }: { child
     </aside>
     <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background px-4 py-3 lg:hidden">
       <Link href="/admin" className="flex min-w-0 items-center gap-2"><Logo size="sm" /><span className="truncate text-sm font-semibold">{business.name}</span></Link>
-      <div className="flex items-center gap-1"><ThemeControl compact />{business.active ? <Link href={`/agendar/${business.slug}`} className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium">Ver página</Link> : <span className="rounded-lg border border-accent/35 bg-accent/10 px-2 py-1.5 text-xs font-medium">Inativo</span>}<form action={logout}><button type="submit" aria-label="Sair" className="focus-ring rounded-lg border p-2 text-muted"><LogOut className="h-4 w-4" /></button></form></div>
+      <div className="flex items-center gap-1"><ThemeControl compact />{business.active ? <Link href={`/agendar/${business.slug}`} target="_blank" rel="noopener noreferrer" className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-medium">Ver página</Link> : <span className="rounded-lg border border-accent/35 bg-accent/10 px-2 py-1.5 text-xs font-medium">Inativo</span>}<form action={logout}><button type="submit" aria-label="Sair" className="focus-ring rounded-lg border p-2 text-muted"><LogOut className="h-4 w-4" /></button></form></div>
     </header>
     <main className="px-4 pb-28 pt-7 lg:ml-64 lg:px-10 lg:pb-12"><div className="mx-auto w-full max-w-5xl">{!business.active ? <div role="status" className="mb-6 flex items-start gap-3 rounded-xl border border-accent/35 bg-accent/10 p-4"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-accent" /><div><p className="text-sm font-semibold">Estabelecimento inativo</p><p className="mt-0.5 text-sm text-muted">Você pode consultar e configurar o painel, mas a página pública e novos agendamentos estão indisponíveis.</p></div></div> : null}{children}</div></main>
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background lg:hidden" aria-label="Principal móvel"><div className="no-scrollbar flex overflow-x-auto">
