@@ -6,7 +6,7 @@ import type { AvailabilityInput, BusyInterval } from "./availability";
 const base: AvailabilityInput = {
   date: "2026-08-19",
   today: "2026-08-18",
-  businessHour: { active: true, startTime: "08:00", endTime: "12:00" },
+  businessHours: [{ active: true, startTime: "08:00", endTime: "12:00" }],
   durationMode: "fixed",
   fixedDurationMinutes: 60,
   appointments: [],
@@ -28,8 +28,24 @@ test("calcula somente blocos múltiplos consecutivos", () => {
 });
 
 test("não gera horários fora do funcionamento ou em dia fechado", () => {
-  assert.equal(generateAvailability({ ...base, businessHour: { active: true, startTime: "08:00", endTime: "08:30" } }).length, 0);
-  assert.equal(generateAvailability({ ...base, businessHour: { active: false, startTime: "08:00", endTime: "12:00" } }).length, 0);
+  assert.equal(generateAvailability({ ...base, businessHours: [{ active: true, startTime: "08:00", endTime: "08:30" }] }).length, 0);
+  assert.equal(generateAvailability({ ...base, businessHours: [{ active: false, startTime: "08:00", endTime: "12:00" }] }).length, 0);
+});
+
+test("gera slots em duas janelas e preserva o intervalo de almoço", () => {
+  const slots = generateAvailability({ ...base, businessHours: [
+    { active: true, startTime: "08:00", endTime: "11:00" },
+    { active: true, startTime: "14:00", endTime: "20:00" },
+  ] });
+  assert.deepEqual(slots.map((slot) => slot.startTime), ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00"]);
+});
+
+test("blocos múltiplos e duração do Grupo 2 nunca atravessam o fechamento", () => {
+  const businessHours = [{ active: true, startTime: "08:00", endTime: "11:00" }];
+  const multiple = generateAvailability({ ...base, businessHours, durationMode: "fixed_multiple" });
+  assert.equal(multiple.find((slot) => slot.startTime === "10:00")?.maxBlocks, 1);
+  const group2 = generateAvailability({ ...base, businessHours, durationMode: "group_2", group2DurationMinutes: 90 });
+  assert.equal(group2.some((slot) => slot.startTime === "10:00"), false);
 });
 
 test("reserva no início bloqueia o primeiro slot e libera o limite final", () => {

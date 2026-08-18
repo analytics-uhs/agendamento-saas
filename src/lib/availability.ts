@@ -2,11 +2,12 @@ import type { AppointmentStatus, DurationMode } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
 
 export type BusyInterval = { startTime: string; endTime: string; status: AppointmentStatus };
+export type OpeningWindow = { active: boolean; startTime: string; endTime: string };
 export type AvailabilityInput = {
   date: string;
   today: string;
   currentTime?: string;
-  businessHour: { active: boolean; startTime: string; endTime: string } | null;
+  businessHours: OpeningWindow[];
   durationMode: DurationMode;
   fixedDurationMinutes: number;
   group2DurationMinutes?: number | null;
@@ -27,35 +28,37 @@ export function intervalsOverlap(newStart: number, newEnd: number, existingStart
 }
 
 export function generateAvailability(input: AvailabilityInput): BookingSlot[] {
-  if (!input.businessHour?.active || input.date < input.today) return [];
+  if (input.date < input.today) return [];
   const duration = input.durationMode === "group_2" ? input.group2DurationMinutes : input.fixedDurationMinutes;
   if (!duration || !Number.isInteger(duration) || duration <= 0) return [];
 
-  const opening = timeToMinutes(input.businessHour.startTime);
-  const closing = timeToMinutes(input.businessHour.endTime);
   const now = input.date === input.today && input.currentTime ? timeToMinutes(input.currentTime) : null;
   const busy = input.appointments
     .filter((appointment) => appointment.status !== "cancelled")
     .map((appointment) => ({ start: timeToMinutes(appointment.startTime), end: timeToMinutes(appointment.endTime) }));
   const slots: BookingSlot[] = [];
 
-  for (let start = opening; start + duration <= closing; start += duration) {
-    if (now !== null && start <= now) continue;
-    if (input.durationMode === "fixed_multiple") {
-      let maxBlocks = 0;
-      for (let blocks = 1; start + duration * blocks <= closing; blocks += 1) {
-        if (busy.some((appointment) => intervalsOverlap(start, start + duration * blocks, appointment.start, appointment.end))) break;
-        maxBlocks = blocks;
+  for (const businessHour of input.businessHours.filter((hour) => hour.active)) {
+    const opening = timeToMinutes(businessHour.startTime);
+    const closing = timeToMinutes(businessHour.endTime);
+    for (let start = opening; start + duration <= closing; start += duration) {
+      if (now !== null && start <= now) continue;
+      if (input.durationMode === "fixed_multiple") {
+        let maxBlocks = 0;
+        for (let blocks = 1; start + duration * blocks <= closing; blocks += 1) {
+          if (busy.some((appointment) => intervalsOverlap(start, start + duration * blocks, appointment.start, appointment.end))) break;
+          maxBlocks = blocks;
+        }
+        if (maxBlocks) slots.push({ startTime: minutesToTime(start), durationMinutes: duration, maxBlocks });
+        continue;
       }
-      if (maxBlocks) slots.push({ startTime: minutesToTime(start), durationMinutes: duration, maxBlocks });
-      continue;
-    }
 
-    if (!busy.some((appointment) => intervalsOverlap(start, start + duration, appointment.start, appointment.end))) {
-      slots.push({ startTime: minutesToTime(start), durationMinutes: duration, maxBlocks: 1 });
+      if (!busy.some((appointment) => intervalsOverlap(start, start + duration, appointment.start, appointment.end))) {
+        slots.push({ startTime: minutesToTime(start), durationMinutes: duration, maxBlocks: 1 });
+      }
     }
   }
-  return slots;
+  return slots.sort((first, second) => first.startTime.localeCompare(second.startTime));
 }
 
 export function normalizeWhatsapp(value: string) {

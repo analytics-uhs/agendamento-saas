@@ -15,6 +15,7 @@ O projeto já possui autenticação, fundação multiempresa, configuração rea
 - RPCs anônimas curadas para configuração, disponibilidade e criação de reservas;
 - onboarding real para o primeiro estabelecimento;
 - persistência de Meu negócio, Configuração da agenda, Horários e Aparência;
+- múltiplos períodos de funcionamento por dia, inclusive no onboarding;
 - upload restrito de logos pelo Supabase Storage;
 - criação atômica de appointments com proteção contra reservas concorrentes;
 - Dashboard e Agenda administrativos com dados reais, detalhes e alteração segura de status;
@@ -85,6 +86,8 @@ Veja [docs/database.md](docs/database.md) para o modelo, RLS, Super Admin e supe
 A rota `/agendar/[slug]` carrega apenas a configuração pública curada. Ao escolher os grupos e uma data, consulta slots reais e respeita horário de funcionamento, data/hora atual, duração e appointments não cancelados. A navegação continua sendo uma janela móvel de sete dias: hoje + seis dias, com avanços e retornos de sete dias.
 
 `fixed` oferece um bloco fixo; `fixed_multiple` calcula quantos blocos consecutivos cabem a partir do horário; `group_2` usa `duration_minutes` da opção ativa do Grupo 2. A criação é feita pela RPC transacional `create_public_appointment`, nunca por insert anônimo direto.
+
+Cada dia pode ter várias janelas normalizadas, como `08:00–11:00` e `14:00–20:00`. A disponibilidade é gerada separadamente dentro de cada janela: o intervalo fechado não produz slots e nenhuma duração, inclusive múltiplos blocos ou duração do Grupo 2, pode atravessar seu limite. Períodos adjacentes são aceitos; períodos sobrepostos são rejeitados no formulário, na RPC de persistência e por constraint no banco.
 
 A confirmação é devolvida pela RPC sem dados administrativos e mantida somente no `sessionStorage` do dispositivo, evitando dados pessoais na URL. Consulte [docs/database.md](docs/database.md) para as garantias de concorrência e a superfície pública.
 

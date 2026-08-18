@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
-import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateDuration, validateSlug } from "@/lib/business-form";
+import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult, BusinessForm, BusinessGroupForm, BusinessHourForm, VisualThemePreference } from "@/types/business";
@@ -19,6 +19,7 @@ async function context() {
 
 function databaseMessage(message: string, code?: string) {
   if (code === "23505" || message.includes("businesses_slug_unique")) return "Esta URL já está em uso. Escolha outra.";
+  if (code === "23P01" || message.includes("business_hours_overlap")) return "Os períodos do mesmo dia não podem se sobrepor.";
   return "Não foi possível salvar agora. Tente novamente.";
 }
 
@@ -103,11 +104,13 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
 export async function saveHours(hours: BusinessHourForm[]): Promise<ActionResult> {
   const current = await context();
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
-  if (hours.length !== 7 || hours.some((hour) => hour.active && hour.startTime >= hour.endTime)) return { ok: false, message: "Revise os horários de funcionamento." };
-  const { error } = await current.supabase.from("business_hours").upsert(hours.map((hour) => ({
-    id: hour.id, business_id: current.business.id, weekday: hour.weekday, active: hour.active,
-    start_time: hour.startTime, end_time: hour.endTime,
-  })), { onConflict: "business_id,weekday" });
+  const validationError = validateBusinessHours(hours);
+  if (validationError) return { ok: false, message: validationError };
+  const { error } = await current.supabase.rpc("replace_business_hours", { p_hours: hours.map((hour) => ({
+    weekday: hour.weekday,
+    active: hour.active && hour.windows.length > 0,
+    windows: hour.windows.map((window) => ({ start_time: window.startTime, end_time: window.endTime })),
+  })) });
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin/horarios");
   return { ok: true, message: "Horários salvos." };

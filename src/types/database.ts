@@ -79,6 +79,7 @@ export interface Database {
       is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       list_platform_businesses: { Args: { p_search?: string | null; p_active?: boolean | null; p_page?: number; p_page_size?: number }; Returns: Json };
       mark_appointment_reminder_sent: { Args: { p_appointment_id: string }; Returns: string };
+      replace_business_hours: { Args: { p_hours: Json }; Returns: boolean };
       create_recurring_appointment_series: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_starts_on: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string; p_repeat_count?: number | null }; Returns: Json };
       materialize_recurring_appointments: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
       cancel_recurring_appointment: { Args: { p_appointment_id: string; p_scope: string }; Returns: Json };
