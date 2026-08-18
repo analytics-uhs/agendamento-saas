@@ -4,7 +4,7 @@ SaaS multiempresa de agendamentos. A interface Next.js foi adaptada do MVP visua
 
 ## Estado atual
 
-O projeto já possui autenticação, fundação multiempresa, configuração real do estabelecimento e motor público de agendamento:
+O projeto já possui autenticação, fundação multiempresa, configuração real do estabelecimento e gestão completa do MVP de agendamentos:
 
 - login, logout, sessão SSR e proteção de `/admin` com Supabase Auth;
 - modelo multiempresa isolado por estabelecimento;
@@ -17,9 +17,11 @@ O projeto já possui autenticação, fundação multiempresa, configuração rea
 - persistência de Meu negócio, Configuração da agenda, Horários e Aparência;
 - upload restrito de logos pelo Supabase Storage;
 - criação atômica de appointments com proteção contra reservas concorrentes;
+- Dashboard e Agenda administrativos com dados reais, detalhes e alteração segura de status;
+- criação manual delegada ao mesmo motor de disponibilidade do fluxo público;
 - seed sem credenciais, testes pgTAP e testes unitários das regras de formulário e disponibilidade.
 
-Dashboard e Agenda administrativos ainda usam `src/mocks`. A página pública lê o Supabase e cria agendamentos reais; o preview de Aparência conserva dados fictícios para não misturar edição visual com reservas.
+A página pública e as telas administrativas leem o Supabase. Apenas o preview de Aparência conserva conteúdo fictício para permitir edição visual sem criar reservas.
 
 ## Configuração local
 
@@ -65,7 +67,7 @@ A página pública mantém a janela móvel de sete dias (hoje + seis dias), não
 - `src/app`: rotas, actions de autenticação, onboarding e configurações;
 - `src/components`: UI aprovada conectada progressivamente aos dados reais;
 - `src/lib/supabase`: clients SSR/browser e renovação da sessão;
-- `src/lib/repositories`: acesso tipado ao negócio, suas configurações e leitura pública;
+- `src/lib/repositories`: acesso tipado ao negócio, configurações, appointments e leitura pública;
 - `src/types/database.ts`: tipos do schema Supabase;
 - `src/mocks`: dados ainda usados pelas telas não migradas;
 - `supabase/migrations`: schema e RLS versionados;
@@ -88,8 +90,13 @@ No MVP, o Grupo 1 define o recurso independente da agenda. Quando ele está ativ
 
 Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Profissional” sejam apenas exemplos configuráveis. O Grupo 2 nunca define o recurso concorrente.
 
+## Gestão administrativa
+
+O Dashboard consulta appointments reais de hoje e dos próximos sete dias. A Agenda permite navegar por datas, abrir os detalhes do cliente, visualizar a origem e alterar um appointment `scheduled` para `completed`, `cancelled` ou `no_show`. Estados terminais não retornam automaticamente para `scheduled`.
+
+A criação manual não faz `INSERT` direto. A RPC autenticada `create_admin_appointment` resolve o negócio pela membership da sessão e delega duração, funcionamento, disponibilidade e concorrência para `create_public_appointment`. A origem fica registrada como `admin`, com `created_by`; reservas do consumidor permanecem `public`.
+
 ## Ainda não implementado
 
 - cadastro de novos usuários;
-- leitura e gestão de agendamentos reais no Dashboard e na Agenda administrativos;
 - WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.
