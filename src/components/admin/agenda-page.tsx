@@ -8,6 +8,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
+import { WhatsappIcon } from "@/components/ui/social-icons";
+import { buildAppointmentWhatsappUrl } from "@/lib/appointment-reminder";
 import { appointmentSourceLabels, manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
@@ -168,6 +170,8 @@ export function AgendaPageContent({ initialDate, initialAppointments, config, bu
 }
 
 function AppointmentDetails({ appointment, saving, onStatus }: { appointment: AdminAppointment; saving: boolean; onStatus: (status: AppointmentStatus) => void }) {
+  const whatsappUrl = buildAppointmentWhatsappUrl(appointment);
+
   return <div className="step-in border-t bg-surface/50 p-4"><dl className="grid gap-3 text-sm sm:grid-cols-2">
     <div><dt className="text-xs text-muted">Cliente</dt><dd className="font-medium">{appointment.customerName}</dd></div>
     <div><dt className="text-xs text-muted">WhatsApp</dt><dd className="font-medium">{appointment.customerWhatsapp}</dd></div>
@@ -177,6 +181,9 @@ function AppointmentDetails({ appointment, saving, onStatus }: { appointment: Ad
     {appointment.group2 ? <div><dt className="text-xs text-muted">{appointment.group2.label}</dt><dd className="font-medium">{appointment.group2.name}</dd></div> : null}
     <div><dt className="text-xs text-muted">Origem</dt><dd className="font-medium">{appointmentSourceLabels[appointment.source]}</dd></div>
   </dl>
-    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">{appointment.status === "scheduled" ? statusActions.map(({ status, label, Icon, variant }) => <Button key={status} disabled={saving} variant={variant ?? "ghost"} size="sm" onClick={() => onStatus(status)}><Icon className="h-3.5 w-3.5" />{label}</Button>) : null}</div>
+    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#20bd5a] sm:w-auto"><WhatsappIcon className="h-5 w-5" />Enviar lembrete pelo WhatsApp</a> : null}
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">{appointment.status === "scheduled" ? statusActions.map(({ status, label, Icon, variant }) => <Button key={status} disabled={saving} variant={variant ?? "ghost"} size="sm" onClick={() => onStatus(status)}><Icon className="h-3.5 w-3.5" />{label}</Button>) : null}</div>
+    </div>
   </div>;
 }

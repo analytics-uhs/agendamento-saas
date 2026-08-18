@@ -21,7 +21,7 @@ export async function listAppointments(businessId: string, startDate: string, en
   const supabase = await createClient();
   const [appointmentsResult, groupsResult, optionsResult] = await Promise.all([
     supabase.from("appointments").select("id, customer_name, customer_whatsapp, appointment_date, start_time, end_time, duration_minutes, status, source, group_1_option_id, group_2_option_id").eq("business_id", businessId).gte("appointment_date", startDate).lte("appointment_date", endDate).order("appointment_date").order("start_time"),
-    supabase.from("booking_groups").select("id, position, label").eq("business_id", businessId),
+    supabase.from("booking_groups").select("id, position, label, active").eq("business_id", businessId),
     supabase.from("booking_options").select("id, group_id, name").eq("business_id", businessId),
   ]);
   const error = appointmentsResult.error ?? groupsResult.error ?? optionsResult.error;
@@ -42,8 +42,8 @@ export async function listAppointments(businessId: string, startDate: string, en
       durationMinutes: appointment.duration_minutes,
       status: appointment.status,
       source: appointment.source,
-      group1: group1?.group ? { label: group1.group.label, name: group1.name } : null,
-      group2: group2?.group ? { label: group2.group.label, name: group2.name } : null,
+      group1: group1?.group?.active ? { label: group1.group.label, name: group1.name } : null,
+      group2: group2?.group?.active ? { label: group2.group.label, name: group2.name } : null,
     };
   });
 }
