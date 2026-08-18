@@ -18,9 +18,9 @@ export interface Database {
         Relationships: [];
       };
       businesses: {
-        Row: { id: string; name: string; slug: string; whatsapp: string | null; logo_url: string | null; active: boolean } & Timestamps;
-        Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; created_at?: string; updated_at?: string };
-        Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; updated_at?: string };
+        Row: { id: string; name: string; slug: string; whatsapp: string | null; logo_url: string | null; active: boolean; active_updated_at: string | null; active_updated_by: string | null } & Timestamps;
+        Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; updated_at?: string };
         Relationships: [];
       };
       business_members: {
@@ -68,7 +68,12 @@ export interface Database {
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
+      get_platform_business_detail: { Args: { p_business_id: string }; Returns: Json };
+      get_platform_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
+      is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
+      list_platform_businesses: { Args: { p_search?: string | null; p_active?: boolean | null; p_page?: number; p_page_size?: number }; Returns: Json };
       set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
+      set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
     };
     Enums: {
       business_role: BusinessRole;

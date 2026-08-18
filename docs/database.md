@@ -32,12 +32,37 @@ Um usuário autenticado lê e altera somente o próprio profile. Membros leem o 
 
 Super Admin não é uma coluna editável pelo cliente. A allow-list `private.platform_admins` fica fora dos schemas expostos pela Data API, sem grants para `anon` ou `authenticated` e com RLS habilitado. Somente operações privilegiadas de plataforma (SQL administrativo ou backend confiável futuro) podem provisioná-la. As policies consultam a allow-list pela função privada `is_platform_admin()`.
 
-Para provisionar futuramente, use uma operação administrativa auditada, nunca o client browser:
+As rotas `/super-admin` e suas subrotas verificam a sessão e chamam `is_current_user_platform_admin()` em Server Components. Componentes, links e redirects são apenas UX: cada RPC global também revalida `private.is_platform_admin()` antes de acessar qualquer empresa. Usuários comuns continuam sob as policies multiempresa existentes.
+
+As operações disponíveis no MVP são:
+
+- `get_platform_metrics()` — totais agregados da plataforma;
+- `list_platform_businesses(...)` — busca, filtro e paginação server-side de 20 itens;
+- `get_platform_business_detail(id)` — configuração, membros, resumos e até 20 appointments recentes;
+- `set_platform_business_active(id, active)` — ativação/inativação auditada por ator e horário.
+
+As funções são `security definer`, têm `search_path` vazio, não são concedidas a `anon` e executam somente após a verificação explícita da allow-list. A RPC de detalhe retorna nome e e-mail dos membros, mas nenhum token ou metadado de autenticação.
+
+### Promover o primeiro Super Admin
+
+Não existe endpoint ou tela de autopromoção. Um operador com acesso administrativo ao banco deve localizar o UUID de um usuário autenticado existente e inserir a allow-list pelo SQL Editor do Supabase:
 
 ```sql
+select id, email
+from auth.users
+where email = '<email-do-usuario-existente>';
+
 insert into private.platform_admins (user_id, created_by)
-values ('<auth-user-id>', '<admin-actor-id>');
+values ('<auth-user-id>', '<auth-user-id>');
 ```
+
+O e-mail é usado apenas para localizar o UUID durante a operação privilegiada; a autorização em runtime depende exclusivamente da relação com `auth.users.id`. Promoções seguintes devem preencher `created_by` com o UUID do administrador responsável. A tabela privada não possui grants para clientes autenticados.
+
+### Negócios inativos
+
+Somente `set_platform_business_active` altera `businesses.active`. O grant genérico de `UPDATE` foi substituído por grants de coluna para `name`, `slug`, `whatsapp` e `logo_url`, impedindo que owner/admin se reative pela Data API.
+
+Um negócio inativo preserva membros, configurações e histórico. Seus proprietários continuam acessando `/admin` e veem um aviso, mas não podem criar novos agendamentos. `get_public_booking_page` deixa de publicar o negócio, `get_booking_availability` retorna uma lista vazia e `create_public_appointment` rejeita a criação. Como `create_admin_appointment` delega ao mesmo motor, a criação administrativa também é rejeitada. A reativação restaura a superfície pública sem recriar dados.
 
 ## Página pública e motor de reservas
 
@@ -110,6 +135,7 @@ As migrations são aplicadas em ordem:
 4. `20260818040000_booking_engine.sql` — disponibilidade pública, criação atômica e proteção contra sobreposição.
 5. `20260818050000_admin_appointments.sql` — origem, criação manual compartilhada e transições administrativas.
 6. `20260818051000_restrict_appointment_mutations.sql` — mantém leitura via RLS e revoga mutações diretas em appointments.
+7. `20260818060000_super_admin.sql` — RPCs globais controladas, auditoria de status e privilégios de ativação.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -138,3 +164,5 @@ Uploads usam o caminho `<business_id>/logo`. As policies permitem SELECT/INSERT/
 ## Mocks restantes
 
 Somente o preview de Aparência usa conteúdo fictício para permitir edição sem criar reservas. Dashboard, Agenda, disponibilidade e criação de appointments usam dados reais.
+
+Planos comerciais, cobrança, trial, limites por plano, impersonação, exclusão definitiva de negócios, logs completos e relatórios avançados permanecem fora do MVP.
