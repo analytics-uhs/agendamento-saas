@@ -1,16 +1,17 @@
 "use client";
 
 import { CheckCircle2, Clock3, LoaderCircle, MapPin } from "lucide-react";
-import { useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createPublicBooking, getAvailability } from "@/app/agendar/[slug]/actions";
 import { DateStrip } from "@/components/booking/date-strip";
 import { useMockApp } from "@/components/mock-app-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
-import { Logo } from "@/components/ui/logo";
+import { BusinessLogo } from "@/components/ui/business-logo";
 import { FacebookIcon, InstagramIcon, WhatsappIcon } from "@/components/ui/social-icons";
 import { classes } from "@/lib/classes";
+import { appearanceStyle } from "@/lib/appearance";
 import { normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
 import { getPalette } from "@/lib/palettes";
@@ -41,11 +42,6 @@ function previewData(state: MockAppState, paletteId?: string, themePreference: V
   };
 }
 
-function LogoMark({ booking }: { booking: PublicBookingData }) {
-  if (!booking.business.logoUrl) return <Logo name={booking.business.name} size="lg" />;
-  return <span role="img" aria-label={`Logo de ${booking.business.name}`} className="h-16 w-16 rounded-2xl bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${JSON.stringify(booking.business.logoUrl).slice(1, -1)})` }} />;
-}
-
 export function BookingFlow({ booking: bookingProp, preview = false, paletteId, themePreference }: { booking?: PublicBookingData; preview?: boolean; paletteId?: string; themePreference?: VisualThemePreference }) {
   const router = useRouter();
   const { state } = useMockApp();
@@ -65,9 +61,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   const availabilityRequest = useRef(0);
   const [isLoadingSlots, startSlotsTransition] = useTransition();
   const [isSubmitting, startSubmitTransition] = useTransition();
-  const darkTheme = booking.settings.themePreference === "dark";
-  const palette = darkTheme ? { ...booking.settings.palette, background: "#181818", surface: "#242424", text: "#F5F5F5", muted: "#AAAAAA", border: "#3A3A3A" } : booking.settings.palette;
-  const style = { "--primary": palette.primary, "--accent": palette.accent, "--background": palette.background, "--surface": palette.surface, "--foreground": palette.text, "--muted": palette.muted, "--border": palette.border, "--card": palette.background } as CSSProperties;
+  const style = appearanceStyle(booking.settings.palette, booking.settings.themePreference);
   const group1Done = !groupOne || Boolean(group1);
   const group2Done = group1Done && (!groupTwo || Boolean(group2));
   const selectedSlot = slots.find((slot) => slot.startTime === time);
@@ -138,7 +132,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
 
   let step = 0;
   return <div style={style} data-theme={booking.settings.themePreference} className="min-h-screen bg-surface text-foreground"><div className={classes("mx-auto w-full max-w-md px-4 pb-16 pt-8", preview && "scale-[0.98]")}>
-    <header className="flex flex-col items-center text-center"><LogoMark booking={booking} /><h1 className="mt-3 text-xl font-semibold">{booking.business.name}</h1>{booking.business.address ? <p className="mt-1.5 flex max-w-sm items-start justify-center gap-1.5 text-xs leading-relaxed text-muted"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{booking.business.address}</p> : null}<div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">{booking.business.whatsapp ? <a href={`https://wa.me/${normalizeWhatsapp(booking.business.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1.5 text-xs font-medium hover:border-primary hover:text-primary" aria-label={`Falar com ${booking.business.name} pelo WhatsApp`}><WhatsappIcon className="h-3.5 w-3.5" />{booking.business.whatsapp}</a> : null}{booking.business.googleMapsUrl ? <a href={booking.business.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir localização no Google Maps" title="Google Maps"><MapPin className="h-3.5 w-3.5" /></a> : null}{booking.business.instagramUrl ? <a href={booking.business.instagramUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir Instagram" title="Instagram"><InstagramIcon className="h-3.5 w-3.5" /></a> : null}{booking.business.facebookUrl ? <a href={booking.business.facebookUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir Facebook" title="Facebook"><FacebookIcon className="h-3.5 w-3.5" /></a> : null}</div></header>
+    <header className="flex flex-col items-center text-center"><BusinessLogo name={booking.business.name} logoUrl={booking.business.logoUrl} size="lg" /><h1 className="mt-3 text-xl font-semibold">{booking.business.name}</h1>{booking.business.address ? <p className="mt-1.5 flex max-w-sm items-start justify-center gap-1.5 text-xs leading-relaxed text-muted"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{booking.business.address}</p> : null}<div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">{booking.business.whatsapp ? <a href={`https://wa.me/${normalizeWhatsapp(booking.business.whatsapp)}`} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1.5 text-xs font-medium hover:border-primary hover:text-primary" aria-label={`Falar com ${booking.business.name} pelo WhatsApp`}><WhatsappIcon className="h-3.5 w-3.5" />{booking.business.whatsapp}</a> : null}{booking.business.googleMapsUrl ? <a href={booking.business.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir localização no Google Maps" title="Google Maps"><MapPin className="h-3.5 w-3.5" /></a> : null}{booking.business.instagramUrl ? <a href={booking.business.instagramUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir Instagram" title="Instagram"><InstagramIcon className="h-3.5 w-3.5" /></a> : null}{booking.business.facebookUrl ? <a href={booking.business.facebookUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted hover:border-primary hover:text-primary" aria-label="Abrir Facebook" title="Facebook"><FacebookIcon className="h-3.5 w-3.5" /></a> : null}</div></header>
     {configurationInvalid ? <p className="mt-7 rounded-xl border border-dashed p-6 text-center text-sm text-muted">O agendamento online ainda está sendo configurado. Tente novamente mais tarde.</p> : null}
     {!configurationInvalid && groupOne ? <Section number={++step} title={groupOne.label}><div className="space-y-2">{groupOne.options.map((option) => <button key={option.id} type="button" onClick={() => { setGroup1(option.id); setGroup2(null); resetSchedule(); }} className={classes("focus-ring flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left", group1 === option.id && "border-primary bg-primary/5")}><span className="flex-1 truncate text-sm font-medium">{option.name}</span>{group1 === option.id ? <CheckCircle2 className="h-5 w-5 text-primary" /> : null}</button>)}</div></Section> : null}
     {!configurationInvalid && groupTwo && group1Done ? <Section number={++step} title={groupTwo.label}><div className="space-y-2">{groupTwo.options.map((option) => <button key={option.id} type="button" onClick={() => { setGroup2(option.id); resetSchedule(); }} className={classes("focus-ring flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left", group2 === option.id && "border-primary bg-primary/5")}><span className="flex-1 truncate text-sm font-medium">{option.name}</span>{booking.settings.durationMode === "group_2" ? <span className="text-xs text-muted">{formatDuration(option.durationMinutes ?? 0)}</span> : null}{group2 === option.id ? <CheckCircle2 className="h-5 w-5 text-primary" /> : null}</button>)}</div></Section> : null}

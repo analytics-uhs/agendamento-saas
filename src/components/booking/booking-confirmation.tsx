@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import { appearanceStyle } from "@/lib/appearance";
 import { normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate } from "@/lib/date";
 import type { BookingConfirmation } from "@/types/public-booking";
@@ -34,15 +35,9 @@ export function BookingConfirmationView({ slug }: { slug: string }) {
 export function BookingConfirmationCard({ slug, confirmation }: { slug: string; confirmation: BookingConfirmation | null }) {
   const whatsappNumber = confirmation?.business.whatsapp ? normalizeWhatsapp(confirmation.business.whatsapp) : "";
   const configuredPalette = confirmation?.appearance?.palette;
-  const darkTheme = confirmation?.appearance?.themePreference === "dark";
-  const palette = configuredPalette && darkTheme
-    ? { ...configuredPalette, background: "#181818", surface: "#242424", text: "#F5F5F5", muted: "#AAAAAA", border: "#3A3A3A" }
-    : configuredPalette;
-  const style = palette ? {
-    "--primary": palette.primary, "--accent": palette.accent, "--background": palette.background,
-    "--surface": palette.surface, "--foreground": palette.text, "--muted": palette.muted,
-    "--border": palette.border, "--card": palette.background,
-  } as CSSProperties : undefined;
+  const style = configuredPalette && confirmation?.appearance
+    ? appearanceStyle(configuredPalette, confirmation.appearance.themePreference)
+    : undefined;
 
   return <main style={style} data-theme={confirmation?.appearance?.themePreference} className="flex min-h-screen items-center justify-center bg-surface px-4 py-10 text-foreground"><div className="w-full max-w-md rounded-2xl border bg-card p-6 text-center">
     <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary text-white"><CheckCircle2 className="h-7 w-7" /></span>
