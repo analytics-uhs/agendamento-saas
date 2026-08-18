@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgendaFácil — agendamento-saas
 
-## Getting Started
+Base frontend navegável de um SaaS de agendamentos para diferentes tipos de estabelecimento. Esta etapa usa somente dados mockados e serve para validar identidade visual, navegação, configuração e o fluxo público antes da implementação do backend.
 
-First, run the development server:
+## Referência visual
+
+A experiência foi adaptada do MVP Lovable do repositório privado `analytics-uhs/vibrant-slot-wiz`. O projeto de referência foi analisado apenas para compreender telas, componentes, navegação, responsividade e identidade visual; sua arquitetura TanStack/Vite e seu conjunto amplo de dependências não foram copiados.
+
+O projeto atual permanece em Next.js 16, TypeScript, App Router, `src/` e Tailwind CSS 4. A identidade padrão usa `#E3613D` como cor principal, `#F0BA40` como destaque, branco e `#545454`, com temas claro, escuro e preferência do sistema.
+
+## Rotas disponíveis
+
+- `/`: login visual;
+- `/onboarding`: configuração inicial em cinco passos;
+- `/admin`: dashboard;
+- `/admin/agenda`: gestão mockada de agendamentos;
+- `/admin/configuracao`: Grupos 1 e 2 e modos de duração;
+- `/admin/horarios`: horários de funcionamento;
+- `/admin/aparencia`: paletas e preview público;
+- `/admin/negocio`: dados e link do negócio;
+- `/agendar/studio-aurora`: página pública mobile-first;
+- `/agendar/studio-aurora/confirmacao`: confirmação com resumo.
+
+## Grupos configuráveis
+
+O modelo não fixa conceitos como profissional, quadra, esporte ou serviço:
+
+- Grupo 1: nome, estado ativo/inativo e opções configuráveis;
+- Grupo 2: nome, estado ativo/inativo e opções configuráveis.
+
+Os nomes mockados são “Profissional” e “Serviço”, apenas como demonstração. Um estabelecimento pode substituí-los por “Quadra” e “Esporte” ou por qualquer outro par.
+
+## Modos de duração
+
+Existem exatamente três modos:
+
+1. duração fixa;
+2. duração fixa + múltiplos blocos;
+3. duração pelo Grupo 2.
+
+Não existe duração pelo Grupo 1.
+
+## Fluxo público
+
+A página pública segue um fluxo progressivo: Grupo 1, Grupo 2, data, horário, dados do cliente e confirmação. Grupos inativos são omitidos. A seleção de data usa uma janela móvel de sete dias consecutivos, iniciada em hoje e nos seis dias seguintes. As setas movem a janela em sete dias e “Hoje” retorna à janela atual.
+
+## Estrutura
+
+- `src/app`: layouts e páginas do App Router;
+- `src/components/admin`: shell e experiências administrativas;
+- `src/components/booking`: fluxo público e faixa de datas;
+- `src/components/onboarding`: wizard inicial;
+- `src/components/ui`: elementos visuais reutilizáveis;
+- `src/mocks`: estado e registros fictícios;
+- `src/types`: tipos do domínio;
+- `src/lib`: datas, horários, classes e utilitários.
+
+## Executar localmente
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Fora desta etapa
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Ainda não há autenticação real, API, banco de dados, Supabase, migrations, WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA ou deploy. Ações e edições vivem somente na memória e são reiniciadas ao recarregar a página. O upload de logo é apenas uma affordance visual.
