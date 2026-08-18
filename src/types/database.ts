@@ -61,6 +61,7 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      complete_business_onboarding: { Args: { p_payload: Json }; Returns: string };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
     };
