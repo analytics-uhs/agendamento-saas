@@ -1,14 +1,7 @@
 import { addDays, toISO } from "@/lib/date";
-import type { MockAppState, Palette } from "@/types/scheduling";
+import type { MockAppState } from "@/types/scheduling";
 
 const dateFromToday = (offset: number) => toISO(addDays(new Date(), offset));
-
-export const palettes: Palette[] = [
-  { id: "original", name: "Original", primary: "#E3613D", accent: "#F0BA40", background: "#FFFFFF", surface: "#F7F7F7", text: "#292929", muted: "#6B6B6B", border: "#E2E2E2" },
-  { id: "midnight", name: "Midnight", primary: "#E3613D", accent: "#F0BA40", background: "#181818", surface: "#242424", text: "#F5F5F5", muted: "#AAAAAA", border: "#3A3A3A" },
-  { id: "oceano", name: "Oceano", primary: "#2A7DE1", accent: "#4FC3C0", background: "#FFFFFF", surface: "#F4F8FC", text: "#1B2733", muted: "#65758B", border: "#DCE6F0" },
-  { id: "floresta", name: "Floresta", primary: "#2E7D5B", accent: "#A8C66C", background: "#FFFFFF", surface: "#F4F9F5", text: "#1F2A24", muted: "#5F7168", border: "#DCE9DF" },
-];
 
 export const initialState: MockAppState = {
   business: { name: "Studio Aurora", whatsapp: "(11) 99999-0000", slug: "studio-aurora" },
@@ -45,5 +38,3 @@ export const initialState: MockAppState = {
     { id: "a6", date: dateFromToday(2), time: "16:00", durationMinutes: 60, customer: "Beatriz Alves", whatsapp: "(11) 93333-6060", group1: "Cláudio", group2: "Corte + Barba", status: "canceled" },
   ],
 };
-
-export const publicDomain = "agenda.local";
