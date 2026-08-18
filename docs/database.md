@@ -12,7 +12,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 - `booking_options`: opções genéricas ligadas ao grupo; `duration_minutes` serve ao modo `group_2`;
 - `business_hours`: sete dias, de 0 (domingo) a 6 (sábado);
 - `business_settings`: duração, paleta e preferência de tema;
-- `appointments`: estrutura inicial, sem motor de disponibilidade nesta fase.
+- `appointments`: reservas reais criadas pelo fluxo público; os estados não cancelados bloqueiam disponibilidade.
 
 Foreign keys compostas impedem que opções de outra empresa sejam referenciadas. Um trigger também valida que `group_1_option_id` e `group_2_option_id` apontem para as posições lógicas corretas. Outro trigger impede remover ou rebaixar o último owner.
 
@@ -39,16 +39,50 @@ insert into private.platform_admins (user_id, created_by)
 values ('<auth-user-id>', '<admin-actor-id>');
 ```
 
-## Página pública
+## Página pública e motor de reservas
 
-`anon` não possui privileges diretos sobre as tabelas administrativas. A única leitura pública é `public.get_public_booking_page(slug)`, uma RPC `security definer` que retorna apenas:
+`anon` não possui privileges diretos sobre as tabelas administrativas nem sobre `appointments`. A superfície pública é limitada a três RPCs `security definer`, todas com `search_path` fixo:
+
+- `get_public_booking_page(slug)`: retorna a configuração curada necessária para renderizar a página;
+- `get_booking_availability(slug, date, group_1_option_id, group_2_option_id)`: retorna somente início, duração base e quantidade de blocos consecutivos;
+- `create_public_appointment(...)`: revalida todos os dados e cria a reserva atomicamente, retornando somente uma confirmação sanitizada.
+
+A configuração pública contém apenas:
 
 - nome, slug, WhatsApp e logo de um negócio ativo;
 - grupos e opções ativos;
 - horários ativos;
 - settings indispensáveis para renderização e duração.
 
-Profiles, memberships, appointments, clientes e identificadores internos do negócio não são retornados. A criação pública de appointments exigirá uma RPC separada, transacional e validada quando o motor de disponibilidade for implementado.
+Profiles, memberships, appointments existentes e dados de outros clientes nunca são retornados. Os IDs públicos de negócio e opções são usados apenas como referências opacas e são revalidados contra o slug e o estado ativo no banco.
+
+### Disponibilidade e duração
+
+Os horários começam na abertura e avançam pela duração base. Dias fechados, datas passadas, horários já iniciados no dia atual e intervalos que ultrapassam o fechamento não são oferecidos. Appointments `scheduled`, `completed` e `no_show` bloqueiam; `cancelled` não bloqueia.
+
+- `fixed`: exatamente um bloco de `fixed_duration_minutes`;
+- `fixed_multiple`: a RPC informa quantos blocos livres e consecutivos cabem em cada início;
+- `group_2`: usa `duration_minutes` da opção ativa do Grupo 2 e aceita exatamente um bloco.
+
+### Modelo de recurso
+
+No MVP, a opção selecionada do Grupo 1 é a identidade do recurso independente da agenda:
+
+- `Grupo 1 = Quadra`: cada quadra pode receber uma reserva simultânea;
+- `Grupo 1 = Profissional`: cada profissional possui disponibilidade independente;
+- Grupo 1 inativo: o estabelecimento inteiro é um único recurso.
+
+Consequentemente, opções diferentes do Grupo 1 podem ter appointments no mesmo intervalo, enquanto appointments da mesma opção não podem se sobrepor. Sem Grupo 1 ativo, dois appointments do negócio no mesmo intervalo entram em conflito. O Grupo 2 classifica a reserva e pode definir sua duração, mas nunca altera o escopo de concorrência.
+
+Essa regra é uma decisão estrutural do motor, não uma inferência baseada no nome configurado para o grupo. Internamente, a chave do recurso é `group_1_option_id` quando aplicável e `business_id` quando não há Grupo 1 ativo.
+
+O MVP usa `America/Sao_Paulo` para definir “agora”; uma configuração de fuso por estabelecimento deve preceder expansão internacional.
+
+### Concorrência e atomicidade
+
+Antes do insert, `create_public_appointment` obtém um advisory transaction lock por negócio/data e repete toda a validação de conflito. A constraint GiST `appointments_no_overlapping_active_bookings` é uma segunda barreira no banco para intervalos sobrepostos do mesmo recurso. Intervalos usam limites `[início, fim)`, portanto `09:00–09:30` e `09:30–10:00` são adjacentes e válidos.
+
+Duas requisições para o mesmo slot são serializadas; a segunda recebe `booking_conflict` (`23P01`). A Server Action converte isso em mensagem amigável e recarrega a disponibilidade. O cliente nunca recebe mensagens internas do PostgreSQL.
 
 ## Migrations e tipos
 
@@ -57,6 +91,7 @@ As migrations são aplicadas em ordem:
 1. `20260818020000_initial_multitenant_schema.sql` — enums, tabelas, constraints, triggers e helpers;
 2. `20260818020100_rls_and_public_booking_api.sql` — grants, policies e RPC pública.
 3. `20260818030000_business_onboarding_and_logos.sql` — onboarding transacional e bucket seguro de logos.
+4. `20260818040000_booking_engine.sql` — disponibilidade pública, criação atômica e proteção contra sobreposição.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -84,4 +119,4 @@ Uploads usam o caminho `<business_id>/logo`. As policies permitem SELECT/INSERT/
 
 ## Mocks restantes
 
-Dashboard, Agenda, appointments, cálculo de disponibilidade e envio do agendamento público continuam mockados. O preview de Aparência ainda usa conteúdo fictício de agendamento, aplicando a paleta persistida.
+Dashboard e Agenda administrativos continuam mockados. O preview de Aparência ainda usa conteúdo fictício para permitir edição sem criar reservas; a página pública, sua disponibilidade e a criação de appointments usam dados reais.

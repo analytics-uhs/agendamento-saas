@@ -4,7 +4,7 @@ SaaS multiempresa de agendamentos. A interface Next.js foi adaptada do MVP visua
 
 ## Estado atual
 
-O projeto já possui autenticação, fundação multiempresa e configuração real do estabelecimento:
+O projeto já possui autenticação, fundação multiempresa, configuração real do estabelecimento e motor público de agendamento:
 
 - login, logout, sessão SSR e proteção de `/admin` com Supabase Auth;
 - modelo multiempresa isolado por estabelecimento;
@@ -12,13 +12,14 @@ O projeto já possui autenticação, fundação multiempresa e configuração re
 - resolução do negócio atual do usuário autenticado;
 - clients Supabase separados para browser, Server Components e proxy;
 - repositories tipados e Server Actions autenticadas;
-- RPC anônima curada para a futura página pública;
+- RPCs anônimas curadas para configuração, disponibilidade e criação de reservas;
 - onboarding real para o primeiro estabelecimento;
 - persistência de Meu negócio, Configuração da agenda, Horários e Aparência;
 - upload restrito de logos pelo Supabase Storage;
-- seed sem credenciais, testes pgTAP e testes unitários das regras de formulário.
+- criação atômica de appointments com proteção contra reservas concorrentes;
+- seed sem credenciais, testes pgTAP e testes unitários das regras de formulário e disponibilidade.
 
-Dashboard, Agenda e o fluxo público ainda usam `src/mocks`. O motor de disponibilidade e a criação pública de agendamentos não fazem parte desta etapa.
+Dashboard e Agenda administrativos ainda usam `src/mocks`. A página pública lê o Supabase e cria agendamentos reais; o preview de Aparência conserva dados fictícios para não misturar edição visual com reservas.
 
 ## Configuração local
 
@@ -64,18 +65,31 @@ A página pública mantém a janela móvel de sete dias (hoje + seis dias), não
 - `src/app`: rotas, actions de autenticação, onboarding e configurações;
 - `src/components`: UI aprovada conectada progressivamente aos dados reais;
 - `src/lib/supabase`: clients SSR/browser e renovação da sessão;
-- `src/lib/repositories`: acesso tipado ao negócio e suas configurações;
+- `src/lib/repositories`: acesso tipado ao negócio, suas configurações e leitura pública;
 - `src/types/database.ts`: tipos do schema Supabase;
 - `src/mocks`: dados ainda usados pelas telas não migradas;
 - `supabase/migrations`: schema e RLS versionados;
-- `supabase/tests/database`: testes pgTAP de isolamento;
+- `supabase/tests/database`: testes pgTAP de isolamento e do motor de reservas;
 - `supabase/seed.sql`: cenário local Arena Central, sem usuário/senha.
 
 Veja [docs/database.md](docs/database.md) para o modelo, RLS, Super Admin e superfície pública.
 
+## Motor público
+
+A rota `/agendar/[slug]` carrega apenas a configuração pública curada. Ao escolher os grupos e uma data, consulta slots reais e respeita horário de funcionamento, data/hora atual, duração e appointments não cancelados. A navegação continua sendo uma janela móvel de sete dias: hoje + seis dias, com avanços e retornos de sete dias.
+
+`fixed` oferece um bloco fixo; `fixed_multiple` calcula quantos blocos consecutivos cabem a partir do horário; `group_2` usa `duration_minutes` da opção ativa do Grupo 2. A criação é feita pela RPC transacional `create_public_appointment`, nunca por insert anônimo direto.
+
+A confirmação é devolvida pela RPC sem dados administrativos e mantida somente no `sessionStorage` do dispositivo, evitando dados pessoais na URL. Consulte [docs/database.md](docs/database.md) para as garantias de concorrência e a superfície pública.
+
+### Concorrência por recurso
+
+No MVP, o Grupo 1 define o recurso independente da agenda. Quando ele está ativo, cada `group_1_option_id` possui sua própria disponibilidade: duas quadras diferentes ou dois profissionais diferentes podem receber reservas no mesmo horário, mas a mesma quadra ou o mesmo profissional não pode ter intervalos sobrepostos. Quando o Grupo 1 está inativo, o estabelecimento inteiro é um único recurso e, portanto, só pode existir uma reserva por intervalo.
+
+Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Profissional” sejam apenas exemplos configuráveis. O Grupo 2 nunca define o recurso concorrente.
+
 ## Ainda não implementado
 
 - cadastro de novos usuários;
-- agendamentos reais no Dashboard e na Agenda;
-- motor de disponibilidade, reservas concorrentes e criação pública de appointments;
+- leitura e gestão de agendamentos reais no Dashboard e na Agenda administrativos;
 - WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.
