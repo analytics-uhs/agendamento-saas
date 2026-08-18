@@ -88,7 +88,9 @@ Duas requisições para o mesmo slot são serializadas; a segunda recebe `bookin
 
 Membros autenticados consultam appointments do próprio negócio através de repositories server-only e RLS. Dashboard e Agenda não recebem `business_id` do browser. Os detalhes exibem cliente, WhatsApp, duração, grupos, status e origem, sem mostrar identificadores técnicos.
 
-`create_admin_appointment(...)` resolve a membership `owner`/`admin`, define um contexto transacional de origem e chama `create_public_appointment`. O trigger de insert registra `source = admin` e `created_by = auth.uid()`; fora desse contexto, a origem é `public` e `created_by` permanece nulo. O grant de `INSERT` direto em appointments é removido de `authenticated`, portanto a criação manual não consegue contornar o motor compartilhado.
+`create_admin_appointment(...)` resolve a membership `owner`/`admin`, define um contexto transacional de origem e chama `create_public_appointment`. O trigger de insert registra `source = admin` e `created_by = auth.uid()`; fora desse contexto, a origem é `public` e `created_by` permanece nulo.
+
+Na Data API, `authenticated` possui somente `SELECT` em `appointments`, ainda limitado pela RLS ao negócio do membro. Os privilégios diretos de `INSERT`, `UPDATE` e `DELETE` são revogados. Assim, a criação não contorna o motor compartilhado, a alteração de estado só ocorre por `set_appointment_status` e não há exclusão física de reservas no MVP. As RPCs são `security definer`, têm `search_path` fixo e continuam operando com os privilégios de seu proprietário, não com os grants do chamador.
 
 `set_appointment_status(id, status)` também resolve autorização no banco e aceita somente:
 
@@ -107,6 +109,7 @@ As migrations são aplicadas em ordem:
 3. `20260818030000_business_onboarding_and_logos.sql` — onboarding transacional e bucket seguro de logos.
 4. `20260818040000_booking_engine.sql` — disponibilidade pública, criação atômica e proteção contra sobreposição.
 5. `20260818050000_admin_appointments.sql` — origem, criação manual compartilhada e transições administrativas.
+6. `20260818051000_restrict_appointment_mutations.sql` — mantém leitura via RLS e revoga mutações diretas em appointments.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 

@@ -96,6 +96,8 @@ O Dashboard consulta appointments reais de hoje e dos próximos sete dias. A Age
 
 A criação manual não faz `INSERT` direto. A RPC autenticada `create_admin_appointment` resolve o negócio pela membership da sessão e delega duração, funcionamento, disponibilidade e concorrência para `create_public_appointment`. A origem fica registrada como `admin`, com `created_by`; reservas do consumidor permanecem `public`.
 
+Na Data API, `authenticated` conserva apenas `SELECT` em `appointments`, sempre filtrado pelas policies RLS do negócio. `INSERT`, `UPDATE` e `DELETE` diretos são revogados: criação passa pelas RPCs controladas, mudanças de status passam por `set_appointment_status` e não existe exclusão física no MVP.
+
 ## Ainda não implementado
 
 - cadastro de novos usuários;

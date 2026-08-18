@@ -1,12 +1,13 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(18);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
   ('50000000-0000-4000-8000-000000000001', 'agenda-owner@example.test', '{"name":"Agenda Owner"}'),
-  ('50000000-0000-4000-8000-000000000002', 'other-owner@example.test', '{"name":"Other Owner"}');
+  ('50000000-0000-4000-8000-000000000002', 'other-owner@example.test', '{"name":"Other Owner"}'),
+  ('50000000-0000-4000-8000-000000000003', 'agenda-admin@example.test', '{"name":"Agenda Admin"}');
 
 insert into public.businesses (id, name, slug)
 values
@@ -16,7 +17,8 @@ values
 insert into public.business_members (business_id, user_id, role)
 values
   ('51000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000001', 'owner'),
-  ('51000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000002', 'owner');
+  ('51000000-0000-4000-8000-000000000002', '50000000-0000-4000-8000-000000000002', 'owner'),
+  ('51000000-0000-4000-8000-000000000001', '50000000-0000-4000-8000-000000000003', 'admin');
 
 insert into public.business_settings (business_id, duration_mode, fixed_duration_minutes, allow_multiple_blocks)
 values
@@ -80,6 +82,46 @@ select lives_ok(
     current_date + 30, '09:00', 1, 'Manual Customer', '(11) 98888-0000'
   )$$,
   'an owner creates a manual appointment through the shared engine'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.appointments
+    where business_id = '51000000-0000-4000-8000-000000000001'$$,
+  array[1::bigint],
+  'an owner can select appointments from their own business'
+);
+
+select set_config('request.jwt.claims', '{"sub":"50000000-0000-4000-8000-000000000003","role":"authenticated"}', true);
+
+select results_eq(
+  $$select count(*)::bigint from public.appointments
+    where business_id = '51000000-0000-4000-8000-000000000001'$$,
+  array[1::bigint],
+  'an admin can select appointments from their own business'
+);
+
+select set_config('request.jwt.claims', '{"sub":"50000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+
+select throws_ok(
+  $$update public.appointments
+    set customer_name = 'Direct Update'
+    where business_id = '51000000-0000-4000-8000-000000000001'$$,
+  '42501', null,
+  'authenticated users cannot update appointments directly'
+);
+
+select throws_ok(
+  $$delete from public.appointments
+    where business_id = '51000000-0000-4000-8000-000000000001'$$,
+  '42501', null,
+  'authenticated users cannot delete appointments directly'
+);
+
+select results_eq(
+  $$select count(*)::bigint from public.appointments
+    where business_id = '51000000-0000-4000-8000-000000000002'$$,
+  array[0::bigint],
+  'a member cannot select appointments from another business'
 );
 
 select results_eq(
