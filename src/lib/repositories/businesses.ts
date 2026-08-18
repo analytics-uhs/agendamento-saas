@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { requireAuthenticatedUser } from "@/lib/auth/session";
 import type { BusinessRole } from "@/types/database";
 
 export type CurrentBusiness = {
@@ -12,9 +14,8 @@ export async function getCurrentBusiness(userId: string): Promise<CurrentBusines
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("business_members")
-    .select("role, businesses!inner(id, name, slug, active)")
+    .select("role, businesses!inner(id, name, slug)")
     .eq("user_id", userId)
-    .eq("businesses.active", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -24,4 +25,11 @@ export async function getCurrentBusiness(userId: string): Promise<CurrentBusines
 
   const business = data.businesses;
   return { id: business.id, name: business.name, slug: business.slug, role: data.role };
+}
+
+export async function requireCurrentBusiness() {
+  const user = await requireAuthenticatedUser();
+  const business = await getCurrentBusiness(user.id);
+  if (!business) redirect("/onboarding");
+  return business;
 }

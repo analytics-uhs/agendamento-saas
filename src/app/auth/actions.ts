@@ -20,6 +20,13 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { message: "E-mail ou senha inválidos." };
 
+  const { data: membership } = await supabase
+    .from("business_members")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+  if (!membership) redirect("/onboarding");
+
   redirect(safeAdminPath(formData.get("next")));
 }
 
