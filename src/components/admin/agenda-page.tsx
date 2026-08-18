@@ -1,0 +1,25 @@
+"use client";
+
+import { Ban, CheckCircle2, Plus, UserX } from "lucide-react";
+import { useState } from "react";
+import { useMockApp } from "@/components/mock-app-provider";
+import { PageHeading } from "@/components/admin/page-heading";
+import { StatusBadge } from "@/components/admin/status-badge";
+import { DateStrip } from "@/components/booking/date-strip";
+import { Button } from "@/components/ui/button";
+import { Input, Label, Select } from "@/components/ui/field";
+import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
+import type { AppointmentStatus } from "@/types/scheduling";
+
+export function AgendaPageContent() {
+  const { state, update, setStatus } = useMockApp();
+  const [windowStart, setWindowStart] = useState(todayISO()), [selectedDate, setSelectedDate] = useState(todayISO()), [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ customer: "", whatsapp: "", time: "09:00", group1: state.group1.options[0]?.name ?? "", group2: state.group2.options[0]?.name ?? "" });
+  const appointments = state.appointments.filter((item) => item.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
+  const actions: { status: AppointmentStatus; label: string; Icon: typeof Ban }[] = [{ status: "done", label: "Concluir", Icon: CheckCircle2 }, { status: "no-show", label: "Faltou", Icon: UserX }, { status: "canceled", label: "Cancelar", Icon: Ban }];
+  const createAppointment = () => { if (!form.customer.trim()) return; const option = state.group2.options.find((item) => item.name === form.group2); update({ appointments: [...state.appointments, { id: `mock-${Date.now()}`, date: selectedDate, time: form.time, durationMinutes: state.duration.mode === "group2" ? option?.durationMinutes ?? 30 : state.duration.fixedMinutes, customer: form.customer, whatsapp: form.whatsapp, group1: form.group1, group2: form.group2, status: "scheduled" }] }); setCreating(false); };
+  return <><PageHeading title="Agenda" description="Visualize e gerencie os agendamentos." /><div className="mt-6"><DateStrip windowStart={windowStart} onWindowStartChange={setWindowStart} selected={selectedDate} onSelect={setSelectedDate} /></div><div className="mt-6 flex items-center justify-between gap-3"><p className="truncate text-sm font-medium capitalize">{formatLongDate(selectedDate)}</p><Button size="sm" onClick={() => setCreating(!creating)}><Plus className="h-4 w-4" />Novo</Button></div>
+    {creating ? <section className="step-in mt-4 rounded-xl border bg-background p-4"><h2 className="font-semibold">Novo agendamento</h2><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="space-y-1"><Label htmlFor="new-customer">Cliente</Label><Input id="new-customer" value={form.customer} onChange={(event) => setForm({ ...form, customer: event.target.value })} /></div><div className="space-y-1"><Label htmlFor="new-whatsapp">WhatsApp</Label><Input id="new-whatsapp" value={form.whatsapp} onChange={(event) => setForm({ ...form, whatsapp: event.target.value })} /></div><div className="space-y-1"><Label htmlFor="new-time">Horário</Label><Input id="new-time" type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></div>{state.group1.enabled ? <div className="space-y-1"><Label htmlFor="new-g1">{state.group1.label}</Label><Select id="new-g1" value={form.group1} onChange={(event) => setForm({ ...form, group1: event.target.value })}>{state.group1.options.map((item) => <option key={item.id}>{item.name}</option>)}</Select></div> : null}{state.group2.enabled ? <div className="space-y-1"><Label htmlFor="new-g2">{state.group2.label}</Label><Select id="new-g2" value={form.group2} onChange={(event) => setForm({ ...form, group2: event.target.value })}>{state.group2.options.map((item) => <option key={item.id}>{item.name}</option>)}</Select></div> : null}</div><div className="mt-4 flex justify-end gap-2"><Button variant="ghost" onClick={() => setCreating(false)}>Cancelar</Button><Button onClick={createAppointment}>Adicionar</Button></div></section> : null}
+    <section className="mt-4 overflow-hidden rounded-xl border bg-background">{appointments.length ? <ul className="divide-y">{appointments.map((item) => <li key={item.id} className="p-4"><div className="grid grid-cols-[auto_1fr_auto] items-start gap-3"><span className="text-sm font-semibold">{item.time}</span><div><p className="text-sm font-medium">{item.customer}</p><p className="text-xs text-muted">{item.group1}{item.group2 ? ` · ${item.group2}` : ""} · {formatDuration(item.durationMinutes)}</p></div><StatusBadge status={item.status} /></div>{item.status === "scheduled" ? <div className="mt-3 flex flex-wrap justify-end gap-2">{actions.map(({ status, label, Icon }) => <Button key={status} variant="ghost" size="sm" onClick={() => setStatus(item.id, status)}><Icon className="h-3.5 w-3.5" />{label}</Button>)}</div> : null}</li>)}</ul> : <p className="p-8 text-center text-sm text-muted">Nenhum agendamento nesta data.</p>}</section>
+  </>;
+}
