@@ -82,6 +82,12 @@ A rota `/agendar/[slug]` carrega apenas a configuração pública curada. Ao esc
 
 A confirmação é devolvida pela RPC sem dados administrativos e mantida somente no `sessionStorage` do dispositivo, evitando dados pessoais na URL. Consulte [docs/database.md](docs/database.md) para as garantias de concorrência e a superfície pública.
 
+### Concorrência por recurso
+
+No MVP, o Grupo 1 define o recurso independente da agenda. Quando ele está ativo, cada `group_1_option_id` possui sua própria disponibilidade: duas quadras diferentes ou dois profissionais diferentes podem receber reservas no mesmo horário, mas a mesma quadra ou o mesmo profissional não pode ter intervalos sobrepostos. Quando o Grupo 1 está inativo, o estabelecimento inteiro é um único recurso e, portanto, só pode existir uma reserva por intervalo.
+
+Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Profissional” sejam apenas exemplos configuráveis. O Grupo 2 nunca define o recurso concorrente.
+
 ## Ainda não implementado
 
 - cadastro de novos usuários;

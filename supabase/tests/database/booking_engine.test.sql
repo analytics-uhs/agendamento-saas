@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 insert into public.businesses (id, name, slug, whatsapp)
 values ('41000000-0000-4000-8000-000000000001', 'Arena Booking Test', 'arena-booking-test', '11999990000');
@@ -17,6 +17,7 @@ values
 insert into public.booking_options (id, business_id, group_id, name, duration_minutes, active, sort_order)
 values
   ('43000000-0000-4000-8000-000000000001', '41000000-0000-4000-8000-000000000001', '42000000-0000-4000-8000-000000000001', 'Quadra 1', null, true, 1),
+  ('43000000-0000-4000-8000-000000000003', '41000000-0000-4000-8000-000000000001', '42000000-0000-4000-8000-000000000001', 'Quadra 2', null, true, 2),
   ('43000000-0000-4000-8000-000000000002', '41000000-0000-4000-8000-000000000001', '42000000-0000-4000-8000-000000000002', 'Futevôlei', 60, true, 1);
 
 insert into public.business_hours (business_id, weekday, active, start_time, end_time)
@@ -98,7 +99,17 @@ select throws_ok(
   )$$,
   '23P01',
   null,
-  'a concurrent-equivalent overlapping request is rejected'
+  'the same Group 1 resource cannot receive overlapping appointments'
+);
+
+select lives_ok(
+  $$select public.create_public_appointment(
+    'arena-booking-test',
+    '43000000-0000-4000-8000-000000000003',
+    '43000000-0000-4000-8000-000000000002',
+    current_date + 30, '09:00', 1, 'Cliente Outra Quadra', '11922221111'
+  )$$,
+  'different Group 1 resources can receive appointments at the same time'
 );
 
 select lives_ok(
@@ -130,13 +141,41 @@ select lives_ok(
   'a cancelled appointment no longer blocks the interval'
 );
 
+reset role;
+update public.booking_groups
+set active = false
+where id = '42000000-0000-4000-8000-000000000001';
+
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+
+select lives_ok(
+  $$select public.create_public_appointment(
+    'arena-booking-test', null,
+    '43000000-0000-4000-8000-000000000002',
+    current_date + 31, '10:00', 1, 'Cliente Sem Grupo Um', '11933332222'
+  )$$,
+  'without active Group 1 the first appointment uses the business as its resource'
+);
+
+select throws_ok(
+  $$select public.create_public_appointment(
+    'arena-booking-test', null,
+    '43000000-0000-4000-8000-000000000002',
+    current_date + 31, '10:00', 1, 'Conflito Sem Grupo Um', '11944442222'
+  )$$,
+  '23P01',
+  null,
+  'without active Group 1 overlapping business appointments conflict'
+);
+
 select throws_ok(
   $$insert into public.appointments (
     business_id, customer_name, customer_whatsapp, appointment_date,
     start_time, end_time, duration_minutes
   ) values (
     '41000000-0000-4000-8000-000000000001', 'Invasor', '11944443333',
-    current_date + 31, '10:00', '10:30', 30
+    current_date + 31, '11:00', '11:30', 30
   )$$,
   '42501',
   null,
