@@ -1,0 +1,65 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { generateAvailability, intervalsOverlap } from "./availability";
+import type { AvailabilityInput, BusyInterval } from "./availability";
+
+const base: AvailabilityInput = {
+  date: "2026-08-19",
+  today: "2026-08-18",
+  businessHour: { active: true, startTime: "08:00", endTime: "12:00" },
+  durationMode: "fixed",
+  fixedDurationMinutes: 60,
+  appointments: [],
+};
+const appointment = (startTime: string, endTime: string, status: BusyInterval["status"] = "scheduled"): BusyInterval => ({ startTime, endTime, status });
+
+test("gera horários para duração fixa", () => {
+  assert.deepEqual(generateAvailability(base).map((slot) => slot.startTime), ["08:00", "09:00", "10:00", "11:00"]);
+});
+
+test("usa a duração da opção do Grupo 2", () => {
+  const slots = generateAvailability({ ...base, durationMode: "group_2", group2DurationMinutes: 45 });
+  assert.deepEqual(slots.map((slot) => slot.startTime), ["08:00", "08:45", "09:30", "10:15", "11:00"]);
+});
+
+test("calcula somente blocos múltiplos consecutivos", () => {
+  const slots = generateAvailability({ ...base, durationMode: "fixed_multiple", appointments: [appointment("10:00", "11:00")] });
+  assert.deepEqual(slots.map(({ startTime, maxBlocks }) => [startTime, maxBlocks]), [["08:00", 2], ["09:00", 1], ["11:00", 1]]);
+});
+
+test("não gera horários fora do funcionamento ou em dia fechado", () => {
+  assert.equal(generateAvailability({ ...base, businessHour: { active: true, startTime: "08:00", endTime: "08:30" } }).length, 0);
+  assert.equal(generateAvailability({ ...base, businessHour: { active: false, startTime: "08:00", endTime: "12:00" } }).length, 0);
+});
+
+test("reserva no início bloqueia o primeiro slot e libera o limite final", () => {
+  const slots = generateAvailability({ ...base, appointments: [appointment("08:00", "09:00")] });
+  assert.deepEqual(slots.map((slot) => slot.startTime), ["09:00", "10:00", "11:00"]);
+});
+
+test("reserva no fim do expediente bloqueia somente o último slot", () => {
+  const slots = generateAvailability({ ...base, appointments: [appointment("11:00", "12:00")] });
+  assert.deepEqual(slots.map((slot) => slot.startTime), ["08:00", "09:00", "10:00"]);
+});
+
+test("detecta conflitos parciais, totais e aceita intervalos adjacentes", () => {
+  assert.equal(intervalsOverlap(570, 630, 600, 660), true);
+  assert.equal(intervalsOverlap(600, 630, 600, 660), true);
+  assert.equal(intervalsOverlap(630, 690, 600, 660), true);
+  assert.equal(intervalsOverlap(540, 600, 600, 660), false);
+  assert.equal(intervalsOverlap(660, 720, 600, 660), false);
+});
+
+test("appointment cancelado não bloqueia", () => {
+  const slots = generateAvailability({ ...base, appointments: [appointment("09:00", "10:00", "cancelled")] });
+  assert.equal(slots.some((slot) => slot.startTime === "09:00"), true);
+});
+
+test("janela de hoje remove horários passados e o horário corrente", () => {
+  const slots = generateAvailability({ ...base, date: "2026-08-18", currentTime: "09:00" });
+  assert.deepEqual(slots.map((slot) => slot.startTime), ["10:00", "11:00"]);
+});
+
+test("não oferece datas passadas", () => {
+  assert.equal(generateAvailability({ ...base, date: "2026-08-17" }).length, 0);
+});
