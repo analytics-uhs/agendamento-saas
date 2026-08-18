@@ -1,7 +1,9 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(7);
+create temp table onboarding_tap_results (result text);
+grant insert, select on onboarding_tap_results to authenticated;
+insert into onboarding_tap_results select plan(9);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values ('30000000-0000-4000-8000-000000000001', 'onboarding@example.test', '{"name":"Owner"}');
@@ -9,11 +11,15 @@ values ('30000000-0000-4000-8000-000000000001', 'onboarding@example.test', '{"na
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"30000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
-select lives_ok(
+insert into onboarding_tap_results select lives_ok(
   $$select public.complete_business_onboarding('{
     "name":"Arena Teste",
     "slug":"arena-teste",
     "whatsapp":"51999990000",
+    "address":"Rua do Teste, 10",
+    "google_maps_url":"https://maps.google.com/?q=arena-teste",
+    "instagram_url":"https://instagram.com/arena-teste",
+    "facebook_url":"https://facebook.com/arena-teste",
     "groups":[
       {"position":1,"label":"Quadra","active":true,"required":true,"options":[{"name":"Quadra 1","sort_order":0}]},
       {"position":2,"label":"Esporte","active":true,"required":true,"options":[{"name":"Futevôlei","duration_minutes":60,"sort_order":0}]}
@@ -32,31 +38,43 @@ select lives_ok(
   'onboarding creates the first configured business atomically'
 );
 
-select results_eq(
+insert into onboarding_tap_results select results_eq(
   'select count(*)::bigint from public.businesses where slug = ''arena-teste''',
   array[1::bigint],
   'the business is visible to its owner'
 );
 
-select results_eq(
+insert into onboarding_tap_results select results_eq(
   'select array_agg(label order by position) from public.booking_groups',
-  array[array['Quadra', 'Esporte']::text[]],
+  $$values (array['Quadra', 'Esporte']::text[])$$,
   'both generic groups are configured'
 );
 
-select results_eq(
+insert into onboarding_tap_results select results_eq(
   'select count(*)::bigint from public.business_hours',
   array[7::bigint],
   'all seven weekdays are present'
 );
 
-select results_eq(
+insert into onboarding_tap_results select results_eq(
   'select duration_mode::text from public.business_settings',
   array['group_2'::text],
   'the selected duration mode is persisted'
 );
 
-select throws_ok(
+insert into onboarding_tap_results select results_eq(
+  $$select address, instagram_url from public.businesses where slug = 'arena-teste'$$,
+  $$values ('Rua do Teste, 10'::text, 'https://instagram.com/arena-teste'::text)$$,
+  'onboarding persists the optional public contact fields'
+);
+
+insert into onboarding_tap_results select results_eq(
+  'select theme_preference::text from public.business_settings',
+  array['light'::text],
+  'onboarding normalizes the legacy system preference to light'
+);
+
+insert into onboarding_tap_results select throws_ok(
   $$select public.complete_business_onboarding('{}'::jsonb)$$,
   '23505',
   'user already has a business',
@@ -65,11 +83,12 @@ select throws_ok(
 
 reset role;
 
-select results_eq(
+insert into onboarding_tap_results select results_eq(
   $$select public, file_size_limit from storage.buckets where id = 'business-logos'$$,
   $$values (true, 2097152::bigint)$$,
   'the logo bucket is public and limited to 2 MB'
 );
 
-select * from finish();
+insert into onboarding_tap_results select * from finish();
+select result from onboarding_tap_results;
 rollback;

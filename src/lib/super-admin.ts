@@ -1,4 +1,4 @@
-import type { DurationMode, Json, ThemePreference } from "@/types/database";
+import type { DurationMode, Json } from "@/types/database";
 import type { BusinessStatusFilter, PlatformBusinessDetail, PlatformBusinessPage, PlatformBusinessQuery, PlatformMetrics } from "@/types/super-admin";
 
 function object(value: Json | undefined): Record<string, Json | undefined> | null {
@@ -66,7 +66,7 @@ export function parsePlatformBusinessDetail(value: Json | null): PlatformBusines
           const palette = object(settingsRaw.palette);
           return { id: text(palette?.id) ?? undefined, primary: text(palette?.primary) ?? undefined, accent: text(palette?.accent) ?? undefined };
         })(),
-        themePreference: themePreference as ThemePreference,
+        themePreference: themePreference === "dark" ? "dark" as const : "light" as const,
       }
     : null;
 
@@ -109,6 +109,7 @@ export function parsePlatformBusinessDetail(value: Json | null): PlatformBusines
   return {
     business: {
       id: text(business.id)!, name: text(business.name)!, slug: text(business.slug)!, whatsapp: text(business.whatsapp), logoUrl: text(business.logo_url),
+      address: null, googleMapsUrl: null, instagramUrl: null, facebookUrl: null,
       active: boolean(business.active)!, createdAt: text(business.created_at)!, updatedAt: text(business.updated_at)!,
       activeUpdatedAt: text(business.active_updated_at), activeUpdatedBy: text(business.active_updated_by),
     },

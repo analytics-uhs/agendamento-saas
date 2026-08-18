@@ -5,7 +5,7 @@ import type { BusinessForm, BusinessGroupForm } from "@/types/business";
 export async function getBusinessConfiguration(businessId: string): Promise<BusinessForm> {
   const supabase = await createClient();
   const [businessResult, groupsResult, optionsResult, hoursResult, settingsResult] = await Promise.all([
-    supabase.from("businesses").select("id, name, slug, whatsapp, logo_url").eq("id", businessId).single(),
+    supabase.from("businesses").select("id, name, slug, whatsapp, logo_url, address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).single(),
     supabase.from("booking_groups").select("id, position, label, active, required").eq("business_id", businessId).order("position"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes, sort_order").eq("business_id", businessId).order("sort_order"),
     supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday"),
@@ -43,6 +43,10 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     slug: businessResult.data.slug,
     whatsapp: businessResult.data.whatsapp ?? "",
     logoUrl: businessResult.data.logo_url,
+    address: businessResult.data.address ?? "",
+    googleMapsUrl: businessResult.data.google_maps_url ?? "",
+    instagramUrl: businessResult.data.instagram_url ?? "",
+    facebookUrl: businessResult.data.facebook_url ?? "",
     groups,
     hours: hoursResult.data.map((hour) => ({
       id: hour.id,
@@ -55,6 +59,6 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,
     paletteId,
-    themePreference: settingsResult.data.theme_preference,
+    themePreference: settingsResult.data.theme_preference === "dark" ? "dark" : "light",
   };
 }

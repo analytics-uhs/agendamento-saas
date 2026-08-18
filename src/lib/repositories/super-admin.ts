@@ -32,9 +32,24 @@ export async function listPlatformBusinesses(input: { search: string; status: Bu
 
 export async function getPlatformBusinessDetail(businessId: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_platform_business_detail", { p_business_id: businessId });
+  const [{ data, error }, contactResult] = await Promise.all([
+    supabase.rpc("get_platform_business_detail", { p_business_id: businessId }),
+    supabase.from("businesses").select("address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).maybeSingle(),
+  ]);
   if (error) throw new Error(`Não foi possível carregar o negócio: ${error.message}`);
-  return parsePlatformBusinessDetail(data);
+  if (contactResult.error) throw new Error(`Não foi possível carregar os contatos do negócio: ${contactResult.error.message}`);
+  const detail = parsePlatformBusinessDetail(data);
+  if (!detail) return null;
+  return {
+    ...detail,
+    business: {
+      ...detail.business,
+      address: contactResult.data?.address ?? null,
+      googleMapsUrl: contactResult.data?.google_maps_url ?? null,
+      instagramUrl: contactResult.data?.instagram_url ?? null,
+      facebookUrl: contactResult.data?.facebook_url ?? null,
+    },
+  };
 }
 
 export async function setPlatformBusinessActive(businessId: string, active: boolean) {
@@ -42,4 +57,3 @@ export async function setPlatformBusinessActive(businessId: string, active: bool
   const { error } = await supabase.rpc("set_platform_business_active", { p_business_id: businessId, p_active: active });
   if (error) throw new Error(`Não foi possível ${active ? "ativar" : "inativar"} o negócio: ${error.message}`);
 }
-

@@ -71,7 +71,7 @@ values (
   60,
   true,
   '{"id":"original","primary":"#E3613D","accent":"#F0BA40"}'::jsonb,
-  'system'
+  'light'
 )
 on conflict (business_id) do update set
   duration_mode = excluded.duration_mode,

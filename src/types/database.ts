@@ -18,9 +18,9 @@ export interface Database {
         Relationships: [];
       };
       businesses: {
-        Row: { id: string; name: string; slug: string; whatsapp: string | null; logo_url: string | null; active: boolean; active_updated_at: string | null; active_updated_by: string | null } & Timestamps;
-        Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; created_at?: string; updated_at?: string };
-        Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; updated_at?: string };
+        Row: { id: string; name: string; slug: string; whatsapp: string | null; logo_url: string | null; address: string | null; google_maps_url: string | null; instagram_url: string | null; facebook_url: string | null; active: boolean; active_updated_at: string | null; active_updated_by: string | null } & Timestamps;
+        Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; updated_at?: string };
         Relationships: [];
       };
       business_members: {
