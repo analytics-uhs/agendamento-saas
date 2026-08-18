@@ -13,6 +13,8 @@ const appointment: AdminAppointment = {
   durationMinutes: 60,
   status: "scheduled",
   source: "public",
+  reminderSentAt: null,
+  reminderSentBy: null,
   group1: { label: "Profissional", name: "Rebeca" },
   group2: { label: "Serviço", name: "Corte + barba" },
 };
@@ -63,6 +65,10 @@ test("normaliza o telefone e codifica acentos, caracteres especiais e quebras de
 
 test("libera o lembrete apenas para scheduled com telefone válido", () => {
   assert.equal(canSendAppointmentWhatsappReminder(appointment), true);
+  assert.equal(canSendAppointmentWhatsappReminder({ ...appointment, status: "completed" }), false);
+  assert.equal(canSendAppointmentWhatsappReminder({ ...appointment, status: "cancelled" }), false);
+  assert.equal(canSendAppointmentWhatsappReminder({ ...appointment, status: "no_show" }), false);
+  assert.equal(canSendAppointmentWhatsappReminder({ ...appointment, customerWhatsapp: "123" }), false);
   assert.equal(buildAppointmentWhatsappUrl({ ...appointment, status: "completed" }), null);
   assert.equal(buildAppointmentWhatsappUrl({ ...appointment, status: "cancelled" }), null);
   assert.equal(buildAppointmentWhatsappUrl({ ...appointment, status: "no_show" }), null);

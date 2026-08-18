@@ -3,16 +3,15 @@
 import { Ban, CheckCircle2, Clock3, LoaderCircle, Plus, UserX, X } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { changeAppointmentStatus, createManualAppointment, loadAdminAppointments, loadAdminAvailability } from "@/app/admin/agenda/actions";
+import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { PageHeading } from "@/components/admin/page-heading";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
-import { WhatsappIcon } from "@/components/ui/social-icons";
-import { buildAppointmentWhatsappUrl } from "@/lib/appointment-reminder";
 import { appointmentSourceLabels, manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
-import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
+import { formatDateTime, formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import type { AdminAppointment, AppointmentSchedulingConfig } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
@@ -146,6 +145,10 @@ export function AgendaPageContent({ initialDate, initialAppointments, config, bu
     });
   }
 
+  function updateReminder(appointmentId: string, reminderSentAt: string) {
+    setAppointments((current) => current.map((appointment) => appointment.id === appointmentId ? { ...appointment, reminderSentAt } : appointment));
+  }
+
   return <><PageHeading title="Agenda" description="Visualize e gerencie os agendamentos." />
     <div className="mt-6"><DateStrip allowPast windowStart={windowStart} onWindowStartChange={(value) => { setWindowStart(value); selectDate(value); }} selected={selectedDate} onSelect={selectDate} /></div>
     <div className="mt-6 flex items-center justify-between gap-3"><p className="truncate text-sm font-medium capitalize">{formatLongDate(selectedDate)}</p><Button size="sm" disabled={!businessActive || selectedDate < todayISO() || configurationInvalid} onClick={creating ? () => setCreating(false) : openCreation}>{creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{creating ? "Fechar" : "Novo"}</Button></div>
@@ -164,14 +167,12 @@ export function AgendaPageContent({ initialDate, initialAppointments, config, bu
     </section> : null}
 
     {feedback ? <p role="status" className={classes("mt-4 rounded-xl border p-3 text-sm", feedback.ok ? "border-success/25 bg-success/10 text-success" : "border-danger/25 bg-danger/10 text-danger")}>{feedback.message}</p> : null}
-    <section className="mt-4 overflow-hidden rounded-xl border bg-background">{loadingAgenda ? <p className="flex items-center justify-center gap-2 p-8 text-sm text-muted"><LoaderCircle className="h-4 w-4 animate-spin" />Carregando agenda...</p> : appointments.length ? <ul className="divide-y">{appointments.map((appointment) => <li key={appointment.id}><button type="button" onClick={() => setSelectedId(selectedId === appointment.id ? null : appointment.id)} className="focus-ring grid w-full grid-cols-[auto_1fr_auto] items-start gap-3 p-4 text-left"><span className="text-sm font-semibold tabular-nums">{appointment.startTime}</span><div className="min-w-0"><p className="truncate text-sm font-medium">{appointment.customerName}</p><p className="truncate text-xs text-muted">{[appointment.group1?.name, appointment.group2?.name, `${appointment.startTime}–${appointment.endTime}`].filter(Boolean).join(" · ")}</p></div><StatusBadge status={appointment.status} /></button>
-          {selectedId === appointment.id ? <AppointmentDetails appointment={appointment} saving={saving} onStatus={(status) => updateStatus(appointment, status)} /> : null}</li>)}</ul> : <p className="p-8 text-center text-sm text-muted">Nenhum agendamento nesta data.</p>}</section>
+    <section className="mt-4 overflow-hidden rounded-xl border bg-background">{loadingAgenda ? <p className="flex items-center justify-center gap-2 p-8 text-sm text-muted"><LoaderCircle className="h-4 w-4 animate-spin" />Carregando agenda...</p> : appointments.length ? <ul className="divide-y">{appointments.map((appointment) => <li key={appointment.id}><div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-4"><button type="button" onClick={() => setSelectedId(selectedId === appointment.id ? null : appointment.id)} className="focus-ring grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-lg text-left"><span className="text-sm font-semibold tabular-nums">{appointment.startTime}</span><div className="min-w-0"><p className="truncate text-sm font-medium">{appointment.customerName}</p><p className="truncate text-xs text-muted">{[appointment.group1?.name, appointment.group2?.name, `${appointment.startTime}–${appointment.endTime}`].filter(Boolean).join(" · ")}</p></div></button><div className="flex flex-wrap items-center justify-end gap-1.5"><StatusBadge status={appointment.status} /><AppointmentWhatsappReminder appointment={appointment} onReminderSent={(sentAt) => updateReminder(appointment.id, sentAt)} /></div></div>
+          {selectedId === appointment.id ? <AppointmentDetails appointment={appointment} saving={saving} onStatus={(status) => updateStatus(appointment, status)} onReminderSent={(sentAt) => updateReminder(appointment.id, sentAt)} /> : null}</li>)}</ul> : <p className="p-8 text-center text-sm text-muted">Nenhum agendamento nesta data.</p>}</section>
   </>;
 }
 
-function AppointmentDetails({ appointment, saving, onStatus }: { appointment: AdminAppointment; saving: boolean; onStatus: (status: AppointmentStatus) => void }) {
-  const whatsappUrl = buildAppointmentWhatsappUrl(appointment);
-
+function AppointmentDetails({ appointment, saving, onStatus, onReminderSent }: { appointment: AdminAppointment; saving: boolean; onStatus: (status: AppointmentStatus) => void; onReminderSent: (reminderSentAt: string) => void }) {
   return <div className="step-in border-t bg-surface/50 p-4"><dl className="grid gap-3 text-sm sm:grid-cols-2">
     <div><dt className="text-xs text-muted">Cliente</dt><dd className="font-medium">{appointment.customerName}</dd></div>
     <div><dt className="text-xs text-muted">WhatsApp</dt><dd className="font-medium">{appointment.customerWhatsapp}</dd></div>
@@ -180,9 +181,10 @@ function AppointmentDetails({ appointment, saving, onStatus }: { appointment: Ad
     {appointment.group1 ? <div><dt className="text-xs text-muted">{appointment.group1.label}</dt><dd className="font-medium">{appointment.group1.name}</dd></div> : null}
     {appointment.group2 ? <div><dt className="text-xs text-muted">{appointment.group2.label}</dt><dd className="font-medium">{appointment.group2.name}</dd></div> : null}
     <div><dt className="text-xs text-muted">Origem</dt><dd className="font-medium">{appointmentSourceLabels[appointment.source]}</dd></div>
+    {appointment.reminderSentAt ? <div><dt className="text-xs text-muted">Último lembrete</dt><dd className="font-medium">Lembrete enviado em {formatDateTime(appointment.reminderSentAt)}</dd></div> : null}
   </dl>
     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      {whatsappUrl ? <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#20bd5a] sm:w-auto"><WhatsappIcon className="h-5 w-5" />Enviar lembrete pelo WhatsApp</a> : null}
+      <AppointmentWhatsappReminder appointment={appointment} variant="full" onReminderSent={onReminderSent} />
       <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">{appointment.status === "scheduled" ? statusActions.map(({ status, label, Icon, variant }) => <Button key={status} disabled={saving} variant={variant ?? "ghost"} size="sm" onClick={() => onStatus(status)}><Icon className="h-3.5 w-3.5" />{label}</Button>) : null}</div>
     </div>
   </div>;

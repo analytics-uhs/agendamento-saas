@@ -38,6 +38,13 @@ export function formatNumericDate(value: string) {
 export function formatTime(value: string) {
   return value.slice(0, 5);
 }
+export function formatDateTime(value: string, timeZone = "America/Sao_Paulo") {
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date(value));
+  const part = (type: "day" | "month" | "year" | "hour" | "minute") => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("day")}/${part("month")}/${part("year")} às ${part("hour")}:${part("minute")}`;
+}
 export function businessHourFor(hours: BusinessHour[], date: string) {
   return hours.find((hour) => hour.day === dayKeys[parseISO(date).getDay()]);
 }
