@@ -9,6 +9,11 @@ export function toISO(date: Date) {
   return `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
 }
 export function todayISO() { return toISO(new Date()); }
+export function todayInTimeZone(timeZone = "America/Sao_Paulo", now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const value = (type: "year" | "month" | "day") => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
 export function parseISO(value: string) {
   const [year = 1970, month = 1, day = 1] = value.split("-").map(Number);
   return new Date(year, month - 1, day, 12, 0, 0, 0);
