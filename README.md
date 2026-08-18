@@ -100,6 +100,14 @@ Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Prof
 
 O Dashboard consulta appointments reais de hoje e dos próximos sete dias. A Agenda permite navegar por datas, abrir os detalhes do cliente, visualizar a origem e alterar um appointment `scheduled` para `completed`, `cancelled` ou `no_show`. Estados terminais não retornam automaticamente para `scheduled`.
 
+### Recorrência administrativa semanal
+
+Na Agenda, o administrador pode transformar a criação manual em uma série semanal. Cada série representa um único dia da semana e horário; segunda e quarta, por exemplo, são duas séries. A série pode ser permanente (`repeat_count = null`) ou limitada por uma quantidade total de ocorrências, contando a primeira data como ocorrência 1. O agendamento público permanece exclusivamente avulso.
+
+Séries permanentes não geram registros infinitos: a RPC idempotente `materialize_recurring_appointments` mantém no máximo a janela futura de 90 dias. Séries limitadas geram no máximo `repeat_count`. Cada ocorrência passa pelo mesmo motor de duração, funcionamento e concorrência dos appointments avulsos; qualquer conflito na criação inicial desfaz toda a transação.
+
+Um cancelamento recorrente pode atingir somente a ocorrência escolhida ou ela e as próximas. O segundo escopo cancela apenas ocorrências futuras `scheduled` e inativa a série sem apagar histórico. `completed` e `no_show` sempre afetam somente um appointment e nunca encerram a série. Não há edição de série no MVP: para mudar suas regras, encerre a série e crie outra.
+
 A criação manual não faz `INSERT` direto. A RPC autenticada `create_admin_appointment` resolve o negócio pela membership da sessão e delega duração, funcionamento, disponibilidade e concorrência para `create_public_appointment`. A origem fica registrada como `admin`, com `created_by`; reservas do consumidor permanecem `public`.
 
 Na Data API, `authenticated` conserva apenas `SELECT` em `appointments`, sempre filtrado pelas policies RLS do negócio. `INSERT`, `UPDATE` e `DELETE` diretos são revogados: criação passa pelas RPCs controladas, mudanças de status passam por `set_appointment_status` e não existe exclusão física no MVP.

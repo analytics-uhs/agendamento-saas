@@ -13,6 +13,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 - `business_hours`: sete dias, de 0 (domingo) a 6 (sábado);
 - `business_settings`: duração, paleta e preferência de tema;
 - `appointments`: reservas públicas ou administrativas; `source` registra `public`/`admin`, e os estados não cancelados bloqueiam disponibilidade.
+- `appointment_series`: definição administrativa de uma recorrência semanal em um único dia/horário; `repeat_count` nulo significa permanente e `appointments.series_id` distingue ocorrências materializadas de reservas avulsas.
 
 Foreign keys compostas impedem que opções de outra empresa sejam referenciadas. Um trigger também valida que `group_1_option_id` e `group_2_option_id` apontem para as posições lógicas corretas. Outro trigger impede remover ou rebaixar o último owner.
 
@@ -139,6 +140,9 @@ As migrations são aplicadas em ordem:
 6. `20260818051000_restrict_appointment_mutations.sql` — mantém leitura via RLS e revoga mutações diretas em appointments.
 7. `20260818060000_super_admin.sql` — RPCs globais controladas, auditoria de status e privilégios de ativação.
 8. `20260818070000_mvp_visual_polish.sql` — contatos públicos opcionais, tema binário padrão e atualização curada das RPCs de onboarding/página pública.
+9. `20260818080000_appointment_whatsapp_reminders.sql` — registro controlado do último lembrete administrativo.
+10. `20260818090000_recurring_appointment_schema.sql` — séries semanais, vínculo das ocorrências, índices, triggers e RLS.
+11. `20260818091000_recurring_appointment_rpcs.sql` — criação, materialização idempotente e cancelamento transacional das séries.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
@@ -171,3 +175,13 @@ Uploads usam o caminho `<business_id>/logo`. As policies permitem SELECT/INSERT/
 Somente o preview de Aparência usa conteúdo fictício para permitir edição sem criar reservas. Dashboard, Agenda, disponibilidade e criação de appointments usam dados reais.
 
 Planos comerciais, cobrança, trial, limites por plano, impersonação, exclusão definitiva de negócios, logs completos e relatórios avançados permanecem fora do MVP.
+
+### Séries semanais e materialização
+
+`create_recurring_appointment_series(...)` cria a série e materializa suas ocorrências na mesma transação. Antes dos inserts, todas as datas ausentes são verificadas por `get_booking_availability`; cada insert efetivo é delegado a `create_public_appointment`. Assim, as regras do motor e a exclusion constraint continuam sendo as autoridades finais, e uma falha reverte série e ocorrências em conjunto.
+
+Para séries permanentes, `materialize_recurring_appointments(series_id, horizon_date)` limita qualquer horizonte solicitado a hoje + 90 dias. Para séries limitadas, nunca passa da data da ocorrência `repeat_count`. O índice único `(series_id, appointment_date)` torna a operação idempotente. A existência de qualquer appointment da série naquela data — inclusive cancelado — impede recriação; séries inativas são no-op.
+
+`cancel_recurring_appointment(id, 'single')` cancela somente uma ocorrência. Com `'future'`, bloqueia a série, cancela atomicamente a ocorrência selecionada e as posteriores ainda `scheduled`, e marca `active = false`. `set_appointment_status` continua sendo usado para `completed` e `no_show`, logo esses estados nunca afetam outras ocorrências nem a série.
+
+As tabelas continuam sem mutação direta para `authenticated`. Membros consultam séries do próprio negócio por RLS, enquanto criação, materialização e cancelamento passam por RPCs `security definer`, com `search_path` fixo e autorização `owner`/`admin`. O consumidor anônimo não recebe grants sobre séries nem acesso a essas RPCs.
