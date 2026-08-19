@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isPlatformAdmin } from "@/lib/repositories/super-admin";
 
 export type LoginState = { message: string | null };
 
@@ -19,6 +20,12 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { message: "E-mail ou senha inválidos." };
+
+  const platformAdmin = await isPlatformAdmin();
+
+  if (platformAdmin) {
+    redirect("/super-admin");
+  }
 
   const { data: membership } = await supabase
     .from("business_members")
