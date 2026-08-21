@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Clock3, LoaderCircle, MapPin } from "lucide-react";
+import { CheckCircle2, LoaderCircle, MapPin } from "lucide-react";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createPublicBooking, getAvailability } from "@/app/agendar/[slug]/actions";
@@ -11,8 +11,9 @@ import { Input, Label } from "@/components/ui/field";
 import { BusinessLogo } from "@/components/ui/business-logo";
 import { FacebookIcon, InstagramIcon, WhatsappIcon } from "@/components/ui/social-icons";
 import { classes } from "@/lib/classes";
+import { consecutiveSelectionTimes, fixedMultipleEndTime, selectFixedMultipleSlot } from "@/lib/fixed-multiple-selection";
 import { appearanceStyle } from "@/lib/appearance";
-import { normalizeWhatsapp } from "@/lib/availability";
+import { formatWhatsappInput, normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
 import { getPalette } from "@/lib/palettes";
 import type { BookingConfirmation, BookingSlot, PublicBookingData } from "@/types/public-booking";
@@ -58,6 +59,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   const [customer, setCustomer] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [sequenceMessage, setSequenceMessage] = useState<string | null>(null);
   const availabilityRequest = useRef(0);
   const [isLoadingSlots, startSlotsTransition] = useTransition();
   const [isSubmitting, startSubmitTransition] = useTransition();
@@ -65,6 +67,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   const group1Done = !groupOne || Boolean(group1);
   const group2Done = group1Done && (!groupTwo || Boolean(group2));
   const selectedSlot = slots.find((slot) => slot.startTime === time);
+  const selectedTimes = booking.settings.durationMode === "fixed_multiple" ? consecutiveSelectionTimes(slots, time, blocks) : time ? [time] : [];
   const duration = useMemo(() => (selectedSlot?.durationMinutes ?? booking.settings.fixedDurationMinutes) * (booking.settings.durationMode === "fixed_multiple" ? blocks : 1), [selectedSlot, booking.settings, blocks]);
   const canConfirm = Boolean(date && time && customer.trim().length >= 2 && whatsapp.trim() && group1Done && group2Done && !isSubmitting);
   const configurationInvalid = Boolean((groupOne && groupOne.options.length === 0) || (groupTwo && groupTwo.options.length === 0));
@@ -76,6 +79,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
     setSlots([]);
     setBlocks(1);
     setMessage(null);
+    setSequenceMessage(null);
   }
 
   function loadSlots(selectedDate: string) {
@@ -137,10 +141,11 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
     {!configurationInvalid && groupOne ? <Section number={++step} title={groupOne.label}><div className="space-y-2">{groupOne.options.map((option) => <button key={option.id} type="button" onClick={() => { setGroup1(option.id); setGroup2(null); resetSchedule(); }} className={classes("focus-ring flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left", group1 === option.id && "border-primary bg-primary/5")}><span className="flex-1 truncate text-sm font-medium">{option.name}</span>{group1 === option.id ? <CheckCircle2 className="h-5 w-5 text-primary" /> : null}</button>)}</div></Section> : null}
     {!configurationInvalid && groupTwo && group1Done ? <Section number={++step} title={groupTwo.label}><div className="space-y-2">{groupTwo.options.map((option) => <button key={option.id} type="button" onClick={() => { setGroup2(option.id); resetSchedule(); }} className={classes("focus-ring flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left", group2 === option.id && "border-primary bg-primary/5")}><span className="flex-1 truncate text-sm font-medium">{option.name}</span>{booking.settings.durationMode === "group_2" ? <span className="text-xs text-muted">{formatDuration(option.durationMinutes ?? 0)}</span> : null}{group2 === option.id ? <CheckCircle2 className="h-5 w-5 text-primary" /> : null}</button>)}</div></Section> : null}
     {!configurationInvalid && group2Done ? <Section number={++step} title="Data"><DateStrip windowStart={windowStart} onWindowStartChange={(value) => { setWindowStart(value); resetSchedule(); }} selected={date} onSelect={loadSlots} isUnavailable={(value) => value < todayISO() || !booking.hours.some((hour) => hour.weekday === parseISO(value).getDay())} /></Section> : null}
-    {date ? <Section number={++step} title="Horário">{isLoadingSlots ? <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-sm text-muted"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando horários...</div> : <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">{slots.map((slot) => <button key={slot.startTime} type="button" onClick={() => { setTime(slot.startTime); setBlocks(1); setMessage(null); }} className={classes("focus-ring rounded-xl border bg-card py-3 text-sm font-semibold", time === slot.startTime && "border-primary bg-primary text-white")}>{slot.startTime}</button>)}</div>}{!isLoadingSlots && slots.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted">Nenhum horário disponível nesta data.</p> : null}
-      {time && selectedSlot && booking.settings.durationMode === "fixed_multiple" ? <div className="mt-4"><p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted"><Clock3 className="h-3.5 w-3.5" />Duração a partir de {time}</p><div className="flex flex-wrap gap-2">{Array.from({ length: selectedSlot.maxBlocks }, (_, index) => index + 1).map((count) => <button key={count} type="button" onClick={() => setBlocks(count)} className={classes("focus-ring rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold", blocks === count && "border-primary bg-primary text-white")}>{formatDuration(selectedSlot.durationMinutes * count)}</button>)}</div></div> : null}
+    {date ? <Section number={++step} title="Horário">{isLoadingSlots ? <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-sm text-muted"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando horários...</div> : <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">{slots.map((slot) => <button key={slot.startTime} type="button" onClick={() => { if (booking.settings.durationMode === "fixed_multiple") { const next = selectFixedMultipleSlot(slots, time, blocks, slot.startTime); setTime(next.startTime); setBlocks(next.blocks); setSequenceMessage(next.rejected ? "Os horários selecionados precisam ser seguidos." : null); } else { setTime(slot.startTime); setBlocks(1); } setMessage(null); }} className={classes("focus-ring rounded-xl border bg-card py-3 text-sm font-semibold", selectedTimes.includes(slot.startTime) && "border-primary bg-primary text-white")}>{slot.startTime}</button>)}</div>}{!isLoadingSlots && slots.length === 0 ? <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted">Nenhum horário disponível nesta data.</p> : null}
+      {sequenceMessage ? <p role="status" className="mt-3 text-xs font-medium text-danger">{sequenceMessage}</p> : null}
+      {time && selectedSlot && booking.settings.durationMode === "fixed_multiple" ? <p className="mt-3 text-xs text-muted">{time} às {fixedMultipleEndTime(time, selectedSlot.durationMinutes, blocks)} · {blocks} {blocks === 1 ? "horário selecionado" : "horários selecionados"} · {formatDuration(duration)}</p> : null}
     </Section> : null}
-    {time ? <Section number={++step} title="Seus dados"><div className="space-y-3"><div className="space-y-2"><Label htmlFor="customer">Nome</Label><Input id="customer" value={customer} maxLength={120} onChange={(event) => setCustomer(event.target.value)} placeholder="Seu nome" /></div><div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" inputMode="tel" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="(00) 00000-0000" /></div></div></Section> : null}
+    {time ? <Section number={++step} title="Seus dados"><div className="space-y-3"><div className="space-y-2"><Label htmlFor="customer">Nome</Label><Input id="customer" value={customer} maxLength={120} onChange={(event) => setCustomer(event.target.value)} placeholder="Seu nome" /></div><div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" inputMode="tel" maxLength={15} value={whatsapp} onChange={(event) => setWhatsapp(formatWhatsappInput(event.target.value))} placeholder="(00) 00000-0000" /></div></div></Section> : null}
     {message ? <p role="alert" className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">{message}</p> : null}
     {time && date ? <><div className="step-in mt-6 rounded-xl border bg-card p-4 text-sm"><p className="text-muted">Resumo</p><p className="mt-1 font-medium">{[groupOne?.options.find((option) => option.id === group1)?.name, groupTwo?.options.find((option) => option.id === group2)?.name].filter(Boolean).join(" · ")}</p><p className="capitalize text-muted">{formatLongDate(date)} · {time} · {formatDuration(duration)}</p></div><Button className="mt-4 h-12 w-full text-base" disabled={!canConfirm || preview} onClick={confirm}>{isSubmitting ? <><LoaderCircle className="h-4 w-4 animate-spin" />Confirmando...</> : "Confirmar agendamento"}</Button></> : null}
     {preview ? <p className="mt-4 text-center text-xs text-muted">Pré-visualização da página pública</p> : null}

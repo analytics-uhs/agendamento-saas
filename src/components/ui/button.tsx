@@ -1,7 +1,8 @@
 import type { ButtonHTMLAttributes } from "react";
 import { classes } from "@/lib/classes";
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "outline" | "ghost" | "danger"; size?: "sm" | "md" | "icon" };
+export type ButtonVariant = "primary" | "outline" | "ghost" | "success" | "warning" | "danger";
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: "sm" | "md" | "icon" };
 
 export function Button({ className, variant = "primary", size = "md", type = "button", ...props }: Props) {
   return <button type={type} className={classes(
@@ -10,6 +11,8 @@ export function Button({ className, variant = "primary", size = "md", type = "bu
     variant === "primary" && "bg-primary text-white hover:bg-primary/90",
     variant === "outline" && "border bg-card text-foreground hover:bg-surface",
     variant === "ghost" && "text-muted hover:bg-surface hover:text-foreground",
+    variant === "success" && "border border-success/30 bg-success/10 text-success hover:bg-success/15",
+    variant === "warning" && "border border-accent/45 bg-accent/15 text-foreground hover:bg-accent/25",
     variant === "danger" && "border border-danger/25 bg-danger/10 text-danger hover:bg-danger/15",
     className,
   )} {...props} />;

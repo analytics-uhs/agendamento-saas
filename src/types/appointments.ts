@@ -1,7 +1,7 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
 
-export type AppointmentGroupSelection = { label: string; name: string };
+export type AppointmentGroupSelection = { id: string; label: string; name: string };
 export type AppointmentSeriesSummary = {
   id: string;
   weekday: number;
@@ -35,6 +35,12 @@ export type AppointmentSchedulingConfig = {
   groups: AppointmentGroup[];
   durationMode: DurationMode;
   fixedDurationMinutes: number;
+};
+
+export type DailyCalendarWindow = { startTime: string; endTime: string };
+export type DailyCalendarData = {
+  appointments: AdminAppointment[];
+  windows: DailyCalendarWindow[];
 };
 
 export type ManualAppointmentInput = {

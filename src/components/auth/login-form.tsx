@@ -11,7 +11,7 @@ import { Input, Label } from "@/components/ui/field";
 import { WhatsappIcon } from "@/components/ui/social-icons";
 
 const initialState: LoginState = { message: null };
-const whatsappSupportUrl = `https://wa.me/5553991414018?text=${encodeURIComponent("Olá! Preciso de ajuda com o TemAgenda.")}`;
+const whatsappSupportUrl = `https://wa.me/5553991414018?text=${encodeURIComponent("Olá! Preciso de ajuda com o AgendaFácil.")}`;
 
 export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(login, initialState);
@@ -22,7 +22,7 @@ export function LoginForm({ next }: { next?: string }) {
         <Image src={appIcon} alt="UHS Analytics" priority className="h-auto w-28 sm:w-30" />
       </div>
     </div>
-    <h1 className="mt-3 text-2xl font-semibold tracking-tight">TemAgenda</h1>
+    <h1 className="mt-3 text-2xl font-semibold tracking-tight">AgendaFácil</h1>
     <p className="mt-1 text-sm text-muted">Organize sua agenda, simplifique sua rotina.</p>
     <form action={formAction} className="mt-6 space-y-4 rounded-2xl border bg-background p-6 text-left">
       <input type="hidden" name="next" value={next ?? "/admin"} />

@@ -1,12 +1,18 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Json } from "@/types/database";
+import type { AppointmentStatus, Json } from "@/types/database";
 import { occurrenceNumber } from "@/lib/recurrence";
-import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
+import { parseISO } from "@/lib/date";
+import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
-type AppointmentRepositoryError = { message: string; code?: string };
+export type AppointmentRepositoryError = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
 
 function parseSlots(value: Json): BookingSlot[] {
   if (!Array.isArray(value)) return [];
@@ -57,10 +63,31 @@ export async function listAppointments(businessId: string, startDate: string, en
         active: appointmentSeries.active,
         occurrenceNumber: occurrenceNumber(appointmentSeries.starts_on, appointment.appointment_date),
       } : null,
-      group1: group1?.group?.active ? { label: group1.group.label, name: group1.name } : null,
-      group2: group2?.group?.active ? { label: group2.group.label, name: group2.name } : null,
+      group1: group1?.group?.active ? { id: group1.id, label: group1.group.label, name: group1.name } : null,
+      group2: group2?.group?.active ? { id: group2.id, label: group2.group.label, name: group2.name } : null,
     };
   });
+}
+
+export async function getBusinessHoursForDate(
+  businessId: string,
+  date: string,
+): Promise<DailyCalendarWindow[]> {
+  const supabase = await createClient();
+  const weekday = parseISO(date).getDay();
+  const { data, error } = await supabase
+    .from("business_hours")
+    .select("start_time, end_time")
+    .eq("business_id", businessId)
+    .eq("weekday", weekday)
+    .eq("active", true)
+    .order("start_time");
+  if (error)
+    throw new Error(`Não foi possível carregar os horários: ${error.message}`);
+  return (data ?? []).map((window) => ({
+    startTime: window.start_time.slice(0, 5),
+    endTime: window.end_time.slice(0, 5),
+  }));
 }
 
 export async function getAppointmentSchedulingConfig(businessId: string): Promise<AppointmentSchedulingConfig> {
@@ -108,6 +135,22 @@ export async function getAdminAvailability(input: {
   return { data: error ? [] : parseSlots(data), error };
 }
 
+export async function getAdminEditAvailability(input: {
+  appointmentId: string;
+  date: string;
+  group1OptionId: string | null;
+  group2OptionId: string | null;
+}): Promise<{ data: BookingSlot[]; error: AppointmentRepositoryError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_admin_appointment_edit_availability", {
+    p_appointment_id: input.appointmentId,
+    p_date: input.date,
+    p_group_1_option_id: input.group1OptionId,
+    p_group_2_option_id: input.group2OptionId,
+  });
+  return { data: error ? [] : parseSlots(data), error };
+}
+
 export async function createAdminAppointment(input: ManualAppointmentInput): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_admin_appointment", {
@@ -143,9 +186,27 @@ export async function cancelRecurringAppointment(appointmentId: string, scope: R
   return error;
 }
 
-export async function updateAppointmentStatus(appointmentId: string, status: "completed" | "cancelled" | "no_show"): Promise<AppointmentRepositoryError | null> {
+export async function updateAppointmentStatus(appointmentId: string, status: AppointmentStatus): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_appointment_id: appointmentId, p_status: status });
+  return error;
+}
+
+export async function updateAdminAppointmentOccurrence(
+  appointmentId: string,
+  input: ManualAppointmentInput,
+): Promise<AppointmentRepositoryError | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_admin_appointment_occurrence", {
+    p_appointment_id: appointmentId,
+    p_group_1_option_id: input.group1OptionId,
+    p_group_2_option_id: input.group2OptionId,
+    p_date: input.date,
+    p_start_time: input.startTime,
+    p_blocks: input.blocks,
+    p_customer_name: input.customerName,
+    p_customer_whatsapp: input.customerWhatsapp,
+  });
   return error;
 }
 
