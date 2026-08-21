@@ -5,6 +5,7 @@ import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getAdminEditAvailability, getBusinessHoursForDate, listAppointments, updateAdminAppointmentOccurrence, updateAppointmentStatus } from "@/lib/repositories/appointments";
 import { formatNumericDate } from "@/lib/date";
+import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 
@@ -12,12 +13,23 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const targets = ["scheduled", "completed", "cancelled", "no_show"] as const;
+type AppointmentOperation = "default" | "edit" | "restore";
 
 function validOption(value: string | null) {
   return value === null || uuid.test(value);
 }
 
-function actionError(message: string, code?: string): AppointmentActionResult<never> {
+function logAppointmentError(operation: AppointmentOperation, error: AppointmentRepositoryError) {
+  console.error("[admin-appointments] Supabase operation failed", {
+    operation,
+    message: error.message,
+    code: error.code,
+    details: error.details,
+    hint: error.hint,
+  });
+}
+
+function actionError(message: string, code?: string, operation: AppointmentOperation = "default"): AppointmentActionResult<never> {
   if (message.includes("recurring_conflicts:")) {
     try {
       const conflicts = JSON.parse(message.slice(message.indexOf("recurring_conflicts:") + 20)) as { date: string; start_time: string }[];
@@ -25,6 +37,7 @@ function actionError(message: string, code?: string): AppointmentActionResult<ne
     } catch { return { ok: false, conflict: true, message: "Não foi possível criar a recorrência porque um ou mais horários estão ocupados." }; }
   }
   if (message.includes("appointment_restore_conflict")) return { ok: false, conflict: true, message: "Não foi possível restaurar este agendamento porque o horário já está ocupado." };
+  if ((code === "23P01" || message.includes("booking_conflict")) && operation === "edit") return { ok: false, conflict: true, message: "Não foi possível alterar o agendamento porque o novo horário já está ocupado." };
   if (code === "23P01" || message.includes("booking_conflict")) return { ok: false, conflict: true, message: "Este horário acabou de ser reservado. Escolha outro horário disponível." };
   if (message.includes("booking_invalid_group")) return { ok: false, staleSelection: true, message: "Uma opção selecionada não está mais disponível." };
   if (message.includes("appointment_invalid_status_transition")) return { ok: false, message: "Este agendamento não permite mais essa alteração de status." };
@@ -78,7 +91,11 @@ export async function loadAdminEditAvailability(appointmentId: string, input: Pi
   if (!uuid.test(appointmentId) || !datePattern.test(input.date) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId)) return { ok: false, message: "Seleção inválida." };
   await requireCurrentBusiness();
   const result = await getAdminEditAvailability({ appointmentId, ...input });
-  return result.error ? actionError(result.error.message, result.error.code) : { ok: true, message: "Horários atualizados.", data: result.data };
+  if (result.error) {
+    logAppointmentError("edit", result.error);
+    return actionError(result.error.message, result.error.code, "edit");
+  }
+  return { ok: true, message: "Horários atualizados.", data: result.data };
 }
 
 export async function createManualAppointment(input: ManualAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
@@ -113,7 +130,10 @@ export async function editAppointmentOccurrence(appointmentId: string, input: Ma
   if (!validateWhatsapp(input.customerWhatsapp)) return { ok: false, message: "Informe um WhatsApp válido com DDD." };
   const business = await requireCurrentBusiness();
   const error = await updateAdminAppointmentOccurrence(appointmentId, { ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) });
-  if (error) return actionError(error.message, error.code);
+  if (error) {
+    logAppointmentError("edit", error);
+    return actionError(error.message, error.code, "edit");
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   return { ok: true, message: "Agendamento atualizado. A série recorrente não foi alterada.", data: await listAppointments(business.id, input.date) };
@@ -133,7 +153,11 @@ export async function changeAppointmentStatus(appointmentId: string, status: App
   if (!uuid.test(appointmentId) || !datePattern.test(date) || !targets.some((target) => target === status)) return { ok: false, message: "Alteração de status inválida." };
   const business = await requireCurrentBusiness();
   const error = await updateAppointmentStatus(appointmentId, status);
-  if (error) return actionError(error.message, error.code);
+  if (error) {
+    const operation = status === "scheduled" ? "restore" : "default";
+    logAppointmentError(operation, error);
+    return actionError(error.message, error.code, operation);
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   return { ok: true, message: status === "scheduled" ? "Agendamento restaurado." : "Status atualizado.", data: await listAppointments(business.id, date) };

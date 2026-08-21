@@ -7,7 +7,12 @@ import { parseISO } from "@/lib/date";
 import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
-type AppointmentRepositoryError = { message: string; code?: string };
+export type AppointmentRepositoryError = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
 
 function parseSlots(value: Json): BookingSlot[] {
   if (!Array.isArray(value)) return [];
