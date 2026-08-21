@@ -24,7 +24,7 @@ function actionError(message: string, code?: string): AppointmentActionResult<ne
       return { ok: false, conflict: true, message: `Não foi possível criar a recorrência. Existem conflitos em:\n\n${conflicts.map((item) => `${formatNumericDate(item.date)} às ${item.start_time}`).join("\n")}` };
     } catch { return { ok: false, conflict: true, message: "Não foi possível criar a recorrência porque um ou mais horários estão ocupados." }; }
   }
-  if (message.includes("appointment_restore_conflict")) return { ok: false, conflict: true, message: "Não foi possível restaurar este agendamento porque o horário já está ocupado ou não está mais disponível." };
+  if (message.includes("appointment_restore_conflict")) return { ok: false, conflict: true, message: "Não foi possível restaurar este agendamento porque o horário já está ocupado." };
   if (code === "23P01" || message.includes("booking_conflict")) return { ok: false, conflict: true, message: "Este horário acabou de ser reservado. Escolha outro horário disponível." };
   if (message.includes("booking_invalid_group")) return { ok: false, staleSelection: true, message: "Uma opção selecionada não está mais disponível." };
   if (message.includes("appointment_invalid_status_transition")) return { ok: false, message: "Este agendamento não permite mais essa alteração de status." };
