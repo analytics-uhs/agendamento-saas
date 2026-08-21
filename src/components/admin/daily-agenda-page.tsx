@@ -223,9 +223,6 @@ export function DailyAgendaPage({
               cancelSeriesOccurrence(selectedAppointment, scope)
             }
             onCancelClose={() => setCancellingId(null)}
-            onReminderSent={(sentAt) =>
-              updateReminder(selectedAppointment.id, sentAt)
-            }
             onEdit={() => { setEditingAppointment(selectedAppointment); setSelectedId(null); }}
           />
         </Modal>

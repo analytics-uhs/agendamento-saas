@@ -1,4 +1,5 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
+import type { ManualAppointmentInput } from "@/types/appointments";
 
 export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   scheduled: "Agendado",
@@ -33,4 +34,25 @@ export function manualAppointmentDuration(input: {
   if (!Number.isInteger(input.fixedDurationMinutes) || input.fixedDurationMinutes <= 0) return null;
   if (input.mode === "fixed" && input.blocks !== 1) return null;
   return input.fixedDurationMinutes * input.blocks;
+}
+
+export function initialAppointmentBlocks(input: {
+  durationMinutes: number;
+  mode: DurationMode;
+  fixedDurationMinutes: number;
+}) {
+  if (input.mode !== "fixed_multiple") return 1;
+  return Math.max(1, Math.round(input.durationMinutes / input.fixedDurationMinutes));
+}
+
+export function buildManualAppointmentInput(input: ManualAppointmentInput): ManualAppointmentInput {
+  return {
+    group1OptionId: input.group1OptionId,
+    group2OptionId: input.group2OptionId,
+    date: input.date,
+    startTime: input.startTime,
+    blocks: input.blocks,
+    customerName: input.customerName,
+    customerWhatsapp: input.customerWhatsapp,
+  };
 }

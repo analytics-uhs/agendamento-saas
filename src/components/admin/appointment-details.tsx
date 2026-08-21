@@ -1,8 +1,8 @@
 "use client";
 
 import { Ban, CheckCircle2, Pencil, Repeat2, UserX } from "lucide-react";
-import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { Button } from "@/components/ui/button";
+import { appointmentDetailActions } from "@/lib/appointment-detail-actions";
 import { appointmentSourceLabels } from "@/lib/appointments";
 import {
   formatDateTime,
@@ -15,16 +15,7 @@ import type { AdminAppointment } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 import { StatusBadge } from "@/components/admin/status-badge";
 
-const statusActions: {
-  status: "completed" | "no_show" | "cancelled";
-  label: string;
-  Icon: typeof Ban;
-  variant?: "danger";
-}[] = [
-  { status: "completed", label: "Concluir", Icon: CheckCircle2 },
-  { status: "no_show", label: "Não compareceu", Icon: UserX },
-  { status: "cancelled", label: "Cancelar", Icon: Ban, variant: "danger" },
-];
+const actionIcons = { edit: Pencil, completed: CheckCircle2, no_show: UserX, cancelled: Ban };
 
 export function AppointmentDetails({
   appointment,
@@ -33,7 +24,6 @@ export function AppointmentDetails({
   onStatus,
   onCancelScope,
   onCancelClose,
-  onReminderSent,
   onEdit,
 }: {
   appointment: AdminAppointment;
@@ -42,7 +32,6 @@ export function AppointmentDetails({
   onStatus: (status: AppointmentStatus) => void;
   onCancelScope: (scope: "single" | "future") => void;
   onCancelClose: () => void;
-  onReminderSent: (reminderSentAt: string) => void;
   onEdit?: () => void;
 }) {
   return (
@@ -150,34 +139,26 @@ export function AppointmentDetails({
           </div>
         </div>
       ) : null}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <AppointmentWhatsappReminder
-          appointment={appointment}
-          variant="full"
-          onReminderSent={onReminderSent}
-        />
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-          {appointment.status === "scheduled" && onEdit ? (
-            <Button disabled={saving} variant="outline" size="sm" onClick={onEdit}>
-              <Pencil className="h-3.5 w-3.5" />Editar
-            </Button>
-          ) : null}
-          {appointment.status === "scheduled"
-            ? statusActions.map(({ status, label, Icon, variant }) => (
-                <Button
-                  key={status}
-                  disabled={saving}
-                  variant={variant ?? "ghost"}
-                  size="sm"
-                  onClick={() => onStatus(status)}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </Button>
-              ))
-            : null}
+      {appointment.status === "scheduled" ? (
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {appointmentDetailActions.map((action) => {
+            const Icon = actionIcons[action.id];
+            return (
+              <Button
+                key={action.id}
+                disabled={saving || (action.id === "edit" && !onEdit)}
+                variant={action.variant}
+                size="sm"
+                className="w-full px-2"
+                onClick={() => action.status ? onStatus(action.status) : onEdit?.()}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{action.label}</span>
+              </Button>
+            );
+          })}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

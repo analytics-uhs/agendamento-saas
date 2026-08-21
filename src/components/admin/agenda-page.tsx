@@ -599,9 +599,6 @@ export function AgendaPageContent({
                       cancelSeriesOccurrence(appointment, scope)
                     }
                     onCancelClose={() => setCancellingId(null)}
-                    onReminderSent={(sentAt) =>
-                      updateReminder(appointment.id, sentAt)
-                    }
                     onEdit={() => setEditingAppointment(appointment)}
                   />
                 ) : null}

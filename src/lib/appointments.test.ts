@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appointmentSourceLabels, appointmentStatusLabels, canTransitionAppointment, manualAppointmentDuration } from "./appointments";
+import { appointmentSourceLabels, appointmentStatusLabels, buildManualAppointmentInput, canTransitionAppointment, initialAppointmentBlocks, manualAppointmentDuration } from "./appointments";
 
 test("mapeia status e origem para labels administrativas", () => {
   assert.deepEqual(appointmentStatusLabels, {
@@ -25,4 +25,26 @@ test("calcula duração manual pelos três modos", () => {
   assert.equal(manualAppointmentDuration({ mode: "group_2", fixedDurationMinutes: 60, group2DurationMinutes: 45, blocks: 1 }), 45);
   assert.equal(manualAppointmentDuration({ mode: "fixed", fixedDurationMinutes: 60, group2DurationMinutes: null, blocks: 2 }), null);
   assert.equal(manualAppointmentDuration({ mode: "group_2", fixedDurationMinutes: 60, group2DurationMinutes: null, blocks: 1 }), null);
+});
+
+test("reconstrói blocos atuais e preserva startTime + blocks no payload administrativo", () => {
+  assert.equal(initialAppointmentBlocks({ durationMinutes: 120, mode: "fixed_multiple", fixedDurationMinutes: 60 }), 2);
+  assert.equal(initialAppointmentBlocks({ durationMinutes: 90, mode: "group_2", fixedDurationMinutes: 60 }), 1);
+  assert.deepEqual(buildManualAppointmentInput({
+    group1OptionId: "resource-1",
+    group2OptionId: "service-1",
+    date: "2026-08-24",
+    startTime: "15:00",
+    blocks: 2,
+    customerName: "Cliente",
+    customerWhatsapp: "5553999999999",
+  }), {
+    group1OptionId: "resource-1",
+    group2OptionId: "service-1",
+    date: "2026-08-24",
+    startTime: "15:00",
+    blocks: 2,
+    customerName: "Cliente",
+    customerWhatsapp: "5553999999999",
+  });
 });
