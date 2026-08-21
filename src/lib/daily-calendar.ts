@@ -5,7 +5,7 @@ import type {
 } from "@/types/appointments";
 
 export type DailyCalendarResource = { id: string | null; name: string };
-export type DailyCalendarSection = DailyCalendarWindow & { slots: string[] };
+export type DailyCalendarRow = { time: string; open: boolean };
 
 function toMinutes(time: string) {
   const [hours = 0, minutes = 0] = time.slice(0, 5).split(":").map(Number);
@@ -48,27 +48,40 @@ export function calendarSlotMinutes(config: AppointmentSchedulingConfig) {
   return durations?.reduce(gcd) ?? 30;
 }
 
-export function buildDailyCalendarSections(
+export function buildDailyCalendarRows(
   windows: DailyCalendarWindow[],
   slotMinutes: number,
   appointments: AdminAppointment[],
-): DailyCalendarSection[] {
+): DailyCalendarRow[] {
+  if (!windows.length) return [];
   const safeStep = Math.max(5, slotMinutes);
-  return windows.map((window) => {
-    const start = toMinutes(window.startTime);
-    const end = toMinutes(window.endTime);
-    const slots = new Set<string>();
-    for (let minute = start; minute < end; minute += safeStep)
-      slots.add(toTime(minute));
-    appointments.forEach((appointment) => {
-      const minute = toMinutes(appointment.startTime);
-      if (minute >= start && minute < end) slots.add(appointment.startTime);
-    });
-    return {
-      ...window,
-      slots: [...slots].sort((left, right) => toMinutes(left) - toMinutes(right)),
-    };
+  const first = Math.min(...windows.map((window) => toMinutes(window.startTime)));
+  const last = Math.max(...windows.map((window) => toMinutes(window.endTime)));
+  const times = new Set<string>();
+  for (let minute = first; minute < last; minute += safeStep) times.add(toTime(minute));
+  times.add(toTime(last));
+  appointments.forEach((appointment) => {
+    const minute = toMinutes(appointment.startTime);
+    if (minute >= first && minute < last) times.add(appointment.startTime);
   });
+  return [...times]
+    .sort((left, right) => toMinutes(left) - toMinutes(right))
+    .map((time) => {
+      const start = toMinutes(time);
+      return {
+        time,
+        open: windows.some(
+          (window) =>
+            start >= toMinutes(window.startTime) &&
+            start + safeStep <= toMinutes(window.endTime),
+        ),
+      };
+    });
+}
+
+export function isPastCalendarSlot(date: string, time: string, now = new Date()) {
+  const slot = new Date(`${date}T${time}:00`);
+  return Number.isNaN(slot.getTime()) || slot.getTime() < now.getTime();
 }
 
 export function appointmentsForResource(
@@ -80,5 +93,19 @@ export function appointmentsForResource(
     (appointment) =>
       appointment.startTime === startTime &&
       (resourceId === null || appointment.group1?.id === resourceId),
+  );
+}
+
+export function isResourceOccupied(
+  appointments: AdminAppointment[],
+  resourceId: string | null,
+  time: string,
+) {
+  return appointments.some(
+    (appointment) =>
+      appointment.status !== "cancelled" &&
+      (resourceId === null || appointment.group1?.id === resourceId) &&
+      appointment.startTime <= time &&
+      time < appointment.endTime,
   );
 }

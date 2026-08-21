@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CheckCircle2, Repeat2, UserX } from "lucide-react";
+import { Ban, CheckCircle2, Pencil, Repeat2, UserX } from "lucide-react";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { Button } from "@/components/ui/button";
 import { appointmentSourceLabels } from "@/lib/appointments";
@@ -13,6 +13,7 @@ import {
 import { recurrenceWeekday } from "@/lib/recurrence";
 import type { AdminAppointment } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
+import { StatusBadge } from "@/components/admin/status-badge";
 
 const statusActions: {
   status: "completed" | "no_show" | "cancelled";
@@ -33,6 +34,7 @@ export function AppointmentDetails({
   onCancelScope,
   onCancelClose,
   onReminderSent,
+  onEdit,
 }: {
   appointment: AdminAppointment;
   saving: boolean;
@@ -41,10 +43,15 @@ export function AppointmentDetails({
   onCancelScope: (scope: "single" | "future") => void;
   onCancelClose: () => void;
   onReminderSent: (reminderSentAt: string) => void;
+  onEdit?: () => void;
 }) {
   return (
     <div className="step-in border-t bg-surface/50 p-4">
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted">Status</dt>
+          <dd className="mt-1"><StatusBadge status={appointment.status} /></dd>
+        </div>
         <div>
           <dt className="text-xs text-muted">Cliente</dt>
           <dd className="font-medium">{appointment.customerName}</dd>
@@ -150,6 +157,11 @@ export function AppointmentDetails({
           onReminderSent={onReminderSent}
         />
         <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
+          {appointment.status === "scheduled" && onEdit ? (
+            <Button disabled={saving} variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" />Editar
+            </Button>
+          ) : null}
           {appointment.status === "scheduled"
             ? statusActions.map(({ status, label, Icon, variant }) => (
                 <Button

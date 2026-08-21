@@ -16,6 +16,7 @@ import {
 } from "@/app/admin/agenda/actions";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
+import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { PageHeading } from "@/components/admin/page-heading";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
@@ -85,6 +86,7 @@ export function AgendaPageContent({
   const [windowStart, setWindowStart] = useState(initialDate);
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [creating, setCreating] = useState(initialCreating);
+  const [editingAppointment, setEditingAppointment] = useState<AdminAppointment | null>(null);
   const [form, setForm] = useState(() => initialForm(config));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [loadingAgenda, startAgendaTransition] = useTransition();
@@ -600,6 +602,7 @@ export function AgendaPageContent({
                     onReminderSent={(sentAt) =>
                       updateReminder(appointment.id, sentAt)
                     }
+                    onEdit={() => setEditingAppointment(appointment)}
                   />
                 ) : null}
               </li>
@@ -611,6 +614,20 @@ export function AgendaPageContent({
           </p>
         )}
       </section>
+      {editingAppointment ? (
+        <AppointmentFormModal
+          config={config}
+          prefill={{ date: editingAppointment.appointmentDate }}
+          appointment={editingAppointment}
+          onClose={() => setEditingAppointment(null)}
+          onSaved={(next, date, message) => {
+            if (date === selectedDate) setAppointments(next);
+            else selectDate(date);
+            setFeedback({ ok: true, message });
+            setEditingAppointment(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

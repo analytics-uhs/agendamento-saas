@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { AlertTriangle, CalendarDays, Clock3, ExternalLink, Home, LogOut, Palette, Settings2, ShieldCheck, Store } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { classes } from "@/lib/classes";
-import { publicDomain } from "@/lib/public-url";
 import type { CurrentBusiness } from "@/lib/repositories/businesses";
 import { BusinessAppearance } from "@/components/theme/business-appearance";
 import { ThemeControl } from "@/components/theme/theme-control";
@@ -22,7 +21,7 @@ const nav = [
   { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
 ];
 
-export function AdminShell({ children, currentBusiness, platformAdmin, logoUrl, palette, initialTheme }: { children: React.ReactNode; currentBusiness: CurrentBusiness; platformAdmin: boolean; logoUrl: string | null; palette: BusinessPalette; initialTheme: VisualThemePreference }) {
+export function AdminShell({ children, currentBusiness, platformAdmin, logoUrl, palette, initialTheme, user }: { children: React.ReactNode; currentBusiness: CurrentBusiness; platformAdmin: boolean; logoUrl: string | null; palette: BusinessPalette; initialTheme: VisualThemePreference; user: { name: string; email: string } }) {
   const pathname = usePathname();
   const business = currentBusiness;
   const navigation = platformAdmin ? [...nav, { href: "/super-admin", label: "Super Admin", Icon: ShieldCheck, exact: false }] : nav;
@@ -34,12 +33,11 @@ export function AdminShell({ children, currentBusiness, platformAdmin, logoUrl, 
         {navigation.map(({ href, label, Icon, exact }) => <Link key={href} href={href} className={classes("focus-ring flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors", active(href, exact) ? "bg-primary/10 text-primary" : "text-muted hover:bg-surface hover:text-foreground")}><Icon className="h-4 w-4" />{label}</Link>)}
       </nav>
       <div className="mt-auto space-y-3">
-        <ThemeControl />
         {business.active ? <Link href={`/agendar/${business.slug}`} target="_blank" rel="noopener noreferrer" className="focus-ring block rounded-xl border p-3">
           <span className="text-xs text-muted">Página pública</span>
-          <span className="mt-1 flex items-center gap-1 text-sm font-medium text-primary"><span className="truncate">{publicDomain}/{business.slug}</span><ExternalLink className="h-3.5 w-3.5" /></span>
+          <span className="mt-1 flex items-center gap-1 text-sm font-medium text-primary"><span className="truncate">/{business.slug}</span><ExternalLink className="h-3.5 w-3.5" /></span>
         </Link> : <div className="rounded-xl border border-accent/35 bg-accent/10 p-3"><span className="text-xs font-medium text-foreground">Página pública indisponível</span><p className="mt-1 text-xs text-muted">Negócio inativo pela plataforma.</p></div>}
-        <form action={logout}><button type="submit" className="focus-ring flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-foreground"><LogOut className="h-4 w-4" />Sair</button></form>
+        <div className="border-t pt-3"><p className="truncate text-sm font-semibold">{user.name}</p><p className="truncate text-xs text-muted">{user.email}</p><div className="mt-2 flex items-center justify-between"><form action={logout}><button type="submit" className="focus-ring flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted hover:bg-surface hover:text-foreground"><LogOut className="h-4 w-4" />Sair</button></form><ThemeControl compact /></div></div>
       </div>
     </aside>
     <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background px-4 py-3 lg:hidden">

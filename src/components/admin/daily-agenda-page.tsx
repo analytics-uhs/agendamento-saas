@@ -1,22 +1,26 @@
 "use client";
 
-import Link from "next/link";
 import { Clock3, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
+import { AppointmentFormModal, type AppointmentFormPrefill } from "@/components/admin/appointment-form-modal";
 import { PageHeading } from "@/components/admin/page-heading";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { DateStrip } from "@/components/booking/date-strip";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { classes } from "@/lib/classes";
 import {
   appointmentsForResource,
-  buildDailyCalendarSections,
+  buildDailyCalendarRows,
   calendarResources,
   calendarSlotMinutes,
+  isPastCalendarSlot,
+  isResourceOccupied,
   type DailyCalendarResource,
 } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
@@ -50,6 +54,8 @@ export function DailyAgendaPage({
     resources[0]?.id ?? null,
   );
   const [loading, startLoadingTransition] = useTransition();
+  const [formPrefill, setFormPrefill] = useState<AppointmentFormPrefill | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AdminAppointment | null>(null);
   const requestId = useRef(0);
   const {
     appointments,
@@ -65,7 +71,7 @@ export function DailyAgendaPage({
     cancelSeriesOccurrence,
     updateReminder,
   } = useAppointmentManagement(initialAppointments, selectedDate);
-  const sections = buildDailyCalendarSections(
+  const rows = buildDailyCalendarRows(
     windows,
     calendarSlotMinutes(config),
     appointments,
@@ -130,17 +136,14 @@ export function DailyAgendaPage({
           </p>
         </div>
         {canCreate ? (
-          <Link
-            href={`/admin?date=${selectedDate}&new=1#agenda-operacional`}
-            className="focus-ring inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-          >
+          <Button size="sm" onClick={() => setFormPrefill({ date: selectedDate })}>
             <Plus className="h-4 w-4" />
-            Novo agendamento
-          </Link>
+            Novo
+          </Button>
         ) : (
           <span className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-white opacity-45">
             <Plus className="h-4 w-4" />
-            Novo agendamento
+            Novo
           </span>
         )}
       </div>
@@ -173,22 +176,28 @@ export function DailyAgendaPage({
         <>
           <DesktopDailyGrid
             resources={resources}
-            sections={sections}
+            rows={rows}
             appointments={appointments}
             onSelect={setSelectedId}
             onReminderSent={updateReminder}
+            onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
+            canCreate={canCreate}
+            selectedDate={selectedDate}
           />
           <MobileDailyGrid
             resources={resources}
             resourceLabel={resourceLabel}
             selectedResourceId={mobileResourceId}
             onResourceChange={setMobileResourceId}
-            sections={sections}
+            rows={rows}
             appointments={appointments}
             onSelect={setSelectedId}
             onReminderSent={updateReminder}
+            onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
+            canCreate={canCreate}
+            selectedDate={selectedDate}
           />
-          {!sections.length ? (
+          {!rows.length ? (
             <p className="mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted">
               O estabelecimento não possui horário de funcionamento ativo
               nesta data.
@@ -204,17 +213,7 @@ export function DailyAgendaPage({
       )}
 
       {selectedAppointment ? (
-        <section className="mt-5 overflow-hidden rounded-xl border bg-background">
-          <header className="flex items-center justify-between border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">Detalhes do agendamento</h2>
-            <button
-              type="button"
-              className="focus-ring rounded-lg px-2 py-1 text-xs text-muted hover:text-foreground"
-              onClick={() => setSelectedId(null)}
-            >
-              Fechar
-            </button>
-          </header>
+        <Modal title="Detalhes do agendamento" onClose={() => setSelectedId(null)}>
           <AppointmentDetails
             appointment={selectedAppointment}
             saving={saving}
@@ -227,8 +226,24 @@ export function DailyAgendaPage({
             onReminderSent={(sentAt) =>
               updateReminder(selectedAppointment.id, sentAt)
             }
+            onEdit={() => { setEditingAppointment(selectedAppointment); setSelectedId(null); }}
           />
-        </section>
+        </Modal>
+      ) : null}
+      {formPrefill || editingAppointment ? (
+        <AppointmentFormModal
+          config={config}
+          prefill={formPrefill ?? { date: editingAppointment!.appointmentDate }}
+          appointment={editingAppointment}
+          onClose={() => { setFormPrefill(null); setEditingAppointment(null); }}
+          onSaved={(next, date, message) => {
+            if (date === selectedDate) setAppointments(next);
+            else selectDate(date);
+            setFeedback({ ok: true, message });
+            setFormPrefill(null);
+            setEditingAppointment(null);
+          }}
+        />
       ) : null}
     </>
   );
@@ -236,22 +251,28 @@ export function DailyAgendaPage({
 
 function DesktopDailyGrid({
   resources,
-  sections,
+  rows,
   appointments,
   onSelect,
   onReminderSent,
+  onCreate,
+  canCreate,
+  selectedDate,
 }: {
   resources: DailyCalendarResource[];
-  sections: ReturnType<typeof buildDailyCalendarSections>;
+  rows: ReturnType<typeof buildDailyCalendarRows>;
   appointments: AdminAppointment[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
+  onCreate: (time: string, resourceId: string | null) => void;
+  canCreate: boolean;
+  selectedDate: string;
 }) {
   const gridStyle = {
     gridTemplateColumns: `${timeColumnWidth}px repeat(${resources.length}, minmax(${resourceColumnWidth}px, 1fr))`,
     minWidth: timeColumnWidth + resources.length * resourceColumnWidth,
   };
-  if (!sections.length) return null;
+  if (!rows.length) return null;
   return (
     <div className="mt-4 hidden overflow-x-auto rounded-xl border bg-background md:block">
       <div className="grid" style={gridStyle}>
@@ -266,16 +287,16 @@ function DesktopDailyGrid({
             {resource.name}
           </div>
         ))}
-        {sections.map((section, sectionIndex) => (
-          <DailyGridSection
-            key={`${section.startTime}-${section.endTime}`}
-            section={section}
-            sectionIndex={sectionIndex}
-            previousEndTime={sections[sectionIndex - 1]?.endTime}
+        {rows.map((row) => (
+          <DailyGridRow
+            key={row.time}
+            row={row}
             resources={resources}
             appointments={appointments}
             onSelect={onSelect}
             onReminderSent={onReminderSent}
+            onCreate={onCreate}
+            canCreate={canCreate && !isPastCalendarSlot(selectedDate, row.time)}
           />
         ))}
       </div>
@@ -283,78 +304,35 @@ function DesktopDailyGrid({
   );
 }
 
-function DailyGridSection({
-  section,
-  sectionIndex,
-  previousEndTime,
-  resources,
-  appointments,
-  onSelect,
-  onReminderSent,
-}: {
-  section: ReturnType<typeof buildDailyCalendarSections>[number];
-  sectionIndex: number;
-  previousEndTime?: string;
-  resources: DailyCalendarResource[];
-  appointments: AdminAppointment[];
-  onSelect: (id: string) => void;
-  onReminderSent: (appointmentId: string, sentAt: string) => void;
-}) {
-  return (
-    <>
-      {sectionIndex > 0 ? (
-        <div
-          className="border-b bg-surface px-3 py-2 text-center text-xs font-medium text-muted"
-          style={{ gridColumn: "1 / -1" }}
-        >
-          Intervalo fechado · {previousEndTime}–{section.startTime}
-        </div>
-      ) : null}
-      <div
-        className="border-b bg-primary/5 px-3 py-2 text-xs font-semibold text-primary"
-        style={{ gridColumn: "1 / -1" }}
-      >
-        Funcionamento · {section.startTime}–{section.endTime}
-      </div>
-      {section.slots.map((slot) => (
-        <DailyGridRow
-          key={slot}
-          slot={slot}
-          resources={resources}
-          appointments={appointments}
-          onSelect={onSelect}
-          onReminderSent={onReminderSent}
-        />
-      ))}
-    </>
-  );
-}
-
 function DailyGridRow({
-  slot,
+  row,
   resources,
   appointments,
   onSelect,
   onReminderSent,
+  onCreate,
+  canCreate,
 }: {
-  slot: string;
+  row: ReturnType<typeof buildDailyCalendarRows>[number];
   resources: DailyCalendarResource[];
   appointments: AdminAppointment[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
+  onCreate: (time: string, resourceId: string | null) => void;
+  canCreate: boolean;
 }) {
   return (
     <>
       <div className="sticky left-0 z-10 min-h-20 border-b border-r bg-background px-2 py-3 text-center text-xs font-semibold tabular-nums text-muted">
-        {slot}
+        {row.time}
       </div>
       {resources.map((resource) => (
         <div
-          key={`${slot}-${resource.id ?? "business"}`}
-          className="min-h-20 border-b border-r p-1.5 last:border-r-0"
+          key={`${row.time}-${resource.id ?? "business"}`}
+          className={classes("relative min-h-20 border-b border-r p-1.5 last:border-r-0", !row.open && "bg-muted/10")}
         >
           <div className="space-y-1.5">
-            {appointmentsForResource(appointments, resource.id, slot).map(
+            {appointmentsForResource(appointments, resource.id, row.time).map(
               (appointment) => (
                 <DailyAppointmentCard
                   key={appointment.id}
@@ -365,6 +343,8 @@ function DailyGridRow({
               ),
             )}
           </div>
+          {row.open && canCreate && !isResourceOccupied(appointments, resource.id, row.time) ? <button type="button" aria-label={`Novo agendamento às ${row.time} para ${resource.name}`} onClick={() => onCreate(row.time, resource.id)} className="focus-ring absolute inset-1.5 rounded-lg opacity-0 transition-opacity hover:bg-primary/5 hover:opacity-100 focus:opacity-100"><Plus className="mx-auto h-4 w-4 text-primary" /></button> : null}
+          {!row.open ? <span className="pointer-events-none absolute inset-0 grid place-items-center text-[10px] font-medium text-muted/70">Fechado</span> : null}
         </div>
       ))}
     </>
@@ -376,21 +356,27 @@ function MobileDailyGrid({
   resourceLabel,
   selectedResourceId,
   onResourceChange,
-  sections,
+  rows,
   appointments,
   onSelect,
   onReminderSent,
+  onCreate,
+  canCreate,
+  selectedDate,
 }: {
   resources: DailyCalendarResource[];
   resourceLabel: string | null;
   selectedResourceId: string | null;
   onResourceChange: (id: string | null) => void;
-  sections: ReturnType<typeof buildDailyCalendarSections>;
+  rows: ReturnType<typeof buildDailyCalendarRows>;
   appointments: AdminAppointment[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
+  onCreate: (time: string, resourceId: string | null) => void;
+  canCreate: boolean;
+  selectedDate: string;
 }) {
-  if (!sections.length) return null;
+  if (!rows.length) return null;
   return (
     <div className="mt-4 md:hidden">
       {resources.length > 1 ? (
@@ -421,31 +407,19 @@ function MobileDailyGrid({
           {resources.find((resource) => resource.id === selectedResourceId)
             ?.name ?? resources[0]?.name}
         </div>
-        {sections.map((section, sectionIndex) => (
-          <div key={`${section.startTime}-${section.endTime}`}>
-            {sectionIndex > 0 ? (
-              <div className="border-b bg-surface px-3 py-2 text-center text-xs font-medium text-muted">
-                Intervalo fechado · {sections[sectionIndex - 1]?.endTime}–
-                {section.startTime}
-              </div>
-            ) : null}
-            <div className="border-b bg-primary/5 px-3 py-2 text-xs font-semibold text-primary">
-              Funcionamento · {section.startTime}–{section.endTime}
-            </div>
-            {section.slots.map((slot) => (
+        {rows.map((row) => {
+          const slotAppointments = appointmentsForResource(appointments, selectedResourceId, row.time);
+          const slotCanCreate = row.open && canCreate && !isPastCalendarSlot(selectedDate, row.time) && !isResourceOccupied(appointments, selectedResourceId, row.time);
+          return (
               <div
-                key={slot}
-                className="grid min-h-16 grid-cols-[58px_minmax(0,1fr)] border-b last:border-b-0"
+                key={row.time}
+                className={classes("grid min-h-16 grid-cols-[58px_minmax(0,1fr)] border-b last:border-b-0", !row.open && "bg-muted/10")}
               >
                 <div className="border-r px-2 py-3 text-center text-xs font-semibold tabular-nums text-muted">
-                  {slot}
+                  {row.time}
                 </div>
-                <div className="space-y-2 p-2">
-                  {appointmentsForResource(
-                    appointments,
-                    selectedResourceId,
-                    slot,
-                  ).map((appointment) => (
+                <div className="relative space-y-2 p-2">
+                  {slotAppointments.map((appointment) => (
                     <DailyAppointmentCard
                       key={appointment.id}
                       appointment={appointment}
@@ -453,11 +427,12 @@ function MobileDailyGrid({
                       onReminderSent={onReminderSent}
                     />
                   ))}
+                  {!row.open ? <span className="block py-2 text-center text-xs font-medium text-muted">Fechado</span> : null}
+                  {slotCanCreate ? <button type="button" onClick={() => onCreate(row.time, selectedResourceId)} className="focus-ring flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted hover:border-primary hover:text-primary"><Plus className="h-3.5 w-3.5" />Novo</button> : null}
                 </div>
               </div>
-            ))}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

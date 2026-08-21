@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   appointmentsForResource,
-  buildDailyCalendarSections,
+  buildDailyCalendarRows,
   calendarResources,
   calendarSlotMinutes,
+  isResourceOccupied,
 } from "./daily-calendar";
 import type {
   AdminAppointment,
@@ -60,8 +61,8 @@ test("mantém opções e ordem configuradas do Grupo 1", () => {
   assert.deepEqual(result.resources.map((resource) => resource.id), ["q2", "q1"]);
 });
 
-test("separa múltiplas janelas sem criar slots no intervalo fechado", () => {
-  const sections = buildDailyCalendarSections(
+test("mantém uma grade contínua e marca o intervalo fechado", () => {
+  const rows = buildDailyCalendarRows(
     [
       { startTime: "08:00", endTime: "11:00" },
       { startTime: "14:00", endTime: "16:00" },
@@ -69,18 +70,22 @@ test("separa múltiplas janelas sem criar slots no intervalo fechado", () => {
     60,
     [],
   );
-  assert.deepEqual(sections[0]?.slots, ["08:00", "09:00", "10:00"]);
-  assert.deepEqual(sections[1]?.slots, ["14:00", "15:00"]);
-  assert.equal(sections.flatMap((section) => section.slots).includes("12:00"), false);
+  assert.deepEqual(rows, [
+    { time: "08:00", open: true }, { time: "09:00", open: true },
+    { time: "10:00", open: true }, { time: "11:00", open: false },
+    { time: "12:00", open: false }, { time: "13:00", open: false },
+    { time: "14:00", open: true }, { time: "15:00", open: true },
+    { time: "16:00", open: false },
+  ]);
 });
 
 test("inclui o horário real de appointment mesmo fora da cadência base", () => {
-  const sections = buildDailyCalendarSections(
+  const rows = buildDailyCalendarRows(
     [{ startTime: "08:00", endTime: "11:00" }],
     60,
     [appointment({ startTime: "08:30", endTime: "09:30" })],
   );
-  assert.deepEqual(sections[0]?.slots, ["08:00", "08:30", "09:00", "10:00"]);
+  assert.deepEqual(rows.map((row) => row.time), ["08:00", "08:30", "09:00", "10:00", "11:00"]);
 });
 
 test("usa o MDC das durações do Grupo 2 na grade", () => {
@@ -113,4 +118,10 @@ test("filtra appointments pela opção do Grupo 1 e horário", () => {
     ["b"],
   );
   assert.equal(appointmentsForResource(appointments, null, "08:00").length, 2);
+});
+
+test("considera toda a duração do appointment como slot ocupado", () => {
+  const item = appointment({ startTime: "08:00", endTime: "09:30" });
+  assert.equal(isResourceOccupied([item], null, "09:00"), true);
+  assert.equal(isResourceOccupied([item], null, "09:30"), false);
 });
