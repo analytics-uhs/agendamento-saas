@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
-import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getBusinessHoursForDate, listAppointments, updateAppointmentStatus } from "@/lib/repositories/appointments";
+import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getAdminEditAvailability, getBusinessHoursForDate, listAppointments, updateAdminAppointmentOccurrence, updateAppointmentStatus } from "@/lib/repositories/appointments";
 import { formatNumericDate } from "@/lib/date";
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
@@ -73,6 +73,13 @@ export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, 
   return result.error ? actionError(result.error.message, result.error.code) : { ok: true, message: "Horários atualizados.", data: result.data };
 }
 
+export async function loadAdminEditAvailability(appointmentId: string, input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {
+  if (!uuid.test(appointmentId) || !datePattern.test(input.date) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId)) return { ok: false, message: "Seleção inválida." };
+  await requireCurrentBusiness();
+  const result = await getAdminEditAvailability({ appointmentId, ...input });
+  return result.error ? actionError(result.error.message, result.error.code) : { ok: true, message: "Horários atualizados.", data: result.data };
+}
+
 export async function createManualAppointment(input: ManualAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
   if (!datePattern.test(input.date) || !timePattern.test(input.startTime) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId) || !Number.isInteger(input.blocks) || input.blocks < 1) return { ok: false, message: "Revise os dados do agendamento." };
   if (input.customerName.trim().length < 2) return { ok: false, message: "Informe o nome do cliente." };
@@ -97,6 +104,18 @@ export async function createRecurringAppointment(input: RecurringAppointmentInpu
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   return { ok: true, message: "Recorrência criada.", data: await listAppointments(business.id, input.date) };
+}
+
+export async function editAppointmentOccurrence(appointmentId: string, input: ManualAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
+  if (!uuid.test(appointmentId) || !datePattern.test(input.date) || !timePattern.test(input.startTime) || !validOption(input.group1OptionId) || !validOption(input.group2OptionId) || !Number.isInteger(input.blocks) || input.blocks < 1) return { ok: false, message: "Revise os dados do agendamento." };
+  if (input.customerName.trim().length < 2) return { ok: false, message: "Informe o nome do cliente." };
+  if (!validateWhatsapp(input.customerWhatsapp)) return { ok: false, message: "Informe um WhatsApp válido com DDD." };
+  const business = await requireCurrentBusiness();
+  const error = await updateAdminAppointmentOccurrence(appointmentId, { ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) });
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin");
+  revalidatePath("/admin/agenda");
+  return { ok: true, message: "Agendamento atualizado. A série recorrente não foi alterada.", data: await listAppointments(business.id, input.date) };
 }
 
 export async function cancelRecurringAppointment(appointmentId: string, scope: RecurringCancellationScope, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {

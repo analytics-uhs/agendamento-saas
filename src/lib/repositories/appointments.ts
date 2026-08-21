@@ -130,6 +130,22 @@ export async function getAdminAvailability(input: {
   return { data: error ? [] : parseSlots(data), error };
 }
 
+export async function getAdminEditAvailability(input: {
+  appointmentId: string;
+  date: string;
+  group1OptionId: string | null;
+  group2OptionId: string | null;
+}): Promise<{ data: BookingSlot[]; error: AppointmentRepositoryError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_admin_appointment_edit_availability", {
+    p_appointment_id: input.appointmentId,
+    p_date: input.date,
+    p_group_1_option_id: input.group1OptionId,
+    p_group_2_option_id: input.group2OptionId,
+  });
+  return { data: error ? [] : parseSlots(data), error };
+}
+
 export async function createAdminAppointment(input: ManualAppointmentInput): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_admin_appointment", {
@@ -168,6 +184,24 @@ export async function cancelRecurringAppointment(appointmentId: string, scope: R
 export async function updateAppointmentStatus(appointmentId: string, status: "completed" | "cancelled" | "no_show"): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_appointment_id: appointmentId, p_status: status });
+  return error;
+}
+
+export async function updateAdminAppointmentOccurrence(
+  appointmentId: string,
+  input: ManualAppointmentInput,
+): Promise<AppointmentRepositoryError | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_admin_appointment_occurrence", {
+    p_appointment_id: appointmentId,
+    p_group_1_option_id: input.group1OptionId,
+    p_group_2_option_id: input.group2OptionId,
+    p_date: input.date,
+    p_start_time: input.startTime,
+    p_blocks: input.blocks,
+    p_customer_name: input.customerName,
+    p_customer_whatsapp: input.customerWhatsapp,
+  });
   return error;
 }
 
