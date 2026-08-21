@@ -1,49 +1,40 @@
 "use client";
 
 import {
-  Ban,
-  CheckCircle2,
   Clock3,
   LoaderCircle,
   Plus,
   Repeat2,
-  UserX,
   X,
 } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
-  cancelRecurringAppointment,
-  changeAppointmentStatus,
   createManualAppointment,
   createRecurringAppointment,
   loadAdminAppointments,
   loadAdminAvailability,
 } from "@/app/admin/agenda/actions";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
+import { AppointmentDetails } from "@/components/admin/appointment-details";
+import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { PageHeading } from "@/components/admin/page-heading";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
-import {
-  appointmentSourceLabels,
-  manualAppointmentDuration,
-} from "@/lib/appointments";
+import { manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
 import {
-  formatDateTime,
   formatDuration,
   formatLongDate,
-  formatNumericDate,
   todayISO,
 } from "@/lib/date";
-import { recurrenceSummary, recurrenceWeekday } from "@/lib/recurrence";
+import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
 } from "@/types/appointments";
-import type { AppointmentStatus } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
 
 type FormState = {
@@ -76,45 +67,46 @@ function initialForm(config: AppointmentSchedulingConfig): FormState {
   };
 }
 
-const statusActions: {
-  status: "completed" | "no_show" | "cancelled";
-  label: string;
-  Icon: typeof Ban;
-  variant?: "danger";
-}[] = [
-  { status: "completed", label: "Concluir", Icon: CheckCircle2 },
-  { status: "no_show", label: "Não compareceu", Icon: UserX },
-  { status: "cancelled", label: "Cancelar", Icon: Ban, variant: "danger" },
-];
-
 export function AgendaPageContent({
   initialDate,
   initialAppointments,
   config,
   businessActive,
+  embedded = false,
+  initialCreating = false,
 }: {
   initialDate: string;
   initialAppointments: AdminAppointment[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
+  embedded?: boolean;
+  initialCreating?: boolean;
 }) {
   const [windowStart, setWindowStart] = useState(initialDate);
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [appointments, setAppointments] = useState(initialAppointments);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(initialCreating);
   const [form, setForm] = useState(() => initialForm(config));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
-  const [feedback, setFeedback] = useState<{
-    ok: boolean;
-    message: string;
-  } | null>(null);
   const [loadingAgenda, startAgendaTransition] = useTransition();
   const [loadingSlots, startSlotsTransition] = useTransition();
-  const [saving, startSavingTransition] = useTransition();
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const {
+    appointments,
+    setAppointments,
+    selectedId,
+    setSelectedId,
+    feedback,
+    setFeedback,
+    saving,
+    startSavingTransition,
+    cancellingId,
+    setCancellingId,
+    updateStatus,
+    cancelSeriesOccurrence,
+    updateReminder,
+  } = useAppointmentManagement(initialAppointments, selectedDate);
   const agendaRequest = useRef(0);
   const slotRequest = useRef(0);
+  const initialCreationHandled = useRef(false);
   const groupOne = config.groups.find((group) => group.position === 1);
   const groupTwo = config.groups.find((group) => group.position === 2);
   const selectedSlot = slots.find((slot) => slot.startTime === form.startTime);
@@ -132,6 +124,28 @@ export function AgendaPageContent({
     (groupTwo && groupTwo.options.length === 0) ||
     (config.durationMode === "group_2" && !groupTwo),
   );
+
+  useEffect(() => {
+    if (!initialCreating || initialCreationHandled.current) return;
+    initialCreationHandled.current = true;
+    const request = ++slotRequest.current;
+    startSlotsTransition(async () => {
+      const result = await loadAdminAvailability({
+        date: initialDate,
+        group1OptionId: form.group1OptionId,
+        group2OptionId: form.group2OptionId,
+      });
+      if (request !== slotRequest.current) return;
+      if (result.ok) setSlots(result.data);
+      else setFeedback({ ok: false, message: result.message });
+    });
+  }, [
+    form.group1OptionId,
+    form.group2OptionId,
+    initialCreating,
+    initialDate,
+    setFeedback,
+  ]);
 
   function fetchAvailability(
     date: string,
@@ -222,71 +236,23 @@ export function AgendaPageContent({
     });
   }
 
-  function updateStatus(
-    appointment: AdminAppointment,
-    status: AppointmentStatus,
-  ) {
-    if (status === "cancelled" && appointment.series) {
-      setCancellingId(appointment.id);
-      return;
-    }
-    if (
-      status === "cancelled" &&
-      !window.confirm(`Cancelar o agendamento de ${appointment.customerName}?`)
-    )
-      return;
-    setFeedback(null);
-    startSavingTransition(async () => {
-      const result = await changeAppointmentStatus(
-        appointment.id,
-        status,
-        selectedDate,
-      );
-      if (!result.ok) {
-        setFeedback({ ok: false, message: result.message });
-        return;
-      }
-      setAppointments(result.data);
-      setFeedback({ ok: true, message: result.message });
-    });
-  }
-
-  function cancelSeriesOccurrence(
-    appointment: AdminAppointment,
-    scope: "single" | "future",
-  ) {
-    setFeedback(null);
-    startSavingTransition(async () => {
-      const result = await cancelRecurringAppointment(
-        appointment.id,
-        scope,
-        selectedDate,
-      );
-      if (!result.ok) setFeedback({ ok: false, message: result.message });
-      else {
-        setAppointments(result.data);
-        setFeedback({ ok: true, message: result.message });
-        setCancellingId(null);
-      }
-    });
-  }
-
-  function updateReminder(appointmentId: string, reminderSentAt: string) {
-    setAppointments((current) =>
-      current.map((appointment) =>
-        appointment.id === appointmentId
-          ? { ...appointment, reminderSentAt }
-          : appointment,
-      ),
-    );
-  }
-
   return (
     <>
-      <PageHeading
-        title="Agenda"
-        description="Visualize e gerencie os agendamentos."
-      />
+      {embedded ? (
+        <header id="agenda-operacional" className="scroll-mt-20">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Agenda operacional
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Visualize e gerencie os agendamentos.
+          </p>
+        </header>
+      ) : (
+        <PageHeading
+          title="Agenda"
+          description="Visualize e gerencie os agendamentos."
+        />
+      )}
       <div className="mt-6">
         <DateStrip
           allowPast
@@ -646,150 +612,5 @@ export function AgendaPageContent({
         )}
       </section>
     </>
-  );
-}
-
-function AppointmentDetails({
-  appointment,
-  saving,
-  cancelling,
-  onStatus,
-  onCancelScope,
-  onCancelClose,
-  onReminderSent,
-}: {
-  appointment: AdminAppointment;
-  saving: boolean;
-  cancelling: boolean;
-  onStatus: (status: AppointmentStatus) => void;
-  onCancelScope: (scope: "single" | "future") => void;
-  onCancelClose: () => void;
-  onReminderSent: (reminderSentAt: string) => void;
-}) {
-  return (
-    <div className="step-in border-t bg-surface/50 p-4">
-      <dl className="grid gap-3 text-sm sm:grid-cols-2">
-        <div>
-          <dt className="text-xs text-muted">Cliente</dt>
-          <dd className="font-medium">{appointment.customerName}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted">WhatsApp</dt>
-          <dd className="font-medium">{appointment.customerWhatsapp}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted">Data e horário</dt>
-          <dd className="font-medium capitalize">
-            {formatLongDate(appointment.appointmentDate)} ·{" "}
-            {appointment.startTime}–{appointment.endTime}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted">Duração</dt>
-          <dd className="font-medium">
-            {formatDuration(appointment.durationMinutes)}
-          </dd>
-        </div>
-        {appointment.group1 ? (
-          <div>
-            <dt className="text-xs text-muted">{appointment.group1.label}</dt>
-            <dd className="font-medium">{appointment.group1.name}</dd>
-          </div>
-        ) : null}
-        {appointment.group2 ? (
-          <div>
-            <dt className="text-xs text-muted">{appointment.group2.label}</dt>
-            <dd className="font-medium">{appointment.group2.name}</dd>
-          </div>
-        ) : null}
-        <div>
-          <dt className="text-xs text-muted">Origem</dt>
-          <dd className="font-medium">
-            {appointmentSourceLabels[appointment.source]}
-          </dd>
-        </div>
-        {appointment.series ? (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 sm:col-span-2">
-            <dt className="flex items-center gap-2 text-xs font-semibold text-primary">
-              <Repeat2 className="h-3.5 w-3.5" />
-              Recorrente
-            </dt>
-            <dd className="mt-1 text-sm">
-              Toda {recurrenceWeekday(appointment.series.startsOn)} às{" "}
-              {appointment.series.startTime} · primeira data{" "}
-              {formatNumericDate(appointment.series.startsOn)} ·{" "}
-              {appointment.series.repeatCount === null
-                ? "Permanente"
-                : `${appointment.series.repeatCount} repetições · ocorrência ${appointment.series.occurrenceNumber} de ${appointment.series.repeatCount}`}
-            </dd>
-          </div>
-        ) : null}
-        {appointment.reminderSentAt ? (
-          <div>
-            <dt className="text-xs text-muted">Último lembrete</dt>
-            <dd className="font-medium">
-              Lembrete enviado em {formatDateTime(appointment.reminderSentAt)}
-            </dd>
-          </div>
-        ) : null}
-      </dl>
-      {cancelling ? (
-        <div className="mt-4 rounded-xl border border-danger/25 bg-danger/5 p-3">
-          <p className="text-sm font-semibold">Como deseja cancelar?</p>
-          <p className="mt-1 text-xs text-muted">
-            O histórico anterior não será alterado.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={saving}
-              onClick={() => onCancelScope("single")}
-            >
-              Cancelar somente este
-            </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={saving}
-              onClick={() => onCancelScope("future")}
-            >
-              Cancelar este e os próximos
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={saving}
-              onClick={onCancelClose}
-            >
-              Voltar
-            </Button>
-          </div>
-        </div>
-      ) : null}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <AppointmentWhatsappReminder
-          appointment={appointment}
-          variant="full"
-          onReminderSent={onReminderSent}
-        />
-        <div className="flex flex-wrap items-center justify-end gap-2 sm:ml-auto">
-          {appointment.status === "scheduled"
-            ? statusActions.map(({ status, label, Icon, variant }) => (
-                <Button
-                  key={status}
-                  disabled={saving}
-                  variant={variant ?? "ghost"}
-                  size="sm"
-                  onClick={() => onStatus(status)}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </Button>
-              ))
-            : null}
-        </div>
-      </div>
-    </div>
   );
 }

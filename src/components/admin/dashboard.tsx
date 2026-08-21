@@ -1,22 +1,34 @@
-import Link from "next/link";
 import { CalendarCheck, CalendarDays, Clock3, UserX } from "lucide-react";
-import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
+import { AgendaPageContent } from "@/components/admin/agenda-page";
 import { PageHeading } from "@/components/admin/page-heading";
-import { RecurringBadge } from "@/components/admin/recurring-badge";
-import { StatusBadge } from "@/components/admin/status-badge";
-import { formatDuration, formatLongDate } from "@/lib/date";
-import type { AdminAppointment } from "@/types/appointments";
+import { formatLongDate } from "@/lib/date";
+import type {
+  AdminAppointment,
+  AppointmentSchedulingConfig,
+} from "@/types/appointments";
 
 export function Dashboard({
   businessName,
   today,
-  appointments,
+  summaryAppointments,
+  operationalDate,
+  operationalAppointments,
+  config,
+  businessActive,
+  initialCreating,
 }: {
   businessName: string;
   today: string;
-  appointments: AdminAppointment[];
+  summaryAppointments: AdminAppointment[];
+  operationalDate: string;
+  operationalAppointments: AdminAppointment[];
+  config: AppointmentSchedulingConfig;
+  businessActive: boolean;
+  initialCreating: boolean;
 }) {
-  const todays = appointments.filter((item) => item.appointmentDate === today);
+  const todays = summaryAppointments.filter(
+    (item) => item.appointmentDate === today,
+  );
   const stats = [
     {
       label: "Agendamentos hoje",
@@ -35,7 +47,7 @@ export function Dashboard({
     },
     {
       label: "Próximos 7 dias",
-      value: appointments.filter(
+      value: summaryAppointments.filter(
         (item) => item.appointmentDate > today && item.status === "scheduled",
       ).length,
       Icon: Clock3,
@@ -56,53 +68,15 @@ export function Dashboard({
           </article>
         ))}
       </div>
-      <section className="mt-6 overflow-hidden rounded-xl border bg-background">
-        <header className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-sm font-semibold">Agendamentos de hoje</h2>
-          <Link
-            href="/admin/agenda"
-            className="focus-ring rounded-lg border px-3 py-1.5 text-xs font-semibold"
-          >
-            Ver agenda
-          </Link>
-        </header>
-        {todays.length ? (
-          <ul className="divide-y">
-            {todays.map((item) => (
-              <li
-                key={item.id}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3"
-              >
-                <span className="text-sm font-semibold tabular-nums">
-                  {item.startTime}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {item.customerName}
-                  </p>
-                  <p className="truncate text-xs text-muted">
-                    {[
-                      item.group1?.name,
-                      item.group2?.name,
-                      formatDuration(item.durationMinutes),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                  <AppointmentWhatsappReminder appointment={item} />
-                  {item.series ? <RecurringBadge /> : null}
-                  <StatusBadge status={item.status} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="p-8 text-center text-sm text-muted">
-            Nenhum agendamento para hoje.
-          </p>
-        )}
+      <section className="mt-8 border-t pt-8">
+        <AgendaPageContent
+          embedded
+          initialDate={operationalDate}
+          initialAppointments={operationalAppointments}
+          config={config}
+          businessActive={businessActive}
+          initialCreating={initialCreating}
+        />
       </section>
     </>
   );
