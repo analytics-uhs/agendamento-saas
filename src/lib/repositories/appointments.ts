@@ -3,7 +3,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database";
 import { occurrenceNumber } from "@/lib/recurrence";
-import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
+import { parseISO } from "@/lib/date";
+import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
 type AppointmentRepositoryError = { message: string; code?: string };
@@ -57,10 +58,31 @@ export async function listAppointments(businessId: string, startDate: string, en
         active: appointmentSeries.active,
         occurrenceNumber: occurrenceNumber(appointmentSeries.starts_on, appointment.appointment_date),
       } : null,
-      group1: group1?.group?.active ? { label: group1.group.label, name: group1.name } : null,
-      group2: group2?.group?.active ? { label: group2.group.label, name: group2.name } : null,
+      group1: group1?.group?.active ? { id: group1.id, label: group1.group.label, name: group1.name } : null,
+      group2: group2?.group?.active ? { id: group2.id, label: group2.group.label, name: group2.name } : null,
     };
   });
+}
+
+export async function getBusinessHoursForDate(
+  businessId: string,
+  date: string,
+): Promise<DailyCalendarWindow[]> {
+  const supabase = await createClient();
+  const weekday = parseISO(date).getDay();
+  const { data, error } = await supabase
+    .from("business_hours")
+    .select("start_time, end_time")
+    .eq("business_id", businessId)
+    .eq("weekday", weekday)
+    .eq("active", true)
+    .order("start_time");
+  if (error)
+    throw new Error(`Não foi possível carregar os horários: ${error.message}`);
+  return (data ?? []).map((window) => ({
+    startTime: window.start_time.slice(0, 5),
+    endTime: window.end_time.slice(0, 5),
+  }));
 }
 
 export async function getAppointmentSchedulingConfig(businessId: string): Promise<AppointmentSchedulingConfig> {

@@ -16,8 +16,8 @@ const appointment: AdminAppointment = {
   reminderSentAt: null,
   reminderSentBy: null,
   series: null,
-  group1: { label: "Profissional", name: "Rebeca" },
-  group2: { label: "Serviço", name: "Corte + barba" },
+  group1: { id: "group-1-option", label: "Profissional", name: "Rebeca" },
+  group2: { id: "group-2-option", label: "Serviço", name: "Corte + barba" },
 };
 
 test("monta o lembrete com Grupo 1 e Grupo 2", () => {

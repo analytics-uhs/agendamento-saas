@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
-import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, listAppointments, updateAppointmentStatus } from "@/lib/repositories/appointments";
+import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getBusinessHoursForDate, listAppointments, updateAppointmentStatus } from "@/lib/repositories/appointments";
 import { formatNumericDate } from "@/lib/date";
-import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
+import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -42,6 +42,26 @@ export async function loadAdminAppointments(date: string): Promise<AppointmentAc
     return { ok: true, message: "Agenda atualizada.", data: await listAppointments(business.id, date) };
   } catch {
     return { ok: false, message: "Não foi possível carregar os agendamentos." };
+  }
+}
+
+export async function loadDailyAdminCalendar(
+  date: string,
+): Promise<AppointmentActionResult<DailyCalendarData>> {
+  if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
+  const business = await requireCurrentBusiness();
+  try {
+    const [appointments, windows] = await Promise.all([
+      listAppointments(business.id, date),
+      getBusinessHoursForDate(business.id, date),
+    ]);
+    return {
+      ok: true,
+      message: "Agenda diária atualizada.",
+      data: { appointments, windows },
+    };
+  } catch {
+    return { ok: false, message: "Não foi possível carregar a agenda diária." };
   }
 }
 
