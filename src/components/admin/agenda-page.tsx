@@ -15,6 +15,7 @@ import {
   loadAdminAvailability,
 } from "@/app/admin/agenda/actions";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
+import { formatWhatsappInput } from "@/lib/availability";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
@@ -347,8 +348,9 @@ export function AgendaPageContent({
                 inputMode="tel"
                 value={form.customerWhatsapp}
                 onChange={(event) =>
-                  setForm({ ...form, customerWhatsapp: event.target.value })
+                  setForm({ ...form, customerWhatsapp: formatWhatsappInput(event.target.value) })
                 }
+                maxLength={15}
                 placeholder="(00) 00000-0000"
               />
             </div>

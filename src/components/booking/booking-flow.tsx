@@ -13,7 +13,7 @@ import { FacebookIcon, InstagramIcon, WhatsappIcon } from "@/components/ui/socia
 import { classes } from "@/lib/classes";
 import { consecutiveSelectionTimes, fixedMultipleEndTime, selectFixedMultipleSlot } from "@/lib/fixed-multiple-selection";
 import { appearanceStyle } from "@/lib/appearance";
-import { normalizeWhatsapp } from "@/lib/availability";
+import { formatWhatsappInput, normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
 import { getPalette } from "@/lib/palettes";
 import type { BookingConfirmation, BookingSlot, PublicBookingData } from "@/types/public-booking";
@@ -145,7 +145,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
       {sequenceMessage ? <p role="status" className="mt-3 text-xs font-medium text-danger">{sequenceMessage}</p> : null}
       {time && selectedSlot && booking.settings.durationMode === "fixed_multiple" ? <p className="mt-3 text-xs text-muted">{time} às {fixedMultipleEndTime(time, selectedSlot.durationMinutes, blocks)} · {blocks} {blocks === 1 ? "horário selecionado" : "horários selecionados"} · {formatDuration(duration)}</p> : null}
     </Section> : null}
-    {time ? <Section number={++step} title="Seus dados"><div className="space-y-3"><div className="space-y-2"><Label htmlFor="customer">Nome</Label><Input id="customer" value={customer} maxLength={120} onChange={(event) => setCustomer(event.target.value)} placeholder="Seu nome" /></div><div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" inputMode="tel" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} placeholder="(00) 00000-0000" /></div></div></Section> : null}
+    {time ? <Section number={++step} title="Seus dados"><div className="space-y-3"><div className="space-y-2"><Label htmlFor="customer">Nome</Label><Input id="customer" value={customer} maxLength={120} onChange={(event) => setCustomer(event.target.value)} placeholder="Seu nome" /></div><div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" inputMode="tel" maxLength={15} value={whatsapp} onChange={(event) => setWhatsapp(formatWhatsappInput(event.target.value))} placeholder="(00) 00000-0000" /></div></div></Section> : null}
     {message ? <p role="alert" className="mt-5 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">{message}</p> : null}
     {time && date ? <><div className="step-in mt-6 rounded-xl border bg-card p-4 text-sm"><p className="text-muted">Resumo</p><p className="mt-1 font-medium">{[groupOne?.options.find((option) => option.id === group1)?.name, groupTwo?.options.find((option) => option.id === group2)?.name].filter(Boolean).join(" · ")}</p><p className="capitalize text-muted">{formatLongDate(date)} · {time} · {formatDuration(duration)}</p></div><Button className="mt-4 h-12 w-full text-base" disabled={!canConfirm || preview} onClick={confirm}>{isSubmitting ? <><LoaderCircle className="h-4 w-4 animate-spin" />Confirmando...</> : "Confirmar agendamento"}</Button></> : null}
     {preview ? <p className="mt-4 text-center text-xs text-muted">Pré-visualização da página pública</p> : null}

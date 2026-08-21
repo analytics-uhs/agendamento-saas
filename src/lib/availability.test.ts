@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { generateAvailability, intervalsOverlap } from "./availability";
+import { formatWhatsappInput, generateAvailability, intervalsOverlap, normalizeWhatsapp } from "./availability";
 import type { AvailabilityInput, BusyInterval } from "./availability";
 
 const base: AvailabilityInput = {
@@ -78,4 +78,20 @@ test("janela de hoje remove horários passados e o horário corrente", () => {
 
 test("não oferece datas passadas", () => {
   assert.equal(generateAvailability({ ...base, date: "2026-08-17" }).length, 0);
+});
+
+test("formata WhatsApp brasileiro enquanto o usuário digita", () => {
+  assert.equal(formatWhatsappInput("5"), "(5");
+  assert.equal(formatWhatsappInput("53"), "(53");
+  assert.equal(formatWhatsappInput("539"), "(53) 9");
+  assert.equal(formatWhatsappInput("53991414018"), "(53) 99141-4018");
+  assert.equal(formatWhatsappInput("5312345678"), "(53) 1234-5678");
+  assert.equal(formatWhatsappInput(""), "");
+});
+
+test("aceita colagem com símbolos ou +55, limita o campo e persiste somente dígitos", () => {
+  assert.equal(formatWhatsappInput("+55 (53) 99141-4018"), "(53) 99141-4018");
+  assert.equal(formatWhatsappInput("(53) 99141-4018abc"), "(53) 99141-4018");
+  assert.equal(formatWhatsappInput("539914140189999"), "(53) 99141-4018");
+  assert.equal(normalizeWhatsapp(formatWhatsappInput("+55 (53) 99141-4018")), "53991414018");
 });

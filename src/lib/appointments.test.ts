@@ -10,10 +10,13 @@ test("mapeia status e origem para labels administrativas", () => {
   assert.equal(appointmentSourceLabels.admin, "Criado no painel");
 });
 
-test("permite somente transições a partir de scheduled", () => {
+test("permite encerrar e restaurar appointments sem trocar diretamente entre estados terminais", () => {
   assert.equal(canTransitionAppointment("scheduled", "completed"), true);
   assert.equal(canTransitionAppointment("scheduled", "cancelled"), true);
   assert.equal(canTransitionAppointment("scheduled", "no_show"), true);
+  assert.equal(canTransitionAppointment("cancelled", "scheduled"), true);
+  assert.equal(canTransitionAppointment("completed", "scheduled"), true);
+  assert.equal(canTransitionAppointment("no_show", "scheduled"), true);
   assert.equal(canTransitionAppointment("cancelled", "completed"), false);
   assert.equal(canTransitionAppointment("completed", "no_show"), false);
   assert.equal(canTransitionAppointment("scheduled", "scheduled"), false);

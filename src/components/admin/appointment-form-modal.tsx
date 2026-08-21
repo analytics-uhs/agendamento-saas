@@ -16,6 +16,7 @@ import { buildManualAppointmentInput, initialAppointmentBlocks, manualAppointmen
 import { classes } from "@/lib/classes";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import { recurrenceSummary } from "@/lib/recurrence";
+import { formatWhatsappInput } from "@/lib/availability";
 import { consecutiveSelectionTimes, fixedMultipleEndTime, selectFixedMultipleSlot } from "@/lib/fixed-multiple-selection";
 import type { AdminAppointment, AppointmentSchedulingConfig } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
@@ -46,7 +47,7 @@ export function AppointmentFormModal({
   const [group1OptionId, setGroup1OptionId] = useState<string | null>(appointment?.group1?.id ?? prefill.group1OptionId ?? groupOne?.options[0]?.id ?? null);
   const [group2OptionId, setGroup2OptionId] = useState<string | null>(appointment?.group2?.id ?? groupTwo?.options[0]?.id ?? null);
   const [customerName, setCustomerName] = useState(appointment?.customerName ?? "");
-  const [customerWhatsapp, setCustomerWhatsapp] = useState(appointment?.customerWhatsapp ?? "");
+  const [customerWhatsapp, setCustomerWhatsapp] = useState(formatWhatsappInput(appointment?.customerWhatsapp ?? ""));
   const [startTime, setStartTime] = useState<string | null>(appointment?.startTime ?? prefill.startTime ?? null);
   const [blocks, setBlocks] = useState(() => appointment ? initialAppointmentBlocks({ durationMinutes: appointment.durationMinutes, mode: config.durationMode, fixedDurationMinutes: config.fixedDurationMinutes }) : 1);
   const [recurring, setRecurring] = useState(false);
@@ -104,7 +105,7 @@ export function AppointmentFormModal({
           {groupOne ? <div className="space-y-1"><Label htmlFor="appointment-g1">{groupOne.label}</Label><Select id="appointment-g1" value={group1OptionId ?? ""} onChange={(event) => { setGroup1OptionId(event.target.value); setStartTime(null); setBlocks(1); }}>{groupOne.options.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</Select></div> : null}
           {groupTwo ? <div className="space-y-1"><Label htmlFor="appointment-g2">{groupTwo.label}</Label><Select id="appointment-g2" value={group2OptionId ?? ""} onChange={(event) => { setGroup2OptionId(event.target.value); setStartTime(null); setBlocks(1); }}>{groupTwo.options.map((option) => <option key={option.id} value={option.id}>{option.name}{config.durationMode === "group_2" ? ` · ${formatDuration(option.durationMinutes ?? 0)}` : ""}</option>)}</Select></div> : null}
           <div className="space-y-1"><Label htmlFor="appointment-customer">Cliente</Label><Input id="appointment-customer" maxLength={120} value={customerName} onChange={(event) => setCustomerName(event.target.value)} /></div>
-          <div className="space-y-1"><Label htmlFor="appointment-whatsapp">WhatsApp</Label><Input id="appointment-whatsapp" inputMode="tel" value={customerWhatsapp} onChange={(event) => setCustomerWhatsapp(event.target.value)} /></div>
+          <div className="space-y-1"><Label htmlFor="appointment-whatsapp">WhatsApp</Label><Input id="appointment-whatsapp" inputMode="tel" maxLength={15} value={customerWhatsapp} onChange={(event) => setCustomerWhatsapp(formatWhatsappInput(event.target.value))} placeholder="(00) 00000-0000" /></div>
         </div>
         <div className="mt-4"><p className="mb-2 text-sm font-medium">Horário</p>{loading ? <p className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-5 text-sm text-muted"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando disponibilidade...</p> : slots.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{slots.map((slot) => <button key={slot.startTime} type="button" onClick={() => { if (config.durationMode === "fixed_multiple") { const next = selectFixedMultipleSlot(slots, startTime, blocks, slot.startTime); setStartTime(next.startTime); setBlocks(next.blocks); setSequenceMessage(next.rejected ? "Os horários selecionados precisam ser seguidos." : null); } else { setStartTime(slot.startTime); setBlocks(1); } }} className={classes("focus-ring rounded-xl border bg-card py-2.5 text-sm font-semibold", selectedTimes.includes(slot.startTime) && "border-primary bg-primary text-white")}>{slot.startTime}</button>)}</div> : <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted">Nenhum horário disponível nesta data.</p>}</div>
         {sequenceMessage ? <p role="status" className="mt-3 text-xs font-medium text-danger">{sequenceMessage}</p> : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, CheckCircle2, Pencil, Repeat2, UserX } from "lucide-react";
+import { Ban, CheckCircle2, Pencil, Repeat2, RotateCcw, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appointmentDetailActions } from "@/lib/appointment-detail-actions";
 import { appointmentSourceLabels } from "@/lib/appointments";
@@ -158,7 +158,19 @@ export function AppointmentDetails({
             );
           })}
         </div>
-      ) : null}
+      ) : (
+        <div className="mt-4">
+          <Button
+            disabled={saving}
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={() => onStatus("scheduled")}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Voltar para agendado
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

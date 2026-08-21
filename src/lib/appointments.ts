@@ -16,7 +16,8 @@ export const appointmentSourceLabels: Record<AppointmentSource, string> = {
 export const appointmentStatusTargets = ["completed", "cancelled", "no_show"] as const;
 
 export function canTransitionAppointment(current: AppointmentStatus, target: AppointmentStatus) {
-  return current === "scheduled" && appointmentStatusTargets.some((status) => status === target);
+  if (current === "scheduled") return appointmentStatusTargets.some((status) => status === target);
+  return appointmentStatusTargets.some((status) => status === current) && target === "scheduled";
 }
 
 export function manualAppointmentDuration(input: {

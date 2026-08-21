@@ -65,6 +65,21 @@ export function normalizeWhatsapp(value: string) {
   return value.replace(/\D/g, "");
 }
 
+export function formatWhatsappInput(value: string) {
+  let digits = normalizeWhatsapp(value);
+  if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2);
+  digits = digits.slice(0, 11);
+  if (!digits) return "";
+  if (digits.length < 3) return `(${digits}`;
+
+  const areaCode = digits.slice(0, 2);
+  const number = digits.slice(2);
+  const prefixLength = number.startsWith("9") ? 5 : 4;
+  const prefix = number.slice(0, prefixLength);
+  const suffix = number.slice(prefixLength);
+  return `(${areaCode}) ${prefix}${suffix ? `-${suffix}` : ""}`;
+}
+
 export function validateWhatsapp(value: string) {
   const normalized = normalizeWhatsapp(value);
   return normalized.length >= 10 && normalized.length <= 15;

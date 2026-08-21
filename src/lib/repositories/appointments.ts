@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Json } from "@/types/database";
+import type { AppointmentStatus, Json } from "@/types/database";
 import { occurrenceNumber } from "@/lib/recurrence";
 import { parseISO } from "@/lib/date";
 import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
@@ -181,7 +181,7 @@ export async function cancelRecurringAppointment(appointmentId: string, scope: R
   return error;
 }
 
-export async function updateAppointmentStatus(appointmentId: string, status: "completed" | "cancelled" | "no_show"): Promise<AppointmentRepositoryError | null> {
+export async function updateAppointmentStatus(appointmentId: string, status: AppointmentStatus): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_appointment_status", { p_appointment_id: appointmentId, p_status: status });
   return error;

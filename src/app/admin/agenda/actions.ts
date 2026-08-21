@@ -11,7 +11,7 @@ import type { AppointmentStatus } from "@/types/database";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-const targets = ["completed", "cancelled", "no_show"] as const;
+const targets = ["scheduled", "completed", "cancelled", "no_show"] as const;
 
 function validOption(value: string | null) {
   return value === null || uuid.test(value);
@@ -24,6 +24,7 @@ function actionError(message: string, code?: string): AppointmentActionResult<ne
       return { ok: false, conflict: true, message: `Não foi possível criar a recorrência. Existem conflitos em:\n\n${conflicts.map((item) => `${formatNumericDate(item.date)} às ${item.start_time}`).join("\n")}` };
     } catch { return { ok: false, conflict: true, message: "Não foi possível criar a recorrência porque um ou mais horários estão ocupados." }; }
   }
+  if (message.includes("appointment_restore_conflict")) return { ok: false, conflict: true, message: "Não foi possível restaurar este agendamento porque o horário já está ocupado ou não está mais disponível." };
   if (code === "23P01" || message.includes("booking_conflict")) return { ok: false, conflict: true, message: "Este horário acabou de ser reservado. Escolha outro horário disponível." };
   if (message.includes("booking_invalid_group")) return { ok: false, staleSelection: true, message: "Uma opção selecionada não está mais disponível." };
   if (message.includes("appointment_invalid_status_transition")) return { ok: false, message: "Este agendamento não permite mais essa alteração de status." };
@@ -131,9 +132,9 @@ export async function cancelRecurringAppointment(appointmentId: string, scope: R
 export async function changeAppointmentStatus(appointmentId: string, status: AppointmentStatus, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {
   if (!uuid.test(appointmentId) || !datePattern.test(date) || !targets.some((target) => target === status)) return { ok: false, message: "Alteração de status inválida." };
   const business = await requireCurrentBusiness();
-  const error = await updateAppointmentStatus(appointmentId, status as (typeof targets)[number]);
+  const error = await updateAppointmentStatus(appointmentId, status);
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: "Status atualizado.", data: await listAppointments(business.id, date) };
+  return { ok: true, message: status === "scheduled" ? "Agendamento restaurado." : "Status atualizado.", data: await listAppointments(business.id, date) };
 }
