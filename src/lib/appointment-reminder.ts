@@ -48,14 +48,14 @@ export function buildAppointmentReminderMessage(
     .map((group) => `• ${group.name}`);
 
   return [
-    `Olá, ${appointment.customerName}! 😊`,
+    `Olá, ${appointment.customerName}! 👋`,
     "",
-    `Passando para lembrar do seu agendamento ${formatAppointmentMoment(appointment.appointmentDate, appointment.startTime, currentDate)}.`,
+    `Passando para lembrar do seu agendamento ${formatAppointmentMoment(appointment.appointmentDate, appointment.startTime, currentDate)} 📆`,
     ...(groupLines.length ? ["", ...groupLines] : []),
     "",
     "Caso precise cancelar ou alterar o horário, entre em contato conosco por aqui.",
     "",
-    "Até lá! 😊",
+    "Até lá! 😁",
   ].join("\n");
 }
 

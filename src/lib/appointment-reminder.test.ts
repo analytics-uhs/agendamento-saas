@@ -23,16 +23,16 @@ const appointment: AdminAppointment = {
 
 test("monta o lembrete com Grupo 1 e Grupo 2", () => {
   assert.equal(buildAppointmentReminderMessage(appointment, "2026-08-21"), [
-    "Olá, João! 😊",
+    "Olá, João! 👋",
     "",
-    "Passando para lembrar do seu agendamento amanhã, às 15:30.",
+    "Passando para lembrar do seu agendamento amanhã, às 15:30 📆",
     "",
     "• Rebeca",
     "• Corte + barba",
     "",
     "Caso precise cancelar ou alterar o horário, entre em contato conosco por aqui.",
     "",
-    "Até lá! 😊",
+    "Até lá! 😁",
   ].join("\n"));
 });
 
@@ -52,7 +52,7 @@ test("funciona sem grupos configurados", () => {
   const message = buildAppointmentReminderMessage({ ...appointment, group1: null, group2: null }, "2026-08-21");
   assert.doesNotMatch(message, /•/);
   assert.match(message, /amanhã, às 15:30/);
-  assert.doesNotMatch(message, /agendamento amanhã[^.]+\.\n\n\nCaso/);
+  assert.doesNotMatch(message, /📆\n\n\nCaso/);
 });
 
 test("nunca inclui os labels configuráveis dos grupos", () => {
