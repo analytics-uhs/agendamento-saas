@@ -2,6 +2,13 @@ import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import type { AdminNotification } from "@/types/admin-notifications";
 import type { Database } from "@/types/database";
 
+export type AdminNotificationRealtimeStatus = "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED";
+
+type AdminNotificationRealtimeOptions = {
+  onStatus?: (status: AdminNotificationRealtimeStatus) => void;
+  onReconnect?: () => void;
+};
+
 type AdminNotificationRow = Pick<
   Database["public"]["Tables"]["admin_notifications"]["Row"],
   "id" | "business_id" | "user_id" | "type" | "title" | "message" | "appointment_id" | "read_at" | "created_at"
@@ -27,6 +34,16 @@ export function mergeAdminNotification(items: AdminNotification[], incoming: Adm
     .slice(0, limit);
 }
 
+export function reconcileAdminNotificationFeed(
+  current: AdminNotification[],
+  recovered: AdminNotification[],
+  limit = 20,
+) {
+  return [...recovered, ...current.filter((item) => !recovered.some((recoveredItem) => recoveredItem.id === item.id))]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .slice(0, limit);
+}
+
 export function relativeNotificationTime(value: string, now = new Date()) {
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - new Date(value).getTime()) / 1000));
   if (elapsedSeconds < 60) return "agora";
@@ -41,7 +58,10 @@ export function subscribeToAdminNotificationInserts(
   supabase: SupabaseClient<Database>,
   userId: string,
   onInsert: (notification: AdminNotification) => void,
+  options: AdminNotificationRealtimeOptions = {},
 ) {
+  let disposed = false;
+  let connectionInterrupted = false;
   const channel: RealtimeChannel = supabase
     .channel(`admin-notifications:${userId}`)
     .on(
@@ -54,9 +74,29 @@ export function subscribeToAdminNotificationInserts(
       },
       (payload) => onInsert(mapAdminNotification(payload.new as Database["public"]["Tables"]["admin_notifications"]["Row"])),
     )
-    .subscribe();
+    .subscribe((status) => {
+      if (disposed) return;
+      const knownStatus = status as AdminNotificationRealtimeStatus;
+      options.onStatus?.(knownStatus);
+
+      if (process.env.NODE_ENV === "development") {
+        const log = knownStatus === "SUBSCRIBED" ? console.info : console.warn;
+        log("[admin-notifications] Realtime channel status", { status: knownStatus });
+      }
+
+      if (knownStatus === "SUBSCRIBED") {
+        if (connectionInterrupted) options.onReconnect?.();
+        connectionInterrupted = false;
+        return;
+      }
+
+      if (knownStatus === "CHANNEL_ERROR" || knownStatus === "TIMED_OUT" || knownStatus === "CLOSED") {
+        connectionInterrupted = true;
+      }
+    });
 
   return () => {
+    disposed = true;
     void supabase.removeChannel(channel);
   };
 }

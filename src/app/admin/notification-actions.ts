@@ -6,14 +6,28 @@ import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import {
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
+  getAdminNotificationFeed,
   removePushSubscription,
   savePushSubscription,
 } from "@/lib/repositories/admin-notifications";
 import type { BrowserPushSubscriptionInput } from "@/types/admin-notifications";
+import type { AdminNotificationFeed } from "@/types/admin-notifications";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type NotificationActionResult = { ok: boolean; message: string; readAt?: string };
+export type NotificationFeedActionResult =
+  | { ok: true; data: AdminNotificationFeed }
+  | { ok: false; message: string };
+
+export async function refreshAdminNotificationFeed(): Promise<NotificationFeedActionResult> {
+  try {
+    const business = await requireCurrentBusiness();
+    return { ok: true, data: await getAdminNotificationFeed(business.id) };
+  } catch {
+    return { ok: false, message: "Não foi possível atualizar as notificações." };
+  }
+}
 
 export async function readAdminNotification(notificationId: string): Promise<NotificationActionResult> {
   if (!uuid.test(notificationId)) return { ok: false, message: "Notificação inválida." };

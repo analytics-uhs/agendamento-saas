@@ -24,7 +24,51 @@ type PushProcessingDependencies = {
   removeExpired: (subscriptionId: string) => Promise<void>;
   complete: (outcome: "delivered" | "no_subscriptions") => Promise<void>;
   release: () => Promise<void>;
+  reportError?: (
+    stage: "send" | "record_delivery" | "remove_expired" | "complete" | "release",
+    error: unknown,
+  ) => void;
 };
+
+export type AdminPushEnvironmentStatus = {
+  serviceRoleConfigured: boolean;
+  vapidPublicConfigured: boolean;
+  vapidPrivateConfigured: boolean;
+  vapidSubjectConfigured: boolean;
+};
+
+export type AdminPushDiagnostic = {
+  stage: string;
+  message?: string;
+  statusCode?: number;
+  notifications?: number;
+  subscriptions?: number;
+  sent?: number;
+  removed?: number;
+  retried?: number;
+  claimResult?: "empty" | "claimed";
+  environment?: AdminPushEnvironmentStatus;
+};
+
+type AdminPushLogger = (event: string, diagnostic: AdminPushDiagnostic) => void;
+
+function redactPushErrorMessage(message: string) {
+  return message.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 500);
+}
+
+export function getSafePushError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Erro desconhecido no Web Push";
+  const rawStatusCode = error && typeof error === "object" && "statusCode" in error ? error.statusCode : null;
+  return {
+    message: redactPushErrorMessage(message),
+    statusCode: typeof rawStatusCode === "number" ? rawStatusCode : undefined,
+  };
+}
+
+function serverPushLogger(event: string, diagnostic: AdminPushDiagnostic) {
+  const method = event.endsWith("failed") || event.endsWith("missing") ? console.error : console.info;
+  method(`[admin-push] ${event}`, diagnostic);
+}
 
 export function buildAdminPushPayload(notification: PushNotificationContent) {
   return JSON.stringify({
@@ -43,11 +87,15 @@ export function isExpiredPushSubscription(error: unknown) {
   return statusCode === 404 || statusCode === 410;
 }
 
-export async function safelyRunPushEffect(effect: () => Promise<void>) {
+export async function safelyRunPushEffect(
+  effect: () => Promise<void>,
+  logger: AdminPushLogger = serverPushLogger,
+) {
   try {
     await effect();
     return true;
-  } catch {
+  } catch (error) {
+    logger("push_effect_failed", { stage: "booking_side_effect", ...getSafePushError(error) });
     return false;
   }
 }
@@ -70,30 +118,59 @@ export async function processClaimedPushNotification(
     if (deliveredSubscriptionIds.has(subscription.id)) continue;
     try {
       await dependencies.send(subscription, buildAdminPushPayload(notification));
-      await dependencies.recordDelivery(subscription.id);
-      sent += 1;
     } catch (error) {
       if (isExpiredPushSubscription(error)) {
+        dependencies.reportError?.("send", error);
         try {
           await dependencies.removeExpired(subscription.id);
           removed += 1;
-        } catch {
+        } catch (removeError) {
+          dependencies.reportError?.("remove_expired", removeError);
           transientFailure = true;
         }
       } else {
+        dependencies.reportError?.("send", error);
         transientFailure = true;
       }
+      continue;
+    }
+
+    try {
+      await dependencies.recordDelivery(subscription.id);
+      sent += 1;
+    } catch (error) {
+      dependencies.reportError?.("record_delivery", error);
+      transientFailure = true;
     }
   }
 
   if (transientFailure) {
-    await dependencies.release();
+    try {
+      await dependencies.release();
+    } catch (error) {
+      dependencies.reportError?.("release", error);
+      throw error;
+    }
     return { sent, removed, retried: true, outcome: null };
   }
 
   const outcome = subscriptions.length === removed ? "no_subscriptions" : "delivered";
-  await dependencies.complete(outcome);
+  try {
+    await dependencies.complete(outcome);
+  } catch (error) {
+    dependencies.reportError?.("complete", error);
+    throw error;
+  }
   return { sent, removed, retried: false, outcome };
+}
+
+export function getAdminPushEnvironmentStatus(): AdminPushEnvironmentStatus {
+  return {
+    serviceRoleConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    vapidPublicConfigured: Boolean(process.env.VAPID_PUBLIC_KEY),
+    vapidPrivateConfigured: Boolean(process.env.VAPID_PRIVATE_KEY),
+    vapidSubjectConfigured: Boolean(process.env.VAPID_SUBJECT),
+  };
 }
 
 function getVapidConfiguration() {
@@ -106,17 +183,32 @@ function getVapidConfiguration() {
     : null;
 }
 
-export async function dispatchPendingAdminPushes(businessSlug: string) {
+export async function dispatchPendingAdminPushes(
+  businessSlug: string,
+  logger: AdminPushLogger = serverPushLogger,
+) {
+  const environment = getAdminPushEnvironmentStatus();
   const vapid = getVapidConfiguration();
-  if (!vapid) return { configured: false, sent: 0, removed: 0 };
+  if (!vapid) {
+    logger("push_configuration_missing", { stage: "configuration", environment });
+    return { configured: false, claimed: 0, subscriptions: 0, sent: 0, removed: 0, retried: 0 };
+  }
 
   const supabase = createAdminClient();
   const { data: notifications, error: claimError } = await supabase.rpc(
     "claim_pending_admin_push_notifications",
     { p_business_slug: businessSlug, p_limit: 100 },
   );
-  if (claimError) throw new Error(`Não foi possível reservar a fila de push: ${claimError.message}`);
-  if (!notifications.length) return { configured: true, sent: 0, removed: 0 };
+  if (claimError) {
+    logger("push_claim_failed", { stage: "claim", ...getSafePushError(claimError) });
+    throw new Error(`Não foi possível reservar a fila de push: ${claimError.message}`);
+  }
+  logger("push_claim_completed", {
+    stage: "claim",
+    notifications: notifications.length,
+    claimResult: notifications.length ? "claimed" : "empty",
+  });
+  if (!notifications.length) return { configured: true, claimed: 0, subscriptions: 0, sent: 0, removed: 0, retried: 0 };
 
   const release = async (notification: (typeof notifications)[number]) => {
     const { error } = await supabase.rpc("release_admin_push_notification", {
@@ -134,7 +226,19 @@ export async function dispatchPendingAdminPushes(businessSlug: string) {
       .select("id, user_id, endpoint, p256dh, auth")
       .eq("business_id", businessId)
       .in("user_id", recipientIds);
-    if (subscriptionError) throw new Error(`Não foi possível carregar subscriptions: ${subscriptionError.message}`);
+    if (subscriptionError) {
+      logger("push_subscriptions_failed", {
+        stage: "subscriptions",
+        notifications: notifications.length,
+        ...getSafePushError(subscriptionError),
+      });
+      throw new Error(`Não foi possível carregar subscriptions: ${subscriptionError.message}`);
+    }
+    logger("push_subscriptions_loaded", {
+      stage: "subscriptions",
+      notifications: notifications.length,
+      subscriptions: subscriptions.length,
+    });
 
     const notificationIds = notifications.map((notification) => notification.notification_id);
     const subscriptionIds = subscriptions.map((subscription) => subscription.id);
@@ -145,7 +249,15 @@ export async function dispatchPendingAdminPushes(businessSlug: string) {
           .in("notification_id", notificationIds)
           .in("subscription_id", subscriptionIds)
       : { data: [], error: null };
-    if (deliveryResult.error) throw new Error(`Não foi possível carregar entregas anteriores: ${deliveryResult.error.message}`);
+    if (deliveryResult.error) {
+      logger("push_delivery_ledger_failed", {
+        stage: "delivery_ledger",
+        notifications: notifications.length,
+        subscriptions: subscriptions.length,
+        ...getSafePushError(deliveryResult.error),
+      });
+      throw new Error(`Não foi possível carregar entregas anteriores: ${deliveryResult.error.message}`);
+    }
 
     webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
     let sent = 0;
@@ -197,6 +309,12 @@ export async function dispatchPendingAdminPushes(businessSlug: string) {
             if (error) throw new Error(`Não foi possível confirmar o push: ${error.message}`);
           },
           release: () => release(notification),
+          reportError: (stage, error) => logger("push_delivery_failed", {
+            stage,
+            notifications: 1,
+            subscriptions: recipientSubscriptions.length,
+            ...getSafePushError(error),
+          }),
         },
       );
       sent += result.sent;
@@ -204,9 +322,23 @@ export async function dispatchPendingAdminPushes(businessSlug: string) {
       if (result.retried) retried += 1;
     }
 
-    return { configured: true, sent, removed, retried };
+    const summary = {
+      configured: true,
+      claimed: notifications.length,
+      subscriptions: subscriptions.length,
+      sent,
+      removed,
+      retried,
+    };
+    logger("push_dispatch_completed", { stage: "complete", ...summary, notifications: summary.claimed });
+    return summary;
   } catch (error) {
     await Promise.allSettled(notifications.map(release));
+    logger("push_dispatch_failed", {
+      stage: "dispatch",
+      notifications: notifications.length,
+      ...getSafePushError(error),
+    });
     throw error;
   }
 }
