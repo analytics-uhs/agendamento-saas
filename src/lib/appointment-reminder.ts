@@ -1,5 +1,5 @@
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
-import { formatNumericDate, formatTime } from "@/lib/date";
+import { addDays, formatTime, parseISO, todayInTimeZone, toISO } from "@/lib/date";
 import type { AdminAppointment } from "@/types/appointments";
 
 type ReminderAppointment = Pick<
@@ -11,20 +11,51 @@ export function canSendAppointmentWhatsappReminder(appointment: Pick<ReminderApp
   return appointment.status === "scheduled" && validateWhatsapp(appointment.customerWhatsapp);
 }
 
-export function buildAppointmentReminderMessage(appointment: Omit<ReminderAppointment, "customerWhatsapp" | "status">) {
+const weekdayDescriptions = [
+  { name: "domingo", preposition: "no" },
+  { name: "segunda-feira", preposition: "na" },
+  { name: "terça-feira", preposition: "na" },
+  { name: "quarta-feira", preposition: "na" },
+  { name: "quinta-feira", preposition: "na" },
+  { name: "sexta-feira", preposition: "na" },
+  { name: "sábado", preposition: "no" },
+] as const;
+
+function formatAppointmentMoment(appointmentDate: string, startTime: string, currentDate: string) {
+  const time = formatTime(startTime);
+
+  if (appointmentDate === currentDate) {
+    return `hoje, às ${time}`;
+  }
+
+  if (appointmentDate === toISO(addDays(currentDate, 1))) {
+    return `amanhã, às ${time}`;
+  }
+
+  const date = parseISO(appointmentDate);
+  const weekday = weekdayDescriptions[date.getDay()];
+  const dayMonth = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+  return `${weekday.preposition} ${weekday.name}, dia ${dayMonth}, às ${time}`;
+}
+
+export function buildAppointmentReminderMessage(
+  appointment: Omit<ReminderAppointment, "customerWhatsapp" | "status">,
+  currentDate = todayInTimeZone(),
+) {
   const groupLines = [appointment.group1, appointment.group2]
     .filter((group): group is NonNullable<typeof group> => Boolean(group))
-    .map((group) => `${group.label}: ${group.name}`);
+    .map((group) => `• ${group.name}`);
 
   return [
-    `Olá, ${appointment.customerName}! 😊`,
+    `Olá, ${appointment.customerName}! 👋`,
     "",
-    `Passando para lembrar do seu agendamento no dia ${formatNumericDate(appointment.appointmentDate)} às ${formatTime(appointment.startTime)}.`,
-    ...groupLines.flatMap((line) => ["", line]),
+    `Passando para lembrar do seu agendamento ${formatAppointmentMoment(appointment.appointmentDate, appointment.startTime, currentDate)} 📆`,
+    ...(groupLines.length ? ["", ...groupLines] : []),
     "",
     "Caso precise cancelar ou alterar o horário, entre em contato conosco por aqui.",
     "",
-    "Até lá! 😊",
+    "Até lá! 😁",
   ].join("\n");
 }
 
