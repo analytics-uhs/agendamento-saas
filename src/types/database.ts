@@ -5,6 +5,7 @@ export type DurationMode = "fixed" | "fixed_multiple" | "group_2";
 export type ThemePreference = "light" | "dark" | "system";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_show";
 export type AppointmentSource = "public" | "admin";
+export type AdminNotificationType = "new_public_appointment";
 
 type Timestamps = { created_at: string; updated_at: string };
 
@@ -65,6 +66,18 @@ export interface Database {
         Update: { business_id?: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; weekday?: number; start_time?: string; duration_minutes?: number; blocks?: number; starts_on?: string; repeat_count?: number | null; active?: boolean; created_by?: string | null; updated_at?: string };
         Relationships: [];
       };
+      admin_notifications: {
+        Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; read_at: string | null; push_dispatched_at: string | null; created_at: string };
+        Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; created_at?: string };
+        Update: { read_at?: string | null; push_dispatched_at?: string | null };
+        Relationships: [{ foreignKeyName: "admin_notifications_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notifications_appointment_id_fkey"; columns: ["appointment_id"]; isOneToOne: false; referencedRelation: "appointments"; referencedColumns: ["id"] }];
+      };
+      push_subscriptions: {
+        Row: { id: string; user_id: string; business_id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null } & Timestamps;
+        Insert: { id?: string; user_id: string; business_id: string; endpoint: string; p256dh: string; auth: string; user_agent?: string | null; created_at?: string; updated_at?: string };
+        Update: { p256dh?: string; auth?: string; user_agent?: string | null; updated_at?: string };
+        Relationships: [{ foreignKeyName: "push_subscriptions_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -80,6 +93,11 @@ export interface Database {
       is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       list_platform_businesses: { Args: { p_search?: string | null; p_active?: boolean | null; p_page?: number; p_page_size?: number }; Returns: Json };
       mark_appointment_reminder_sent: { Args: { p_appointment_id: string }; Returns: string };
+      mark_admin_notification_read: { Args: { p_notification_id: string }; Returns: string };
+      mark_all_admin_notifications_read: { Args: { p_business_id: string }; Returns: number };
+      save_push_subscription: { Args: { p_business_id: string; p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }; Returns: string };
+      remove_push_subscription: { Args: { p_endpoint: string }; Returns: boolean };
+      claim_pending_admin_push_notifications: { Args: { p_business_slug: string }; Returns: { notification_id: string; business_id: string; user_id: string; title: string; message: string; appointment_id: string | null }[] };
       replace_business_hours: { Args: { p_hours: Json }; Returns: boolean };
       create_recurring_appointment_series: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_starts_on: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string; p_repeat_count?: number | null }; Returns: Json };
       materialize_recurring_appointments: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
