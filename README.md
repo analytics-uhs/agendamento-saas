@@ -128,6 +128,14 @@ O sino do Admin carrega as últimas notificações e o total não lido com RLS p
 
 Web Push é opt-in: a permissão só é solicitada após o clique em “Ativar notificações”. O Service Worker `public/push-sw.js` mostra o mesmo título/mensagem e abre ou foca `/admin`. Subscriptions ficam em `push_subscriptions`, vinculadas ao usuário e negócio, com endpoint único e mutação por RPC autenticada.
 
+### PWA do painel administrativo
+
+O Admin pode ser instalado como PWA no Android/Chromium e no iPhone/iPad. O manifest é servido em `/admin/manifest.webmanifest` e resolvido exclusivamente pela sessão autenticada: nome, nome curto, paleta e ícones pertencem ao negócio atual, sem receber `business_id` do browser. Os ícones autenticados de 192 px, 512 px e Apple Touch usam a logo pública persistente do negócio com margem e proporção preservadas; se ela estiver ausente ou indisponível, usam `src/app/icon.png`, que o Next.js publica em `/icon.png`.
+
+O painel registra o mesmo `public/push-sw.js` já usado pelo Web Push. Não existe um segundo Service Worker nem cache offline amplo: a instalação continua exigindo rede, e autenticação, sessão e redirects funcionam como no navegador. Em modo `standalone`, o shell respeita as safe areas do aparelho e oculta a ação de instalação.
+
+No Android/Chrome, “Instalar aplicativo” aparece quando o navegador fornece `beforeinstallprompt` e aciona o diálogo nativo. No iOS, a ação mostra as etapas do Safari: Compartilhar → Adicionar à Tela de Início → Adicionar. A permissão de notificações nunca é solicitada automaticamente; no iPhone, o Admin orienta instalar e abrir o PWA antes de oferecer a ativação do Web Push.
+
 Depois do commit do appointment, a Server Action tenta despachar a fila usando VAPID e o client server-only com service role. Claims usam lease de cinco minutos e `SKIP LOCKED`; `push_dispatched_at` só é preenchido quando todas as subscriptions válidas daquele destinatário foram processadas. Entregas bem-sucedidas ficam registradas por notification/subscription, portanto um retry pula dispositivos que já receberam. Respostas definitivas `404`/`410` removem o endpoint expirado; falhas transitórias liberam o claim para nova tentativa. Quando não há subscription, o item é concluído explicitamente como `no_subscriptions`, evitando loop infinito. Nenhum desses efeitos secundários reverte o agendamento.
 
 O dispatcher registra no servidor somente etapa, mensagem sanitizada, eventual `statusCode`, contagens e os booleanos `serviceRoleConfigured`, `vapidPublicConfigured`, `vapidPrivateConfigured` e `vapidSubjectConfigured`. Endpoints, chaves de subscription e secrets nunca entram nos logs. O Admin não apresenta uma subscription do navegador como ativa quando a configuração server-side está incompleta.
