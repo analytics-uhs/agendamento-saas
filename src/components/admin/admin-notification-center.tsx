@@ -19,8 +19,9 @@ import {
 import { classes } from "@/lib/classes";
 import { createClient } from "@/lib/supabase/client";
 import type { AdminNotification, AdminNotificationFeed } from "@/types/admin-notifications";
+import { iosPushRequiresInstalledPwa, readAdminPwaPlatform } from "@/lib/admin-pwa";
 
-type PushState = "unsupported" | "default" | "denied" | "active" | "inactive";
+type PushState = "unsupported" | "install_required" | "default" | "denied" | "active" | "inactive";
 
 export function useAdminNotificationCenter({
   initialFeed,
@@ -59,6 +60,10 @@ export function useAdminNotificationCenter({
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      if (iosPushRequiresInstalledPwa(readAdminPwaPlatform())) {
+        setPushState("install_required");
+        return;
+      }
       if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
         setPushState("unsupported");
         return;
@@ -123,6 +128,11 @@ export function useAdminNotificationCenter({
   }, [items]);
 
   const activatePush = useCallback(() => {
+    if (iosPushRequiresInstalledPwa(readAdminPwaPlatform())) {
+      setPushState("install_required");
+      setFeedback("No iPhone, instale e abra o app pela Tela de Início antes de ativar as notificações.");
+      return;
+    }
     if (!vapidPublicKey) {
       setFeedback("Web Push ainda não está configurado neste ambiente.");
       return;
@@ -226,6 +236,7 @@ function AdminNotificationPanel({ center }: { center: NotificationCenter }) {
         {center.pushState === "active" ? <div className="flex items-center justify-between gap-3 rounded-xl bg-primary/10 px-3 py-2"><span className="flex items-center gap-2 text-xs font-medium text-primary"><BellRing className="h-4 w-4" />Notificações ativas</span><button type="button" disabled={center.pending} onClick={center.deactivatePush} className="text-xs text-muted underline underline-offset-2">Desativar</button></div> : null}
         {center.pushState === "default" || center.pushState === "inactive" ? <button type="button" disabled={center.pending} onClick={center.activatePush} className="focus-ring flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium hover:bg-surface">{center.pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <BellRing className="h-4 w-4" />}Ativar notificações</button> : null}
         {center.pushState === "denied" ? <p className="flex items-start gap-2 rounded-xl bg-surface px-3 py-2 text-xs text-muted"><BellOff className="mt-0.5 h-4 w-4 shrink-0" />Permissão bloqueada. Libere as notificações nas configurações do navegador.</p> : null}
+        {center.pushState === "install_required" ? <p className="flex items-start gap-2 rounded-xl bg-surface px-3 py-2 text-xs leading-relaxed text-muted"><BellOff className="mt-0.5 h-4 w-4 shrink-0" />No iPhone, primeiro abra este painel no Safari, adicione-o à Tela de Início e depois ative as notificações pelo app instalado.</p> : null}
         {center.pushState === "unsupported" ? <p className="text-xs text-muted">Este navegador não oferece suporte a Web Push.</p> : null}
         {center.feedback ? <p role="status" className="mt-2 text-xs text-muted">{center.feedback}</p> : null}
       </div>
