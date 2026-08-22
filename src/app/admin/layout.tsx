@@ -7,6 +7,7 @@ import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { isPlatformAdmin } from "@/lib/repositories/super-admin";
 import { getOwnProfile } from "@/lib/repositories/profiles";
 import { getAdminNotificationFeed } from "@/lib/repositories/admin-notifications";
+import { getAdminPushEnvironmentStatus } from "@/lib/admin-push";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAuthenticatedUser();
@@ -17,5 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     getAdminNotificationFeed(currentBusiness.id),
   ]);
   const email = user.email ?? "Usuário autenticado";
-  return <AdminShell currentBusiness={currentBusiness} platformAdmin={platformAdmin} logoUrl={configuration.logoUrl} palette={getPalette(configuration.paletteId)} initialTheme={configuration.themePreference} notificationFeed={notificationFeed} vapidPublicKey={process.env.VAPID_PUBLIC_KEY ?? null} user={{ id: user.id, name: profile?.name?.trim() || email.split("@")[0], email }}>{children}</AdminShell>;
+  const pushEnvironment = getAdminPushEnvironmentStatus();
+  const pushServerConfigured = Object.values(pushEnvironment).every(Boolean);
+  return <AdminShell currentBusiness={currentBusiness} platformAdmin={platformAdmin} logoUrl={configuration.logoUrl} palette={getPalette(configuration.paletteId)} initialTheme={configuration.themePreference} notificationFeed={notificationFeed} vapidPublicKey={pushServerConfigured ? process.env.VAPID_PUBLIC_KEY ?? null : null} user={{ id: user.id, name: profile?.name?.trim() || email.split("@")[0], email }}>{children}</AdminShell>;
 }

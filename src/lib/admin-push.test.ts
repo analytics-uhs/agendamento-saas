@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildAdminPushPayload,
+  dispatchPendingAdminPushes,
+  getSafePushError,
   isExpiredPushSubscription,
   processClaimedPushNotification,
   safelyRunPushEffect,
@@ -58,10 +60,47 @@ test("subscriptions expiradas ou inválidas são identificadas para remoção", 
 });
 
 test("falha no efeito secundário de push não rejeita o fluxo principal", async () => {
+  const diagnostics: Array<{ event: string; message?: string }> = [];
   const completed = await safelyRunPushEffect(async () => {
     throw new Error("push indisponível");
-  });
+  }, (event, diagnostic) => diagnostics.push({ event, message: diagnostic.message }));
   assert.equal(completed, false);
+  assert.deepEqual(diagnostics, [{ event: "push_effect_failed", message: "push indisponível" }]);
+});
+
+test("diagnóstico de erro preserva status sem registrar endpoint completo", () => {
+  const safe = getSafePushError(Object.assign(new Error("Falha em https://push.example/segredo"), { statusCode: 503 }));
+  assert.deepEqual(safe, { message: "Falha em [url]", statusCode: 503 });
+});
+
+test("ausência de variáveis do push é diagnosticada sem quebrar o booking", async () => {
+  const names = ["SUPABASE_SERVICE_ROLE_KEY", "VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] as const;
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const diagnostics: Array<{ event: string; environment?: Record<string, boolean> }> = [];
+  try {
+    for (const name of names) delete process.env[name];
+    const completed = await safelyRunPushEffect(async () => {
+      await dispatchPendingAdminPushes("arena-central", (event, diagnostic) => {
+        diagnostics.push({ event, environment: diagnostic.environment });
+      });
+    });
+    assert.equal(completed, true);
+    assert.deepEqual(diagnostics, [{
+      event: "push_configuration_missing",
+      environment: {
+        serviceRoleConfigured: false,
+        vapidPublicConfigured: false,
+        vapidPrivateConfigured: false,
+        vapidSubjectConfigured: false,
+      },
+    }]);
+  } finally {
+    for (const name of names) {
+      const value = previous[name];
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
 });
 
 test("ciclo bem-sucedido registra todos os dispositivos antes de confirmar", async () => {

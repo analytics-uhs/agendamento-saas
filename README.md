@@ -124,11 +124,13 @@ Na Data API, `authenticated` conserva apenas `SELECT` em `appointments`, sempre 
 
 Cada appointment com origem `public` gera uma linha de `admin_notifications` por owner/admin atual do negócio. As mensagens usam somente nome do cliente, opções selecionadas, data e horário; labels configuráveis e dados técnicos não entram no conteúdo. Reservas administrativas, recorrências e mudanças de status não notificam nesta etapa.
 
-O sino do Admin carrega as últimas notificações e o total não lido com RLS por destinatário. Inserts chegam por Supabase Realtime com filtro de `user_id`, e o canal é removido no cleanup. A leitura individual ou em lote passa por RPCs autenticadas. No mobile, o header conserva logo e ações, mas omite visualmente o nome do negócio.
+O sino do Admin carrega as últimas notificações e o total não lido com RLS por destinatário. Inserts chegam por Supabase Realtime com filtro de `user_id`, e o canal é removido no cleanup. O cliente observa `SUBSCRIBED`, `CHANNEL_ERROR`, `TIMED_OUT` e `CLOSED`; depois de uma interrupção, a primeira reconexão recarrega o feed uma única vez para recuperar eventos perdidos, sem polling e sem duplicar itens. A leitura individual ou em lote passa por RPCs autenticadas. No mobile, o header conserva logo e ações, mas omite visualmente o nome do negócio.
 
 Web Push é opt-in: a permissão só é solicitada após o clique em “Ativar notificações”. O Service Worker `public/push-sw.js` mostra o mesmo título/mensagem e abre ou foca `/admin`. Subscriptions ficam em `push_subscriptions`, vinculadas ao usuário e negócio, com endpoint único e mutação por RPC autenticada.
 
 Depois do commit do appointment, a Server Action tenta despachar a fila usando VAPID e o client server-only com service role. Claims usam lease de cinco minutos e `SKIP LOCKED`; `push_dispatched_at` só é preenchido quando todas as subscriptions válidas daquele destinatário foram processadas. Entregas bem-sucedidas ficam registradas por notification/subscription, portanto um retry pula dispositivos que já receberam. Respostas definitivas `404`/`410` removem o endpoint expirado; falhas transitórias liberam o claim para nova tentativa. Quando não há subscription, o item é concluído explicitamente como `no_subscriptions`, evitando loop infinito. Nenhum desses efeitos secundários reverte o agendamento.
+
+O dispatcher registra no servidor somente etapa, mensagem sanitizada, eventual `statusCode`, contagens e os booleanos `serviceRoleConfigured`, `vapidPublicConfigured`, `vapidPrivateConfigured` e `vapidSubjectConfigured`. Endpoints, chaves de subscription e secrets nunca entram nos logs. O Admin não apresenta uma subscription do navegador como ativa quando a configuração server-side está incompleta.
 
 ## Super Admin
 

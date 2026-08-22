@@ -136,13 +136,15 @@ Um trigger aplica a mesma regra inclusive para updates diretos autorizados. `sou
 
 `admin_notifications` mantém histórico por destinatário: cada insert de appointment com `source = public` dispara uma linha para cada membership `owner`/`admin` do mesmo `business_id`. A constraint `(appointment_id, user_id, type)` torna o efeito idempotente. O texto é montado no banco com nome do cliente, nomes das opções e data/horário em `America/Sao_Paulo`; labels dos grupos não são usados. Appointments administrativos e ocorrências materializadas usam `source = admin` e não disparam o trigger.
 
-O grant autenticado é somente de leitura e a policy exige simultaneamente `user_id = auth.uid()` e membership administrativa no negócio. `mark_admin_notification_read` e `mark_all_admin_notifications_read` são as únicas mutações oferecidas ao usuário. A tabela integra a publication `supabase_realtime`; o browser ainda recebe apenas linhas autorizadas pela sessão/RLS e assina com filtro adicional pelo próprio `user_id`.
+O grant autenticado é somente de leitura e a policy exige simultaneamente `user_id = auth.uid()` e membership administrativa no negócio. `mark_admin_notification_read` e `mark_all_admin_notifications_read` são as únicas mutações oferecidas ao usuário. A tabela integra a publication `supabase_realtime`, usa `REPLICA IDENTITY FULL` e o browser ainda recebe apenas linhas autorizadas pela sessão/RLS com filtro adicional pelo próprio `user_id`. O cliente trata os quatro estados do channel e, ao voltar a `SUBSCRIBED` depois de erro, timeout ou fechamento, reconcilia o feed uma vez para cobrir a janela desconectada.
 
 `push_subscriptions` guarda endpoint e chaves Push API por usuário/negócio. O endpoint é globalmente único. `save_push_subscription` impede takeover de endpoint por outro usuário ou tenant, enquanto `remove_push_subscription` só remove subscriptions do chamador. Nenhuma chave VAPID privada ou service role chega ao browser.
 
 O despacho ocorre depois que a RPC de booking conclui. `claim_pending_admin_push_notifications` é executável somente por `service_role` e cria um lease de cinco minutos com token, usando `FOR UPDATE SKIP LOCKED`; não altera `push_dispatched_at`. Claims ativos impedem processamento concorrente e claims expirados voltam a ser elegíveis.
 
 Cada sucesso por dispositivo é registrado em `admin_notification_push_deliveries`. Ao tentar novamente, o dispatcher pula subscriptions já entregues e processa apenas as restantes. Depois de concluir todas as subscriptions ainda válidas, `complete_admin_push_notification` preenche `push_dispatched_at`. Falha transitória chama `release_admin_push_notification`, mantendo o item pendente; endpoints definitivos `404`/`410` são removidos sem impedir os demais dispositivos. Se o destinatário não possui subscription, a conclusão usa `no_subscriptions`, evitando claim preso ou loop infinito. Nenhum efeito secundário participa da transação do appointment.
+
+Para diagnóstico operacional, o servidor informa apenas a etapa, erro sanitizado, `statusCode`, contagens de claim/subscriptions/entregas e booleanos de presença das quatro variáveis necessárias. Endpoint, `p256dh`, `auth`, service role e VAPID privada nunca são registrados. Se a configuração server-side estiver incompleta, a fila permanece pendente e o booking continua confirmado.
 
 ## Migrations e tipos
 

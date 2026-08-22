@@ -5,11 +5,13 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   readAdminNotification,
   readAllAdminNotifications,
+  refreshAdminNotificationFeed,
   registerAdminPushSubscription,
   unregisterAdminPushSubscription,
 } from "@/app/admin/notification-actions";
 import {
   mergeAdminNotification,
+  reconcileAdminNotificationFeed,
   relativeNotificationTime,
   subscribeToAdminNotificationInserts,
   urlBase64ToUint8Array,
@@ -36,15 +38,33 @@ export function useAdminNotificationCenter({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => subscribeToAdminNotificationInserts(createClient(), userId, (notification) => {
-    setItems((current) => mergeAdminNotification(current, notification));
-    if (!notification.readAt) setUnreadCount((current) => current + 1);
-  }), [userId]);
+  useEffect(() => subscribeToAdminNotificationInserts(
+    createClient(),
+    userId,
+    (notification) => {
+      setItems((current) => mergeAdminNotification(current, notification));
+      if (!notification.readAt) setUnreadCount((current) => current + 1);
+    },
+    {
+      onReconnect: () => {
+        startTransition(async () => {
+          const result = await refreshAdminNotificationFeed();
+          if (!result.ok) return;
+          setItems((current) => reconcileAdminNotificationFeed(current, result.data.items));
+          setUnreadCount((current) => Math.max(current, result.data.unreadCount));
+        });
+      },
+    },
+  ), [userId]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
         setPushState("unsupported");
+        return;
+      }
+      if (!vapidPublicKey) {
+        setPushState("inactive");
         return;
       }
       if (Notification.permission === "denied") {
@@ -55,13 +75,22 @@ export function useAdminNotificationCenter({
         setPushState("default");
         return;
       }
-      void navigator.serviceWorker.getRegistration("/push-sw.js").then(async (registration) => {
+      void navigator.serviceWorker.getRegistration("/").then(async (registration) => {
         const subscription = await registration?.pushManager.getSubscription();
+        if (process.env.NODE_ENV === "development") {
+          console.info("[admin-push] browser state", {
+            permission: Notification.permission,
+            serviceWorkerRegistered: Boolean(registration),
+            serviceWorkerControlled: Boolean(navigator.serviceWorker.controller),
+            serviceWorkerScope: registration?.scope ?? null,
+            subscriptionExists: Boolean(subscription),
+          });
+        }
         setPushState(subscription ? "active" : "inactive");
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [vapidPublicKey]);
 
   const markRead = useCallback((notification: AdminNotification) => {
     if (notification.readAt) return;
@@ -107,6 +136,7 @@ export function useAdminNotificationCenter({
         }
         if (permission !== "granted") return;
         const registration = await navigator.serviceWorker.register("/push-sw.js", { scope: "/" });
+        await navigator.serviceWorker.ready;
         const current = await registration.pushManager.getSubscription();
         const subscription = current ?? await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -134,7 +164,7 @@ export function useAdminNotificationCenter({
 
   const deactivatePush = useCallback(() => {
     startTransition(async () => {
-      const registration = await navigator.serviceWorker.getRegistration("/push-sw.js");
+      const registration = await navigator.serviceWorker.getRegistration("/");
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
         const result = await unregisterAdminPushSubscription(subscription.endpoint);
