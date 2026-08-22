@@ -23,6 +23,7 @@ O projeto já possui autenticação, fundação multiempresa, configuração rea
 - painel Super Admin com métricas, negócios paginados, detalhe e ativação controlada;
 - temas visuais binários (claro/escuro) e contatos públicos opcionais do estabelecimento;
 - seed sem credenciais, testes pgTAP e testes unitários das regras de formulário e disponibilidade.
+- notificações internas em tempo real e Web Push opt-in para novos agendamentos públicos.
 
 A página pública e as telas administrativas leem o Supabase. Apenas o preview de Aparência conserva conteúdo fictício para permitir edição visual sem criar reservas.
 
@@ -34,9 +35,13 @@ Copie `.env.example` para `.env.local` e configure:
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 NEXT_PUBLIC_APP_DOMAIN=agenda.local
+SUPABASE_SERVICE_ROLE_KEY=...
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:notifications@example.com
 ```
 
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` também é aceito para projetos que ainda usam a chave legada. Nenhuma service-role key é necessária no frontend e secrets não devem ser versionados.
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` também é aceito para projetos que ainda usam a chave legada. `SUPABASE_SERVICE_ROLE_KEY` e a chave VAPID privada são usadas somente no servidor para despachar push; nunca são enviadas ao browser ou versionadas. A chave VAPID pública chega ao componente Admin por prop renderizada no servidor.
 
 ```bash
 npm install
@@ -115,6 +120,16 @@ A criação manual não faz `INSERT` direto. A RPC autenticada `create_admin_app
 
 Na Data API, `authenticated` conserva apenas `SELECT` em `appointments`, sempre filtrado pelas policies RLS do negócio. `INSERT`, `UPDATE` e `DELETE` diretos são revogados: criação passa pelas RPCs controladas, mudanças de status passam por `set_appointment_status` e não existe exclusão física no MVP.
 
+### Notificações de agendamentos públicos
+
+Cada appointment com origem `public` gera uma linha de `admin_notifications` por owner/admin atual do negócio. As mensagens usam somente nome do cliente, opções selecionadas, data e horário; labels configuráveis e dados técnicos não entram no conteúdo. Reservas administrativas, recorrências e mudanças de status não notificam nesta etapa.
+
+O sino do Admin carrega as últimas notificações e o total não lido com RLS por destinatário. Inserts chegam por Supabase Realtime com filtro de `user_id`, e o canal é removido no cleanup. A leitura individual ou em lote passa por RPCs autenticadas. No mobile, o header conserva logo e ações, mas omite visualmente o nome do negócio.
+
+Web Push é opt-in: a permissão só é solicitada após o clique em “Ativar notificações”. O Service Worker `public/push-sw.js` mostra o mesmo título/mensagem e abre ou foca `/admin`. Subscriptions ficam em `push_subscriptions`, vinculadas ao usuário e negócio, com endpoint único e mutação por RPC autenticada.
+
+Depois do commit do appointment, a Server Action tenta despachar a fila usando VAPID e o client server-only com service role. Claims usam lease de cinco minutos e `SKIP LOCKED`; `push_dispatched_at` só é preenchido quando todas as subscriptions válidas daquele destinatário foram processadas. Entregas bem-sucedidas ficam registradas por notification/subscription, portanto um retry pula dispositivos que já receberam. Respostas definitivas `404`/`410` removem o endpoint expirado; falhas transitórias liberam o claim para nova tentativa. Quando não há subscription, o item é concluído explicitamente como `no_subscriptions`, evitando loop infinito. Nenhum desses efeitos secundários reverte o agendamento.
+
 ## Super Admin
 
 As rotas `/super-admin` e `/super-admin/negocios` são protegidas no servidor pela allow-list privada `private.platform_admins`. O painel exibe métricas reais, busca e paginação calculadas no banco, configuração de cada negócio, membros e até 20 agendamentos recentes. E-mail de membro é retornado somente pela RPC administrativa controlada; `auth.users` nunca é exposto ao browser.
@@ -129,4 +144,4 @@ No onboarding, o endereço público é gerado automaticamente a partir do nome c
 
 - cadastro de novos usuários;
 - planos, cobrança do SaaS, trial, limites, impersonação e relatórios avançados;
-- WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.
+- integração automática com API do WhatsApp, pagamentos, financeiro, estoque, Google Calendar, IA e deploy.

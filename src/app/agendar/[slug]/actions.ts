@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import type { BookingConfirmation, BookingSlot, PublicActionResult } from "@/types/public-booking";
 import type { Json } from "@/types/database";
+import { dispatchPendingAdminPushes, safelyRunPushEffect } from "@/lib/admin-push";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -89,5 +90,10 @@ export async function createPublicBooking(input: {
   });
   if (error) return publicError(error.message, error.code);
   const confirmation = parseConfirmation(data);
-  return confirmation ? { ok: true, data: confirmation } : { ok: false, message: "O agendamento foi criado, mas não foi possível exibir a confirmação." };
+  if (!confirmation) return { ok: false, message: "O agendamento foi criado, mas não foi possível exibir a confirmação." };
+
+  await safelyRunPushEffect(async () => {
+    await dispatchPendingAdminPushes(input.slug);
+  });
+  return { ok: true, data: confirmation };
 }
