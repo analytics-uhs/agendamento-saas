@@ -128,7 +128,7 @@ O sino do Admin carrega as últimas notificações e o total não lido com RLS p
 
 Web Push é opt-in: a permissão só é solicitada após o clique em “Ativar notificações”. O Service Worker `public/push-sw.js` mostra o mesmo título/mensagem e abre ou foca `/admin`. Subscriptions ficam em `push_subscriptions`, vinculadas ao usuário e negócio, com endpoint único e mutação por RPC autenticada.
 
-Depois do commit do appointment, a Server Action tenta despachar a fila usando VAPID e o client server-only com service role. Esse efeito secundário nunca reverte o agendamento. Respostas definitivas `404`/`410` removem o endpoint expirado; outras falhas são absorvidas sem expor dados do cliente.
+Depois do commit do appointment, a Server Action tenta despachar a fila usando VAPID e o client server-only com service role. Claims usam lease de cinco minutos e `SKIP LOCKED`; `push_dispatched_at` só é preenchido quando todas as subscriptions válidas daquele destinatário foram processadas. Entregas bem-sucedidas ficam registradas por notification/subscription, portanto um retry pula dispositivos que já receberam. Respostas definitivas `404`/`410` removem o endpoint expirado; falhas transitórias liberam o claim para nova tentativa. Quando não há subscription, o item é concluído explicitamente como `no_subscriptions`, evitando loop infinito. Nenhum desses efeitos secundários reverte o agendamento.
 
 ## Super Admin
 

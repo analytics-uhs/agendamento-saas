@@ -19,6 +19,9 @@ const row: Database["public"]["Tables"]["admin_notifications"]["Row"] = {
   appointment_id: "appointment-1",
   read_at: null,
   push_dispatched_at: null,
+  push_claimed_at: null,
+  push_claim_token: null,
+  push_delivery_status: null,
   created_at: "2026-08-22T12:00:00.000Z",
 };
 

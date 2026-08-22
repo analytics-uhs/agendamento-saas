@@ -140,7 +140,9 @@ O grant autenticado é somente de leitura e a policy exige simultaneamente `user
 
 `push_subscriptions` guarda endpoint e chaves Push API por usuário/negócio. O endpoint é globalmente único. `save_push_subscription` impede takeover de endpoint por outro usuário ou tenant, enquanto `remove_push_subscription` só remove subscriptions do chamador. Nenhuma chave VAPID privada ou service role chega ao browser.
 
-O despacho ocorre depois que a RPC de booking conclui. `claim_pending_admin_push_notifications` é executável somente por `service_role`, marca o último lote como tentado e retorna apenas título, mensagem e destinatário ao servidor Next.js. O servidor busca subscriptions daquele negócio/usuário e assina com VAPID. Falha no efeito secundário não participa da transação do appointment; endpoints com resposta definitiva `404` ou `410` são removidos.
+O despacho ocorre depois que a RPC de booking conclui. `claim_pending_admin_push_notifications` é executável somente por `service_role` e cria um lease de cinco minutos com token, usando `FOR UPDATE SKIP LOCKED`; não altera `push_dispatched_at`. Claims ativos impedem processamento concorrente e claims expirados voltam a ser elegíveis.
+
+Cada sucesso por dispositivo é registrado em `admin_notification_push_deliveries`. Ao tentar novamente, o dispatcher pula subscriptions já entregues e processa apenas as restantes. Depois de concluir todas as subscriptions ainda válidas, `complete_admin_push_notification` preenche `push_dispatched_at`. Falha transitória chama `release_admin_push_notification`, mantendo o item pendente; endpoints definitivos `404`/`410` são removidos sem impedir os demais dispositivos. Se o destinatário não possui subscription, a conclusão usa `no_subscriptions`, evitando claim preso ou loop infinito. Nenhum efeito secundário participa da transação do appointment.
 
 ## Migrations e tipos
 
@@ -159,6 +161,7 @@ As migrations são aplicadas em ordem:
 11. `20260818091000_recurring_appointment_rpcs.sql` — criação, materialização idempotente e cancelamento transacional das séries.
 12. `20260818100000_multiple_business_hours.sql` — múltiplas janelas normalizadas, proteção contra sobreposição e motor/onboarding atualizados.
 13. `20260822010000_admin_booking_notifications.sql` — notificações por destinatário, Realtime, subscriptions Web Push, RPCs de leitura/registro e fila server-only.
+14. `20260822020000_reliable_admin_push_claims.sql` — leases temporários, confirmação pós-envio e ledger de entrega por dispositivo.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 

@@ -67,9 +67,9 @@ export interface Database {
         Relationships: [];
       };
       admin_notifications: {
-        Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; read_at: string | null; push_dispatched_at: string | null; created_at: string };
-        Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; created_at?: string };
-        Update: { read_at?: string | null; push_dispatched_at?: string | null };
+        Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; read_at: string | null; push_dispatched_at: string | null; push_claimed_at: string | null; push_claim_token: string | null; push_delivery_status: "delivered" | "no_subscriptions" | null; created_at: string };
+        Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null; created_at?: string };
+        Update: { read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null };
         Relationships: [{ foreignKeyName: "admin_notifications_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notifications_appointment_id_fkey"; columns: ["appointment_id"]; isOneToOne: false; referencedRelation: "appointments"; referencedColumns: ["id"] }];
       };
       push_subscriptions: {
@@ -77,6 +77,12 @@ export interface Database {
         Insert: { id?: string; user_id: string; business_id: string; endpoint: string; p256dh: string; auth: string; user_agent?: string | null; created_at?: string; updated_at?: string };
         Update: { p256dh?: string; auth?: string; user_agent?: string | null; updated_at?: string };
         Relationships: [{ foreignKeyName: "push_subscriptions_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
+      };
+      admin_notification_push_deliveries: {
+        Row: { notification_id: string; subscription_id: string; delivered_at: string };
+        Insert: { notification_id: string; subscription_id: string; delivered_at?: string };
+        Update: { delivered_at?: string };
+        Relationships: [{ foreignKeyName: "admin_notification_push_deliveries_notification_id_fkey"; columns: ["notification_id"]; isOneToOne: false; referencedRelation: "admin_notifications"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notification_push_deliveries_subscription_id_fkey"; columns: ["subscription_id"]; isOneToOne: false; referencedRelation: "push_subscriptions"; referencedColumns: ["id"] }];
       };
     };
     Views: Record<string, never>;
@@ -97,7 +103,10 @@ export interface Database {
       mark_all_admin_notifications_read: { Args: { p_business_id: string }; Returns: number };
       save_push_subscription: { Args: { p_business_id: string; p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null }; Returns: string };
       remove_push_subscription: { Args: { p_endpoint: string }; Returns: boolean };
-      claim_pending_admin_push_notifications: { Args: { p_business_slug: string }; Returns: { notification_id: string; business_id: string; user_id: string; title: string; message: string; appointment_id: string | null }[] };
+      claim_pending_admin_push_notifications: { Args: { p_business_slug: string; p_limit?: number }; Returns: { notification_id: string; business_id: string; user_id: string; title: string; message: string; appointment_id: string | null; claim_token: string }[] };
+      record_admin_push_delivery: { Args: { p_notification_id: string; p_subscription_id: string; p_claim_token: string }; Returns: boolean };
+      complete_admin_push_notification: { Args: { p_notification_id: string; p_claim_token: string; p_outcome: string }; Returns: string };
+      release_admin_push_notification: { Args: { p_notification_id: string; p_claim_token: string }; Returns: boolean };
       replace_business_hours: { Args: { p_hours: Json }; Returns: boolean };
       create_recurring_appointment_series: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_starts_on: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string; p_repeat_count?: number | null }; Returns: Json };
       materialize_recurring_appointments: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
