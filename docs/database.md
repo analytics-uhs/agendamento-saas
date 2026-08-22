@@ -132,6 +132,16 @@ Na Data API, `authenticated` possui somente `SELECT` em `appointments`, ainda li
 
 Um trigger aplica a mesma regra inclusive para updates diretos autorizados. `source`, `created_by` e `business_id` são imutáveis. Cancelar remove o intervalo da constraint parcial e devolve o horário ao motor público.
 
+## Notificações administrativas e Web Push
+
+`admin_notifications` mantém histórico por destinatário: cada insert de appointment com `source = public` dispara uma linha para cada membership `owner`/`admin` do mesmo `business_id`. A constraint `(appointment_id, user_id, type)` torna o efeito idempotente. O texto é montado no banco com nome do cliente, nomes das opções e data/horário em `America/Sao_Paulo`; labels dos grupos não são usados. Appointments administrativos e ocorrências materializadas usam `source = admin` e não disparam o trigger.
+
+O grant autenticado é somente de leitura e a policy exige simultaneamente `user_id = auth.uid()` e membership administrativa no negócio. `mark_admin_notification_read` e `mark_all_admin_notifications_read` são as únicas mutações oferecidas ao usuário. A tabela integra a publication `supabase_realtime`; o browser ainda recebe apenas linhas autorizadas pela sessão/RLS e assina com filtro adicional pelo próprio `user_id`.
+
+`push_subscriptions` guarda endpoint e chaves Push API por usuário/negócio. O endpoint é globalmente único. `save_push_subscription` impede takeover de endpoint por outro usuário ou tenant, enquanto `remove_push_subscription` só remove subscriptions do chamador. Nenhuma chave VAPID privada ou service role chega ao browser.
+
+O despacho ocorre depois que a RPC de booking conclui. `claim_pending_admin_push_notifications` é executável somente por `service_role`, marca o último lote como tentado e retorna apenas título, mensagem e destinatário ao servidor Next.js. O servidor busca subscriptions daquele negócio/usuário e assina com VAPID. Falha no efeito secundário não participa da transação do appointment; endpoints com resposta definitiva `404` ou `410` são removidos.
+
 ## Migrations e tipos
 
 As migrations são aplicadas em ordem:
@@ -148,6 +158,7 @@ As migrations são aplicadas em ordem:
 10. `20260818090000_recurring_appointment_schema.sql` — séries semanais, vínculo das ocorrências, índices, triggers e RLS.
 11. `20260818091000_recurring_appointment_rpcs.sql` — criação, materialização idempotente e cancelamento transacional das séries.
 12. `20260818100000_multiple_business_hours.sql` — múltiplas janelas normalizadas, proteção contra sobreposição e motor/onboarding atualizados.
+13. `20260822010000_admin_booking_notifications.sql` — notificações por destinatário, Realtime, subscriptions Web Push, RPCs de leitura/registro e fila server-only.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
