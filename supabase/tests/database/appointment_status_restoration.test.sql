@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(19);
 
 insert into auth.users (id, email, raw_user_meta_data) values
   ('72000000-0000-4000-8000-000000000001', 'restore-owner@example.test', '{"name":"Restore Owner"}'),
@@ -30,7 +30,7 @@ insert into public.appointment_series (
   '72200000-0000-4000-8000-000000000001',
   '72100000-0000-4000-8000-000000000001',
   'Recurring Restore', '53999990001', extract(dow from current_date + 30),
-  '13:00', 30, 1, current_date + 30, false,
+  '13:00', 30, 1, current_date + 30, true,
   '72000000-0000-4000-8000-000000000001'
 );
 
@@ -43,9 +43,25 @@ insert into public.appointments (
   ('72300000-0000-4000-8000-000000000003', '72100000-0000-4000-8000-000000000001', 'Cancelled', '53999990003', current_date + 30, '11:00', '11:30', 30, 'cancelled', null),
   ('72300000-0000-4000-8000-000000000004', '72100000-0000-4000-8000-000000000001', 'Conflict restore', '53999990004', current_date + 30, '12:00', '12:30', 30, 'cancelled', null),
   ('72300000-0000-4000-8000-000000000005', '72100000-0000-4000-8000-000000000001', 'Occupied', '53999990005', current_date + 30, '12:00', '12:30', 30, 'scheduled', null),
-  ('72300000-0000-4000-8000-000000000006', '72100000-0000-4000-8000-000000000001', 'Recurring Restore', '53999990006', current_date + 30, '13:00', '13:30', 30, 'cancelled', '72200000-0000-4000-8000-000000000001'),
-  ('72300000-0000-4000-8000-000000000007', '72100000-0000-4000-8000-000000000001', 'Recurring Future', '53999990007', current_date + 37, '13:00', '13:30', 30, 'scheduled', '72200000-0000-4000-8000-000000000001'),
-  ('72300000-0000-4000-8000-000000000008', '72100000-0000-4000-8000-000000000001', 'Forbidden restore', '53999990008', current_date + 30, '14:00', '14:30', 30, 'cancelled', null);
+  ('72300000-0000-4000-8000-000000000008', '72100000-0000-4000-8000-000000000001', 'Forbidden restore', '53999990008', current_date + 30, '14:00', '14:30', 30, 'cancelled', null),
+  ('72300000-0000-4000-8000-000000000009', '72100000-0000-4000-8000-000000000001', 'Elapsed cancelled', '53999990009', current_date - 1, '09:00', '09:30', 30, 'cancelled', null),
+  ('72300000-0000-4000-8000-000000000010', '72100000-0000-4000-8000-000000000001', 'Elapsed completed', '53999990010', current_date - 1, '10:00', '10:30', 30, 'completed', null),
+  ('72300000-0000-4000-8000-000000000011', '72100000-0000-4000-8000-000000000001', 'Elapsed no show', '53999990011', current_date - 1, '11:00', '11:30', 30, 'no_show', null),
+  ('72300000-0000-4000-8000-000000000012', '72100000-0000-4000-8000-000000000001', 'Elapsed conflict', '53999990012', current_date - 1, '12:00', '12:30', 30, 'cancelled', null),
+  ('72300000-0000-4000-8000-000000000013', '72100000-0000-4000-8000-000000000001', 'Elapsed occupied', '53999990013', current_date - 1, '12:00', '12:30', 30, 'scheduled', null);
+
+select set_config('request.jwt.claims', '{"sub":"72000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select set_config('app.appointment_series_id', '72200000-0000-4000-8000-000000000001', true);
+insert into public.appointments (
+  id, business_id, customer_name, customer_whatsapp, appointment_date,
+  start_time, end_time, duration_minutes, status
+) values
+  ('72300000-0000-4000-8000-000000000006', '72100000-0000-4000-8000-000000000001', 'Recurring Restore', '53999990001', current_date + 30, '13:00', '13:30', 30, 'cancelled'),
+  ('72300000-0000-4000-8000-000000000007', '72100000-0000-4000-8000-000000000001', 'Recurring Restore', '53999990001', current_date + 37, '13:00', '13:30', 30, 'scheduled');
+select set_config('app.appointment_series_id', '', true);
+update public.appointment_series
+set active = false
+where id = '72200000-0000-4000-8000-000000000001';
 
 select has_function('public', 'set_appointment_status', array['uuid', 'appointment_status'], 'status changes use the controlled RPC');
 
@@ -67,6 +83,13 @@ select ok(
   and not (select active from public.appointment_series where id = '72200000-0000-4000-8000-000000000001'),
   'restoring one occurrence does not reactivate its series or change future occurrences'
 );
+select lives_ok($$select public.set_appointment_status('72300000-0000-4000-8000-000000000009', 'scheduled')$$, 'cancelled elapsed occurrence ignores itself');
+select is((select status::text from public.appointments where id = '72300000-0000-4000-8000-000000000009'), 'scheduled', 'elapsed cancelled returns to scheduled');
+select lives_ok($$select public.set_appointment_status('72300000-0000-4000-8000-000000000010', 'scheduled')$$, 'completed elapsed occurrence ignores itself');
+select is((select status::text from public.appointments where id = '72300000-0000-4000-8000-000000000010'), 'scheduled', 'elapsed completed returns to scheduled');
+select lives_ok($$select public.set_appointment_status('72300000-0000-4000-8000-000000000011', 'scheduled')$$, 'no_show elapsed occurrence ignores itself');
+select is((select status::text from public.appointments where id = '72300000-0000-4000-8000-000000000011'), 'scheduled', 'elapsed no_show returns to scheduled');
+select throws_ok($$select public.set_appointment_status('72300000-0000-4000-8000-000000000012', 'scheduled')$$, '23P01', 'appointment_restore_conflict', 'another elapsed appointment still blocks restoration');
 
 select set_config('request.jwt.claims', '{"sub":"72000000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select throws_ok($$select public.set_appointment_status('72300000-0000-4000-8000-000000000008', 'scheduled')$$, '42501', 'appointment_not_found', 'another business cannot restore an occurrence');
