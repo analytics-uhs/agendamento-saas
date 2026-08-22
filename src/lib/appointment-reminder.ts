@@ -24,6 +24,10 @@ const weekdayDescriptions = [
 function formatAppointmentMoment(appointmentDate: string, startTime: string, currentDate: string) {
   const time = formatTime(startTime);
 
+  if (appointmentDate === currentDate) {
+    return `hoje, às ${time}`;
+  }
+
   if (appointmentDate === toISO(addDays(currentDate, 1))) {
     return `amanhã, às ${time}`;
   }

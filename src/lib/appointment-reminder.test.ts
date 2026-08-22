@@ -100,6 +100,19 @@ test("identifica amanhã pela data de calendário em America/Sao_Paulo, não pel
   assert.match(message, /agendamento amanhã, às 15:30/);
 });
 
+test("identifica hoje pela data de calendário em America/Sao_Paulo", () => {
+  const instantAlreadyNextDayInUtc = new Date("2026-08-22T01:30:00.000Z");
+  const currentDateInBrazil = todayInTimeZone("America/Sao_Paulo", instantAlreadyNextDayInUtc);
+  const message = buildAppointmentReminderMessage(
+    { ...appointment, appointmentDate: "2026-08-21" },
+    currentDateInBrazil,
+  );
+
+  assert.equal(currentDateInBrazil, "2026-08-21");
+  assert.match(message, /agendamento hoje, às 15:30/);
+  assert.doesNotMatch(message, /dia 21\/08|2026/);
+});
+
 test("normaliza o telefone e codifica acentos, caracteres especiais e quebras de linha", () => {
   const url = buildAppointmentWhatsappUrl(appointment);
   assert.ok(url);
