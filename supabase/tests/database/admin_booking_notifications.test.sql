@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(40);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values
@@ -337,6 +337,41 @@ select results_eq(
     where endpoint = 'https://push.example.test/subscription-owner'$$,
   array[0::bigint],
   'removing a subscription deletes the endpoint'
+);
+
+reset role;
+
+select ok(
+  has_table_privilege('service_role', 'public.push_subscriptions', 'SELECT'),
+  'service_role can load push subscriptions'
+);
+select ok(
+  has_table_privilege('service_role', 'public.push_subscriptions', 'DELETE'),
+  'service_role can remove expired push subscriptions'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.push_subscriptions', 'INSERT'),
+  'service_role cannot insert push subscriptions directly'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.push_subscriptions', 'UPDATE'),
+  'service_role cannot update push subscriptions directly'
+);
+select ok(
+  has_table_privilege('service_role', 'public.admin_notification_push_deliveries', 'SELECT'),
+  'service_role can read the push delivery ledger'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.admin_notification_push_deliveries', 'INSERT'),
+  'service_role cannot bypass the delivery RPC with a direct insert'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.admin_notification_push_deliveries', 'UPDATE'),
+  'service_role cannot update the delivery ledger directly'
+);
+select ok(
+  not has_table_privilege('service_role', 'public.admin_notification_push_deliveries', 'DELETE'),
+  'service_role cannot delete delivery history directly'
 );
 
 select * from finish();
