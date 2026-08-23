@@ -13,6 +13,20 @@ test("header mobile mantém logo e sino sem renderizar o nome visível do negóc
   assert.doesNotMatch(mobileHeader, /<span[^>]*>\{business\.name\}<\/span>/);
 });
 
+test("header mobile usa ícone para abrir a página pública antes do sino", () => {
+  assert.doesNotMatch(mobileHeader, />Ver página</);
+  assert.match(mobileHeader, /aria-label="Abrir página pública"/);
+  assert.match(mobileHeader, /title="Abrir página pública"/);
+  assert.match(mobileHeader, /target="_blank"/);
+  assert.match(mobileHeader, /rel="noopener noreferrer"/);
+  assert.match(mobileHeader, /<ExternalLink className="h-4 w-4"/);
+  assert.ok(mobileHeader.indexOf('aria-label="Abrir página pública"') < mobileHeader.indexOf("AdminNotificationBell"));
+});
+
+test("negócio inativo mantém o indicador sem criar link público", () => {
+  assert.match(mobileHeader, /business\.active \? <Link[\s\S]*: <span[^>]*>Inativo<\/span>/);
+});
+
 test("identidade desktop continua exibindo o nome do negócio", () => {
   assert.match(desktopAside, /<span className="truncate font-semibold">\{business\.name\}<\/span>/);
 });

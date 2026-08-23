@@ -132,3 +132,16 @@ test("manifest autenticado solicita credenciais e fica restrito ao layout Admin"
   assert.match(adminLayout, /crossOrigin="use-credentials"/);
   assert.doesNotMatch(rootLayout, /rel="manifest"|manifest:/);
 });
+
+test("ação de instalação preserva comportamento e classes compartilhadas da navegação", () => {
+  const installer = readFileSync(join(process.cwd(), "src/components/admin/admin-pwa-install.tsx"), "utf8");
+  const shell = readFileSync(join(process.cwd(), "src/components/admin/admin-shell.tsx"), "utf8");
+  assert.match(installer, /onClick=\{controller\.install\}/);
+  assert.match(installer, /Instalar aplicativo/);
+  assert.match(installer, /adminSidebarItemClass/);
+  assert.match(installer, /adminMobileNavItemClass/);
+  assert.match(shell, /adminSidebarItemClass/);
+  assert.match(shell, /adminMobileNavItemClass/);
+  assert.match(installer, /<Download className="h-4 w-4"/);
+  assert.match(installer, /<Download className="h-5 w-5"/);
+});
