@@ -144,6 +144,9 @@ test("ação de instalação preserva comportamento e classes compartilhadas da 
   assert.match(shell, /AdminMobileNavigationItem/);
   assert.match(installer, /AdminMobileNavigationItem/);
   assert.match(mobileItem, /adminMobileNavItemClass/);
+  assert.doesNotMatch(mobileItem, /<button/);
+  assert.match(mobileItem, /href=\{href \?\? "#instalar"\}/);
+  assert.match(mobileItem, /event\.preventDefault\(\)/);
   assert.match(mobileItem, /<Icon className="h-5 w-5"/);
   assert.match(mobileItem, /<span className="max-w-\[82px\] truncate">\{label\}<\/span>/);
   assert.match(installer, /<Download className="h-4 w-4"/);
