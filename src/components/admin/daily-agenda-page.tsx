@@ -5,13 +5,14 @@ import { useRef, useState, useTransition } from "react";
 import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal, type AppointmentFormPrefill } from "@/components/admin/appointment-form-modal";
-import { PageHeading } from "@/components/admin/page-heading";
+import { PageHeader } from "@/components/ui/page-header";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
 import { classes } from "@/lib/classes";
 import {
@@ -108,7 +109,7 @@ export function DailyAgendaPage({
 
   return (
     <>
-      <PageHeading
+      <PageHeader
         title="Agenda diária"
         description="Acompanhe o dia por recurso e horário."
       />
@@ -168,10 +169,10 @@ export function DailyAgendaPage({
           Carregando agenda diária...
         </p>
       ) : resources.length === 0 ? (
-        <p className="mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted">
+        <EmptyState size="lg" className="mt-4">
           O {resourceLabel ?? "Grupo 1"} está ativo, mas não possui opções
           ativas.
-        </p>
+        </EmptyState>
       ) : (
         <>
           <DesktopDailyGrid
@@ -198,10 +199,10 @@ export function DailyAgendaPage({
             selectedDate={selectedDate}
           />
           {!rows.length ? (
-            <p className="mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted">
+            <EmptyState size="lg" className="mt-4">
               O estabelecimento não possui horário de funcionamento ativo
               nesta data.
-            </p>
+            </EmptyState>
           ) : null}
           {appointmentsOutsideWindows.length ? (
             <OutsideHoursAppointments

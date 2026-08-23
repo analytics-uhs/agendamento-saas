@@ -1,6 +1,5 @@
-import { classes } from "@/lib/classes";
+import { Badge } from "@/components/ui/badge";
 
 export function BusinessStatusBadge({ active }: { active: boolean }) {
-  return <span className={classes("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", active ? "bg-success/10 text-success" : "bg-danger/10 text-danger")}>{active ? "Ativo" : "Inativo"}</span>;
+  return <Badge variant={active ? "success" : "danger"}>{active ? "Ativo" : "Inativo"}</Badge>;
 }
-
