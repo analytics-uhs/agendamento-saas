@@ -136,12 +136,15 @@ test("manifest autenticado solicita credenciais e fica restrito ao layout Admin"
 test("ação de instalação preserva comportamento e classes compartilhadas da navegação", () => {
   const installer = readFileSync(join(process.cwd(), "src/components/admin/admin-pwa-install.tsx"), "utf8");
   const shell = readFileSync(join(process.cwd(), "src/components/admin/admin-shell.tsx"), "utf8");
-  assert.match(installer, /onClick=\{controller\.install\}/);
-  assert.match(installer, /Instalar aplicativo/);
+  const mobileItem = readFileSync(join(process.cwd(), "src/components/admin/admin-mobile-navigation-item.tsx"), "utf8");
+  assert.match(installer, /label="Instalar" Icon=\{Download\} onClick=\{controller\.install\}/);
+  assert.doesNotMatch(installer, /Instalar aplicativo/);
   assert.match(installer, /adminSidebarItemClass/);
-  assert.match(installer, /adminMobileNavItemClass/);
   assert.match(shell, /adminSidebarItemClass/);
-  assert.match(shell, /adminMobileNavItemClass/);
+  assert.match(shell, /AdminMobileNavigationItem/);
+  assert.match(installer, /AdminMobileNavigationItem/);
+  assert.match(mobileItem, /adminMobileNavItemClass/);
+  assert.match(mobileItem, /<Icon className="h-5 w-5"/);
+  assert.match(mobileItem, /<span className="max-w-\[82px\] truncate">\{label\}<\/span>/);
   assert.match(installer, /<Download className="h-4 w-4"/);
-  assert.match(installer, /<Download className="h-5 w-5"/);
 });

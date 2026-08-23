@@ -14,7 +14,8 @@ import type { Palette as BusinessPalette } from "@/types/scheduling";
 import { AdminNotificationBell, useAdminNotificationCenter } from "@/components/admin/admin-notification-center";
 import type { AdminNotificationFeed } from "@/types/admin-notifications";
 import { AdminPwaInstallAction, AdminPwaInstallDialog, useAdminPwaInstall } from "@/components/admin/admin-pwa-install";
-import { adminMobileNavItemClass, adminSidebarItemClass } from "@/lib/admin-navigation";
+import { adminSidebarItemClass } from "@/lib/admin-navigation";
+import { AdminMobileNavigationItem } from "@/components/admin/admin-mobile-navigation-item";
 
 const nav = [
   { href: "/admin", label: "Início", Icon: Home, exact: true },
@@ -53,7 +54,7 @@ export function AdminShell({ children, currentBusiness, platformAdmin, logoUrl, 
     </header>
     <main className="px-4 pb-28 pt-7 lg:ml-64 lg:px-10 lg:pb-12"><div className="mx-auto w-full max-w-5xl">{!business.active ? <div role="status" className="mb-6 flex items-start gap-3 rounded-xl border border-accent/35 bg-accent/10 p-4"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-accent" /><div><p className="text-sm font-semibold">Estabelecimento inativo</p><p className="mt-0.5 text-sm text-muted">Você pode consultar e configurar o painel, mas a página pública e novos agendamentos estão indisponíveis.</p></div></div> : null}{children}</div></main>
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background lg:hidden" aria-label="Principal móvel"><div className="no-scrollbar flex overflow-x-auto">
-      {navigation.map(({ href, label, Icon, exact }) => <Link key={href} href={href} className={classes(adminMobileNavItemClass, active(href, exact) ? "text-primary" : "text-muted")}><Icon className="h-5 w-5" /><span className="max-w-[82px] truncate">{label}</span></Link>)}
+      {navigation.map(({ href, label, Icon, exact }) => <AdminMobileNavigationItem key={href} href={href} label={label} Icon={Icon} active={active(href, exact)} />)}
       <AdminPwaInstallAction controller={pwaInstall} placement="mobile" />
     </div></nav>
     <AdminPwaInstallDialog controller={pwaInstall} />

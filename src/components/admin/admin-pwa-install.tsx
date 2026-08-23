@@ -3,8 +3,9 @@
 import { Download, Share, Smartphone, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminPwaInstallMode, readAdminPwaPlatform } from "@/lib/admin-pwa";
-import { adminMobileNavItemClass, adminSidebarItemClass } from "@/lib/admin-navigation";
+import { adminSidebarItemClass } from "@/lib/admin-navigation";
 import { classes } from "@/lib/classes";
+import { AdminMobileNavigationItem } from "@/components/admin/admin-mobile-navigation-item";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -76,9 +77,9 @@ export function AdminPwaInstallAction({ controller, placement }: {
 }) {
   if (controller.mode === "hidden") return null;
   if (placement === "mobile") {
-    return <button type="button" onClick={controller.install} className={classes(adminMobileNavItemClass, "text-muted")}><Download className="h-5 w-5" /><span className="max-w-[82px] truncate">Instalar aplicativo</span></button>;
+    return <AdminMobileNavigationItem label="Instalar" Icon={Download} onClick={controller.install} />;
   }
-  return <button type="button" onClick={controller.install} className={classes(adminSidebarItemClass, "w-full text-muted hover:bg-surface hover:text-foreground")}><Download className="h-4 w-4" />Instalar aplicativo</button>;
+  return <button type="button" onClick={controller.install} className={classes(adminSidebarItemClass, "w-full text-muted hover:bg-surface hover:text-foreground")}><Download className="h-4 w-4" />Instalar</button>;
 }
 
 export function AdminPwaInstallDialog({ controller }: { controller: AdminPwaInstallController }) {
