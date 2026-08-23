@@ -44,6 +44,13 @@ export function reconcileAdminNotificationFeed(
     .slice(0, limit);
 }
 
+export function isOutsideAdminNotificationPopover<T>(
+  target: T,
+  containers: ReadonlyArray<{ contains(value: T): boolean } | null>,
+) {
+  return containers.every((container) => !container?.contains(target));
+}
+
 export function relativeNotificationTime(value: string, now = new Date()) {
   const elapsedSeconds = Math.max(0, Math.floor((now.getTime() - new Date(value).getTime()) / 1000));
   if (elapsedSeconds < 60) return "agora";

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  isOutsideAdminNotificationPopover,
   mapAdminNotification,
   mergeAdminNotification,
   reconcileAdminNotificationFeed,
@@ -44,6 +45,20 @@ test("reconciliação do feed não duplica notificações recebidas durante a re
 test("formata horário relativo das notificações", () => {
   const now = new Date("2026-08-22T12:02:00.000Z");
   assert.equal(relativeNotificationTime(row.created_at, now), "há 2 minutos");
+});
+
+test("clique dentro do sino ou painel não é externo, mas clique fora é", () => {
+  const desktop = { contains: (target: string) => target === "desktop-button" || target === "desktop-panel" };
+  const mobile = { contains: (target: string) => target === "mobile-button" || target === "mobile-panel" };
+  assert.equal(isOutsideAdminNotificationPopover("desktop-button", [desktop, mobile]), false);
+  assert.equal(isOutsideAdminNotificationPopover("mobile-panel", [desktop, mobile]), false);
+  assert.equal(isOutsideAdminNotificationPopover("page-content", [desktop, mobile]), true);
+});
+
+test("detecção de clique externo tolera containers ainda não montados", () => {
+  const mobile = { contains: (target: string) => target === "mobile-panel" };
+  assert.equal(isOutsideAdminNotificationPopover("mobile-panel", [null, mobile]), false);
+  assert.equal(isOutsideAdminNotificationPopover("page-content", [null, mobile]), true);
 });
 
 test("subscription Realtime filtra pelo usuário e remove o canal no cleanup", async () => {

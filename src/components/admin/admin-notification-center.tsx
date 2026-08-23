@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, BellOff, BellRing, CheckCheck, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   readAdminNotification,
   readAllAdminNotifications,
@@ -10,6 +10,7 @@ import {
   unregisterAdminPushSubscription,
 } from "@/app/admin/notification-actions";
 import {
+  isOutsideAdminNotificationPopover,
   mergeAdminNotification,
   reconcileAdminNotificationFeed,
   relativeNotificationTime,
@@ -38,6 +39,27 @@ export function useAdminNotificationCenter({
   const [pushState, setPushState] = useState<PushState>("default");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const desktopContainerRef = useRef<HTMLDivElement>(null);
+  const mobileContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (isOutsideAdminNotificationPopover(event.target, [desktopContainerRef.current, mobileContainerRef.current])) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
 
   useEffect(() => subscribeToAdminNotificationInserts(
     createClient(),
@@ -197,6 +219,8 @@ export function useAdminNotificationCenter({
     pushState,
     feedback,
     pending,
+    desktopContainerRef,
+    mobileContainerRef,
     markRead,
     markAllRead,
     activatePush,
@@ -209,12 +233,12 @@ type NotificationCenter = ReturnType<typeof useAdminNotificationCenter>;
 export function AdminNotificationBell({ center, placement }: { center: NotificationCenter; placement: "desktop" | "mobile" }) {
   const { unreadCount } = center;
   return (
-    <div className={classes(placement === "desktop" ? "hidden lg:block" : "lg:hidden")}>
+    <div ref={placement === "desktop" ? center.desktopContainerRef : center.mobileContainerRef} className={classes(placement === "desktop" ? "hidden lg:block" : "lg:hidden")}>
       <button
         type="button"
         aria-label={unreadCount ? `Notificações, ${unreadCount} não lidas` : "Notificações"}
         aria-expanded={center.open}
-        onClick={() => center.setOpen(!center.open)}
+        onClick={() => center.setOpen((current) => !current)}
         className="focus-ring relative rounded-lg border p-2 text-muted hover:bg-surface hover:text-foreground"
       >
         <Bell className="h-4 w-4" />
