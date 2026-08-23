@@ -19,11 +19,12 @@ import { formatWhatsappInput } from "@/lib/availability";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
-import { PageHeading } from "@/components/admin/page-heading";
+import { PageHeader } from "@/components/ui/page-header";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label, Select } from "@/components/ui/field";
 import { manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
@@ -251,7 +252,7 @@ export function AgendaPageContent({
           </p>
         </header>
       ) : (
-        <PageHeading
+        <PageHeader
           title="Agenda"
           description="Visualize e gerencie os agendamentos."
         />
@@ -285,10 +286,10 @@ export function AgendaPageContent({
       </div>
 
       {configurationInvalid ? (
-        <p className="mt-4 rounded-xl border border-dashed p-5 text-center text-sm text-muted">
+        <EmptyState className="mt-4">
           Configure opções ativas nos grupos antes de criar agendamentos
           manuais.
-        </p>
+        </EmptyState>
       ) : null}
       {creating ? (
         <section className="step-in mt-4 rounded-xl border bg-background p-4">
@@ -358,10 +359,10 @@ export function AgendaPageContent({
           <div className="mt-4">
             <p className="mb-2 text-sm font-medium">Horário</p>
             {loadingSlots ? (
-              <p className="flex items-center justify-center gap-2 rounded-xl border border-dashed p-5 text-sm text-muted">
+              <EmptyState className="flex items-center justify-center gap-2">
                 <LoaderCircle className="h-4 w-4 animate-spin" />
                 Consultando disponibilidade...
-              </p>
+              </EmptyState>
             ) : slots.length ? (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {slots.map((slot) => (
@@ -382,9 +383,9 @@ export function AgendaPageContent({
                 ))}
               </div>
             ) : (
-              <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted">
+              <EmptyState>
                 Nenhum horário disponível nesta data.
-              </p>
+              </EmptyState>
             )}
           </div>
           {form.startTime &&

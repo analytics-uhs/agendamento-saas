@@ -1,6 +1,7 @@
 import { CalendarCheck, CalendarDays, Clock3, UserX } from "lucide-react";
 import { AgendaPageContent } from "@/components/admin/agenda-page";
-import { PageHeading } from "@/components/admin/page-heading";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
 import { formatLongDate } from "@/lib/date";
 import type {
   AdminAppointment,
@@ -55,17 +56,17 @@ export function Dashboard({
   ];
   return (
     <>
-      <PageHeading
+      <PageHeader
         title={`Olá, ${businessName}`}
         description={formatLongDate(today)}
       />
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(({ label, value, Icon }) => (
-          <article key={label} className="rounded-xl border bg-background p-4">
+          <Card key={label} as="article" padding="sm">
             <Icon className="h-5 w-5 text-primary" />
             <p className="mt-3 text-2xl font-semibold">{value}</p>
             <p className="text-xs text-muted">{label}</p>
-          </article>
+          </Card>
         ))}
       </div>
       <section className="mt-8 border-t pt-8">
