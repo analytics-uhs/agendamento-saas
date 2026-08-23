@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-23T16:03:01Z",
+  "title": "Design System: AgendaFácil",
+  "extensions": {
+    "colorMeta": {
+      "primary-default": {
+        "role": "primary",
+        "displayName": "Terracota de Ação",
+        "canonical": "#E3613D",
+        "tonalRamp": ["oklch(20% 0.08 35)", "oklch(30% 0.11 35)", "oklch(40% 0.14 35)", "oklch(50% 0.16 35)", "oklch(60% 0.17 35)", "oklch(70% 0.14 35)", "oklch(82% 0.09 35)", "oklch(94% 0.03 35)"]
+      },
+      "accent-default": {
+        "role": "secondary",
+        "displayName": "Âmbar de Apoio",
+        "canonical": "#F0BA40",
+        "tonalRamp": ["oklch(20% 0.06 85)", "oklch(30% 0.09 85)", "oklch(40% 0.12 85)", "oklch(52% 0.14 85)", "oklch(64% 0.15 85)", "oklch(76% 0.13 85)", "oklch(86% 0.08 85)", "oklch(95% 0.025 85)"]
+      },
+      "brand-gray": {
+        "role": "neutral",
+        "displayName": "Cinza de Marca",
+        "canonical": "#545454",
+        "tonalRamp": ["oklch(18% 0 0)", "oklch(28% 0 0)", "oklch(38% 0 0)", "oklch(48% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"]
+      },
+      "background-light": { "role": "neutral", "displayName": "Fundo Claro", "canonical": "#FFFFFF", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(90% 0 0)", "oklch(100% 0 0)"] },
+      "surface-light": { "role": "neutral", "displayName": "Superfície Clara", "canonical": "#F7F7F7", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(90% 0 0)", "oklch(97% 0 0)"] },
+      "foreground-light": { "role": "neutral", "displayName": "Texto Principal Claro", "canonical": "#292929", "tonalRamp": ["oklch(18% 0 0)", "oklch(28% 0 0)", "oklch(38% 0 0)", "oklch(48% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "muted-light": { "role": "neutral", "displayName": "Texto Secundário Claro", "canonical": "#6B6B6B", "tonalRamp": ["oklch(18% 0 0)", "oklch(28% 0 0)", "oklch(38% 0 0)", "oklch(48% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "border-light": { "role": "neutral", "displayName": "Borda Clara", "canonical": "#E2E2E2", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(90% 0 0)", "oklch(96% 0 0)"] },
+      "background-dark": { "role": "neutral", "displayName": "Fundo Escuro", "canonical": "#181818", "tonalRamp": ["oklch(15% 0 0)", "oklch(25% 0 0)", "oklch(35% 0 0)", "oklch(45% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "surface-dark": { "role": "neutral", "displayName": "Superfície Escura", "canonical": "#242424", "tonalRamp": ["oklch(17% 0 0)", "oklch(27% 0 0)", "oklch(37% 0 0)", "oklch(47% 0 0)", "oklch(59% 0 0)", "oklch(71% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "foreground-dark": { "role": "neutral", "displayName": "Texto Principal Escuro", "canonical": "#F5F5F5", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(90% 0 0)", "oklch(97% 0 0)"] },
+      "muted-dark": { "role": "neutral", "displayName": "Texto Secundário Escuro", "canonical": "#AAAAAA", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(88% 0 0)", "oklch(95% 0 0)"] },
+      "border-dark": { "role": "neutral", "displayName": "Borda Escura", "canonical": "#3A3A3A", "tonalRamp": ["oklch(18% 0 0)", "oklch(28% 0 0)", "oklch(38% 0 0)", "oklch(48% 0 0)", "oklch(58% 0 0)", "oklch(70% 0 0)", "oklch(84% 0 0)", "oklch(95% 0 0)"] },
+      "success-light": { "role": "tertiary", "displayName": "Sucesso Claro", "canonical": "#35885B", "tonalRamp": ["oklch(20% 0.05 150)", "oklch(30% 0.07 150)", "oklch(40% 0.09 150)", "oklch(50% 0.11 150)", "oklch(60% 0.11 150)", "oklch(70% 0.09 150)", "oklch(82% 0.06 150)", "oklch(94% 0.02 150)"] },
+      "success-dark": { "role": "tertiary", "displayName": "Sucesso Escuro", "canonical": "#5CB984", "tonalRamp": ["oklch(20% 0.05 150)", "oklch(30% 0.07 150)", "oklch(40% 0.09 150)", "oklch(50% 0.11 150)", "oklch(60% 0.11 150)", "oklch(70% 0.09 150)", "oklch(82% 0.06 150)", "oklch(94% 0.02 150)"] },
+      "danger-light": { "role": "tertiary", "displayName": "Perigo Claro", "canonical": "#C44949", "tonalRamp": ["oklch(20% 0.07 25)", "oklch(30% 0.10 25)", "oklch(40% 0.13 25)", "oklch(50% 0.15 25)", "oklch(60% 0.14 25)", "oklch(70% 0.11 25)", "oklch(82% 0.07 25)", "oklch(94% 0.025 25)"] },
+      "danger-dark": { "role": "tertiary", "displayName": "Perigo Escuro", "canonical": "#EF7171", "tonalRamp": ["oklch(20% 0.07 25)", "oklch(30% 0.10 25)", "oklch(40% 0.13 25)", "oklch(50% 0.15 25)", "oklch(60% 0.14 25)", "oklch(70% 0.11 25)", "oklch(82% 0.07 25)", "oklch(94% 0.025 25)"] },
+      "on-primary": { "role": "neutral", "displayName": "Texto sobre Primária", "canonical": "#FFFFFF", "tonalRamp": ["oklch(18% 0 0)", "oklch(30% 0 0)", "oklch(42% 0 0)", "oklch(54% 0 0)", "oklch(66% 0 0)", "oklch(78% 0 0)", "oklch(90% 0 0)", "oklch(100% 0 0)"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Cabeçalho", "purpose": "Título principal de páginas operacionais." },
+      "title": { "displayName": "Título", "purpose": "Títulos de seções e superfícies." },
+      "body": { "displayName": "Corpo", "purpose": "Conteúdo e instruções operacionais." },
+      "label": { "displayName": "Rótulo", "purpose": "Campos, botões e navegação." },
+      "caption": { "displayName": "Legenda", "purpose": "Metadados e informações secundárias." }
+    },
+    "shadows": [
+      { "name": "overlay", "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)", "purpose": "Modais e superfícies realmente elevadas." },
+      { "name": "brand-mark-low", "value": "0 1px 2px rgb(0 0 0 / 0.05)", "purpose": "Tratamento sutil do logo na tela de login." }
+    ],
+    "motion": [
+      { "name": "step-in", "value": "220ms ease-out", "purpose": "Entrada curta de etapas e conteúdo progressivo." },
+      { "name": "state-color", "value": "transition-colors", "purpose": "Mudanças discretas de hover e seleção." },
+      { "name": "reduced-motion", "value": "0.01ms", "purpose": "Neutraliza animações quando o usuário solicita movimento reduzido." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal sólida, direta e confiável.",
+      "html": "<button class=\"ds-btn-primary\">Salvar alterações</button>",
+      "css": ".ds-btn-primary { height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--primary, #E3613D); color: #fff; font: 600 14px/20px Arial, Helvetica, sans-serif; transition: background-color 150ms ease; } .ds-btn-primary:hover { background: color-mix(in srgb, var(--primary, #E3613D) 90%, #000); } .ds-btn-primary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #E3613D) 32%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Ação secundária contida e legível.",
+      "html": "<button class=\"ds-btn-outline\">Copiar link</button>",
+      "css": ".ds-btn-outline { height: 44px; padding: 0 16px; border: 1px solid var(--border, #E2E2E2); border-radius: 12px; background: var(--card, #FFFFFF); color: var(--foreground, #292929); font: 600 14px/20px Arial, Helvetica, sans-serif; transition: background-color 150ms ease; } .ds-btn-outline:hover { background: var(--surface, #F7F7F7); } .ds-btn-outline:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #E3613D) 32%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "description": "Ação destrutiva semanticamente explícita.",
+      "html": "<button class=\"ds-btn-danger\">Cancelar</button>",
+      "css": ".ds-btn-danger { height: 44px; padding: 0 16px; border: 1px solid color-mix(in srgb, var(--danger, #C44949) 25%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--danger, #C44949) 10%, transparent); color: var(--danger, #C44949); font: 600 14px/20px Arial, Helvetica, sans-serif; } .ds-btn-danger:hover { background: color-mix(in srgb, var(--danger, #C44949) 15%, transparent); } .ds-btn-danger:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #E3613D) 32%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de 44px com rótulo aparente e foco da marca.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-name\">Nome</label><input class=\"ds-field-input\" id=\"ds-name\" placeholder=\"Nome do cliente\">",
+      "css": ".ds-field-label { display: block; margin-bottom: 8px; color: var(--foreground, #292929); font: 500 14px/20px Arial, Helvetica, sans-serif; } .ds-field-input { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--border, #E2E2E2); border-radius: 12px; background: var(--card, #FFFFFF); color: var(--foreground, #292929); font: 400 14px/20px Arial, Helvetica, sans-serif; } .ds-field-input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #E3613D) 32%, transparent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Operational Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Container plano, organizado por borda e espaçamento.",
+      "html": "<section class=\"ds-card\"><h3>Horários de funcionamento</h3><p>Adicione períodos separados para almoço ou turnos.</p></section>",
+      "css": ".ds-card { padding: 16px; border: 1px solid var(--border, #E2E2E2); border-radius: 12px; background: var(--background, #FFFFFF); color: var(--foreground, #292929); font-family: Arial, Helvetica, sans-serif; } .ds-card h3 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; } .ds-card p { margin: 4px 0 0; color: var(--muted, #6B6B6B); font-size: 12px; line-height: 16px; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "description": "Estado compacto e subordinado ao conteúdo.",
+      "html": "<span class=\"ds-badge\">Agendado</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 9999px; background: color-mix(in srgb, var(--primary, #E3613D) 10%, transparent); color: var(--primary, #E3613D); font: 600 11px/1 Arial, Helvetica, sans-serif; }"
+    },
+    {
+      "name": "Admin Navigation Item",
+      "kind": "nav",
+      "description": "Navegação operacional com ícone consistente e estado ativo discreto.",
+      "html": "<a class=\"ds-nav-item\" href=\"#\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 12h18M12 3v18\"/></svg><span>Agenda</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--primary, #E3613D) 10%, transparent); color: var(--primary, #E3613D); text-decoration: none; font: 500 14px/20px Arial, Helvetica, sans-serif; transition: background-color 150ms ease; } .ds-nav-item:hover { background: color-mix(in srgb, var(--primary, #E3613D) 14%, transparent); } .ds-nav-item:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #E3613D) 32%, transparent); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "O Balcão Organizado",
+    "overview": "O AgendaFácil se comporta como uma ferramenta de trabalho diário bem preparada: informações importantes ficam visíveis, agrupadas e fáceis de operar. A expressão atual combina clareza e eficiência com calor humano, sem a frieza de software corporativo e sem informalidade infantil. É um produto moderno e profissional, cuja marca aparece em decisões precisas, não em decoração. Este documento registra o baseline atual, não um limite permanente. docs/design-system.md continua sendo a referência técnica de implementação; oportunidades futuras só se tornam padrão depois de exploração explícita, aprovação e incorporação ao Design System.",
+    "keyCharacteristics": [
+      "Clara, acolhedora, operacional, confiável, moderna e profissional.",
+      "Hierarquia direta, densidade confortável e ações importantes aparentes.",
+      "Superfícies discretas, identidade configurável por negócio e decoração contida.",
+      "Mobile-first no fluxo público e responsividade operacional no Admin."
+    ],
+    "rules": [
+      { "name": "The Useful Color Rule", "body": "Cor indica marca, estado ou ação; ela não é preenchimento decorativo. Poucas cores por tela preservam a prioridade operacional.", "section": "colors" },
+      { "name": "The Flat First Rule", "body": "Se borda, superfície e espaçamento resolvem a hierarquia, não adicione sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do priorize clareza operacional, ações visíveis e linguagem direta.",
+      "Do use contraste tonal, bordas e espaçamento antes de recorrer a sombras.",
+      "Do diferencie a identidade padrão da plataforma dos tokens configuráveis do estabelecimento.",
+      "Do trate tipografia, ritmo, microinterações e expressão de marca como oportunidades futuras legítimas quando houver exploração explícita."
+    ],
+    "donts": [
+      "Don't transformar a interface em um dashboard SaaS genérico ou corporativo frio.",
+      "Don't adicionar excesso de cor, ornamento, sombras ou efeitos que disputem atenção com a tarefa.",
+      "Don't tornar a estética infantil, excessivamente arredondada ou inflada.",
+      "Don't aumentar densidade a ponto de prejudicar leitura, nem simplificar a ponto de esconder ações importantes.",
+      "Don't converter uma exploração futura em regra oficial antes de aprovação e atualização de docs/design-system.md."
+    ]
+  }
+}
