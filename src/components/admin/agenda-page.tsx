@@ -2,6 +2,7 @@
 
 import {
   Clock3,
+  Ban,
   LoaderCircle,
   Plus,
   Repeat2,
@@ -11,13 +12,15 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createManualAppointment,
   createRecurringAppointment,
-  loadAdminAppointments,
+  loadDailyAdminCalendar,
   loadAdminAvailability,
 } from "@/app/admin/agenda/actions";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
 import { formatWhatsappInput } from "@/lib/availability";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
+import { CalendarBlockModal } from "@/components/admin/calendar-block-modal";
+import { CalendarBlockDetails } from "@/components/admin/calendar-block-details";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { PageHeader } from "@/components/ui/page-header";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
@@ -37,6 +40,7 @@ import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
+  CalendarBlock,
 } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
@@ -73,6 +77,7 @@ function initialForm(config: AppointmentSchedulingConfig): FormState {
 export function AgendaPageContent({
   initialDate,
   initialAppointments,
+  initialBlocks,
   config,
   businessActive,
   embedded = false,
@@ -80,6 +85,7 @@ export function AgendaPageContent({
 }: {
   initialDate: string;
   initialAppointments: AdminAppointment[];
+  initialBlocks: CalendarBlock[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
   embedded?: boolean;
@@ -89,6 +95,10 @@ export function AgendaPageContent({
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [creating, setCreating] = useState(initialCreating);
   const [editingAppointment, setEditingAppointment] = useState<AdminAppointment | null>(null);
+  const [blocks, setBlocks] = useState(initialBlocks);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
+  const [editingBlock, setEditingBlock] = useState<CalendarBlock | null>(null);
   const [form, setForm] = useState(() => initialForm(config));
   const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [loadingAgenda, startAgendaTransition] = useTransition();
@@ -178,9 +188,9 @@ export function AgendaPageContent({
     setFeedback(null);
     if (creating) fetchAvailability(date);
     startAgendaTransition(async () => {
-      const result = await loadAdminAppointments(date);
+      const result = await loadDailyAdminCalendar(date);
       if (request !== agendaRequest.current) return;
-      if (result.ok) setAppointments(result.data);
+      if (result.ok) { setAppointments(result.data.appointments); setBlocks(result.data.blocks); }
       else setFeedback({ ok: false, message: result.message });
     });
   }
@@ -273,16 +283,12 @@ export function AgendaPageContent({
         <p className="truncate text-sm font-medium capitalize">
           {formatLongDate(selectedDate)}
         </p>
-        <Button
-          size="sm"
-          disabled={
-            !businessActive || selectedDate < todayISO() || configurationInvalid
-          }
-          onClick={creating ? () => setCreating(false) : openCreation}
-        >
-          {creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {creating ? "Fechar" : "Novo"}
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Button size="sm" variant="outline" disabled={!businessActive || selectedDate < todayISO()} onClick={() => setBlockModalOpen(true)}><Plus className="h-4 w-4" />Bloqueio</Button>
+          <Button size="sm" disabled={!businessActive || selectedDate < todayISO() || configurationInvalid} onClick={creating ? () => setCreating(false) : openCreation}>
+            {creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{creating ? "Fechar" : "Novo"}
+          </Button>
+        </div>
       </div>
 
       {configurationInvalid ? (
@@ -549,8 +555,17 @@ export function AgendaPageContent({
             <LoaderCircle className="h-4 w-4 animate-spin" />
             Carregando agenda...
           </p>
-        ) : appointments.length ? (
+        ) : appointments.length || blocks.length ? (
           <ul className="divide-y">
+            {blocks.map((block) => (
+              <li key={block.id}>
+                <button type="button" onClick={() => setSelectedBlock(block)} className="focus-ring grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 p-4 text-left">
+                  <span className="text-sm font-semibold tabular-nums">{block.startTime}</span>
+                  <div className="min-w-0"><p className="flex items-center gap-1.5 truncate text-sm font-medium"><Ban className="h-4 w-4 shrink-0 text-muted" />Período bloqueado</p><p className="truncate text-xs text-muted">{[block.group1?.name, block.reason || "Indisponível", `${block.startTime}–${block.endTime}`].filter(Boolean).join(" · ")}</p></div>
+                  {block.series ? <RecurringBadge /> : <span className="rounded-full border border-dashed px-2 py-1 text-[11px] font-medium text-muted">Bloqueio</span>}
+                </button>
+              </li>
+            ))}
             {appointments.map((appointment) => (
               <li key={appointment.id}>
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 p-4">
@@ -628,6 +643,8 @@ export function AgendaPageContent({
           }}
         />
       ) : null}
+      {blockModalOpen || editingBlock ? <CalendarBlockModal config={config} initialDate={selectedDate} block={editingBlock} onClose={() => { setBlockModalOpen(false); setEditingBlock(null); }} onSaved={(next, date, message) => { if (date === selectedDate) setBlocks(next); else selectDate(date); setFeedback({ ok: true, message }); setBlockModalOpen(false); setEditingBlock(null); }} /> : null}
+      {selectedBlock ? <CalendarBlockDetails block={selectedBlock} onClose={() => setSelectedBlock(null)} onEdit={() => { setEditingBlock(selectedBlock); setSelectedBlock(null); }} onDeleted={(next, message) => { setBlocks(next); setFeedback({ ok: true, message }); setSelectedBlock(null); }} /> : null}
     </>
   );
 }

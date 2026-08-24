@@ -38,9 +38,35 @@ export type AppointmentSchedulingConfig = {
 };
 
 export type DailyCalendarWindow = { startTime: string; endTime: string };
+export type CalendarBlockSeriesSummary = {
+  id: string;
+  startsOn: string;
+  repeatCount: number | null;
+  active: boolean;
+};
+export type CalendarBlock = {
+  id: string;
+  blockDate: string;
+  startTime: string;
+  endTime: string;
+  reason: string | null;
+  group1: AppointmentGroupSelection | null;
+  series: CalendarBlockSeriesSummary | null;
+};
 export type DailyCalendarData = {
   appointments: AdminAppointment[];
+  blocks: CalendarBlock[];
   windows: DailyCalendarWindow[];
+};
+
+export type CalendarBlockInput = {
+  group1OptionIds: string[];
+  date: string;
+  startTime: string;
+  endTime: string;
+  reason: string;
+  recurring: boolean;
+  repeatCount: number | null;
 };
 
 export type ManualAppointmentInput = {

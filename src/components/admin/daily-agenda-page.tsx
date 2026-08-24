@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock3, LoaderCircle, Plus } from "lucide-react";
+import { Ban, Clock3, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
@@ -14,6 +14,8 @@ import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
+import { CalendarBlockModal } from "@/components/admin/calendar-block-modal";
+import { CalendarBlockDetails } from "@/components/admin/calendar-block-details";
 import { classes } from "@/lib/classes";
 import {
   appointmentsForResource,
@@ -28,6 +30,7 @@ import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
+  CalendarBlock,
   DailyCalendarWindow,
 } from "@/types/appointments";
 
@@ -37,12 +40,14 @@ const timeColumnWidth = 72;
 export function DailyAgendaPage({
   initialDate,
   initialAppointments,
+  initialBlocks,
   initialWindows,
   config,
   businessActive,
 }: {
   initialDate: string;
   initialAppointments: AdminAppointment[];
+  initialBlocks: CalendarBlock[];
   initialWindows: DailyCalendarWindow[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
@@ -50,6 +55,10 @@ export function DailyAgendaPage({
   const [windowStart, setWindowStart] = useState(initialDate);
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [windows, setWindows] = useState(initialWindows);
+  const [blocks, setBlocks] = useState(initialBlocks);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
+  const [editingBlock, setEditingBlock] = useState<CalendarBlock | null>(null);
   const { label: resourceLabel, resources } = calendarResources(config);
   const [mobileResourceId, setMobileResourceId] = useState<string | null>(
     resources[0]?.id ?? null,
@@ -103,6 +112,7 @@ export function DailyAgendaPage({
         return;
       }
       setAppointments(result.data.appointments);
+      setBlocks(result.data.blocks);
       setWindows(result.data.windows);
     });
   }
@@ -137,10 +147,10 @@ export function DailyAgendaPage({
           </p>
         </div>
         {canCreate ? (
-          <Button size="sm" onClick={() => setFormPrefill({ date: selectedDate })}>
-            <Plus className="h-4 w-4" />
-            Novo
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setBlockModalOpen(true)}><Plus className="h-4 w-4" />Bloqueio</Button>
+            <Button size="sm" onClick={() => setFormPrefill({ date: selectedDate })}><Plus className="h-4 w-4" />Novo</Button>
+          </div>
         ) : (
           <span className="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-white opacity-45">
             <Plus className="h-4 w-4" />
@@ -179,9 +189,11 @@ export function DailyAgendaPage({
             resources={resources}
             rows={rows}
             appointments={appointments}
+            blocks={blocks}
             onSelect={setSelectedId}
             onReminderSent={updateReminder}
             onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
+            onSelectBlock={(block) => setSelectedBlock(block)}
             canCreate={canCreate}
             selectedDate={selectedDate}
           />
@@ -192,9 +204,11 @@ export function DailyAgendaPage({
             onResourceChange={setMobileResourceId}
             rows={rows}
             appointments={appointments}
+            blocks={blocks}
             onSelect={setSelectedId}
             onReminderSent={updateReminder}
             onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
+            onSelectBlock={(block) => setSelectedBlock(block)}
             canCreate={canCreate}
             selectedDate={selectedDate}
           />
@@ -243,6 +257,12 @@ export function DailyAgendaPage({
           }}
         />
       ) : null}
+      {blockModalOpen || editingBlock ? (
+        <CalendarBlockModal config={config} initialDate={selectedDate} block={editingBlock} onClose={() => { setBlockModalOpen(false); setEditingBlock(null); }} onSaved={(next, date, message) => { if (date === selectedDate) setBlocks(next); else selectDate(date); setFeedback({ ok: true, message }); setBlockModalOpen(false); setEditingBlock(null); }} />
+      ) : null}
+      {selectedBlock ? (
+        <CalendarBlockDetails block={selectedBlock} onClose={() => setSelectedBlock(null)} onEdit={() => { setEditingBlock(selectedBlock); setSelectedBlock(null); }} onDeleted={(next, message) => { setBlocks(next); setFeedback({ ok: true, message }); setSelectedBlock(null); }} />
+      ) : null}
     </>
   );
 }
@@ -251,18 +271,22 @@ function DesktopDailyGrid({
   resources,
   rows,
   appointments,
+  blocks,
   onSelect,
   onReminderSent,
   onCreate,
+  onSelectBlock,
   canCreate,
   selectedDate,
 }: {
   resources: DailyCalendarResource[];
   rows: ReturnType<typeof buildDailyCalendarRows>;
   appointments: AdminAppointment[];
+  blocks: CalendarBlock[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
   onCreate: (time: string, resourceId: string | null) => void;
+  onSelectBlock: (block: CalendarBlock) => void;
   canCreate: boolean;
   selectedDate: string;
 }) {
@@ -291,9 +315,11 @@ function DesktopDailyGrid({
             row={row}
             resources={resources}
             appointments={appointments}
+            blocks={blocks}
             onSelect={onSelect}
             onReminderSent={onReminderSent}
             onCreate={onCreate}
+            onSelectBlock={onSelectBlock}
             canCreate={canCreate && !isPastCalendarSlot(selectedDate, row.time)}
           />
         ))}
@@ -306,17 +332,21 @@ function DailyGridRow({
   row,
   resources,
   appointments,
+  blocks,
   onSelect,
   onReminderSent,
   onCreate,
+  onSelectBlock,
   canCreate,
 }: {
   row: ReturnType<typeof buildDailyCalendarRows>[number];
   resources: DailyCalendarResource[];
   appointments: AdminAppointment[];
+  blocks: CalendarBlock[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
   onCreate: (time: string, resourceId: string | null) => void;
+  onSelectBlock: (block: CalendarBlock) => void;
   canCreate: boolean;
 }) {
   return (
@@ -330,6 +360,7 @@ function DailyGridRow({
           className={classes("relative min-h-20 border-b border-r p-1.5 last:border-r-0", !row.open && "bg-muted/10")}
         >
           <div className="space-y-1.5">
+            {blocksForResource(blocks, resource.id, row.time).map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
             {appointmentsForResource(appointments, resource.id, row.time).map(
               (appointment) => (
                 <DailyAppointmentCard
@@ -341,7 +372,7 @@ function DailyGridRow({
               ),
             )}
           </div>
-          {row.open && canCreate && !isResourceOccupied(appointments, resource.id, row.time) ? <button type="button" aria-label={`Novo agendamento às ${row.time} para ${resource.name}`} onClick={() => onCreate(row.time, resource.id)} className="focus-ring absolute inset-1.5 rounded-lg opacity-0 transition-opacity hover:bg-primary/5 hover:opacity-100 focus:opacity-100"><Plus className="mx-auto h-4 w-4 text-primary" /></button> : null}
+          {row.open && canCreate && !isResourceOccupied(appointments, resource.id, row.time) && !isBlockOccupied(blocks, resource.id, row.time) ? <button type="button" aria-label={`Novo agendamento às ${row.time} para ${resource.name}`} onClick={() => onCreate(row.time, resource.id)} className="focus-ring absolute inset-1.5 rounded-lg opacity-0 transition-opacity hover:bg-primary/5 hover:opacity-100 focus:opacity-100"><Plus className="mx-auto h-4 w-4 text-primary" /></button> : null}
           {!row.open ? <span className="pointer-events-none absolute inset-0 grid place-items-center text-[10px] font-medium text-muted/70">Fechado</span> : null}
         </div>
       ))}
@@ -356,9 +387,11 @@ function MobileDailyGrid({
   onResourceChange,
   rows,
   appointments,
+  blocks,
   onSelect,
   onReminderSent,
   onCreate,
+  onSelectBlock,
   canCreate,
   selectedDate,
 }: {
@@ -368,9 +401,11 @@ function MobileDailyGrid({
   onResourceChange: (id: string | null) => void;
   rows: ReturnType<typeof buildDailyCalendarRows>;
   appointments: AdminAppointment[];
+  blocks: CalendarBlock[];
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
   onCreate: (time: string, resourceId: string | null) => void;
+  onSelectBlock: (block: CalendarBlock) => void;
   canCreate: boolean;
   selectedDate: string;
 }) {
@@ -407,7 +442,8 @@ function MobileDailyGrid({
         </div>
         {rows.map((row) => {
           const slotAppointments = appointmentsForResource(appointments, selectedResourceId, row.time);
-          const slotCanCreate = row.open && canCreate && !isPastCalendarSlot(selectedDate, row.time) && !isResourceOccupied(appointments, selectedResourceId, row.time);
+          const slotBlocks = blocksForResource(blocks, selectedResourceId, row.time);
+          const slotCanCreate = row.open && canCreate && !isPastCalendarSlot(selectedDate, row.time) && !isResourceOccupied(appointments, selectedResourceId, row.time) && !isBlockOccupied(blocks, selectedResourceId, row.time);
           return (
               <div
                 key={row.time}
@@ -425,6 +461,7 @@ function MobileDailyGrid({
                       onReminderSent={onReminderSent}
                     />
                   ))}
+                  {slotBlocks.map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
                   {!row.open ? <span className="block py-2 text-center text-xs font-medium text-muted">Fechado</span> : null}
                   {slotCanCreate ? <button type="button" onClick={() => onCreate(row.time, selectedResourceId)} className="focus-ring flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted hover:border-primary hover:text-primary"><Plus className="h-3.5 w-3.5" />Novo</button> : null}
                 </div>
@@ -478,6 +515,56 @@ function DailyAppointmentCard({
         <StatusBadge status={appointment.status} />
       </div>
     </article>
+  );
+}
+
+function blocksForResource(
+  blocks: CalendarBlock[],
+  resourceId: string | null,
+  time: string,
+) {
+  return blocks.filter(
+    (block) =>
+      (resourceId === null || block.group1?.id === resourceId) &&
+      block.startTime === time,
+  );
+}
+
+function isBlockOccupied(
+  blocks: CalendarBlock[],
+  resourceId: string | null,
+  time: string,
+) {
+  return blocks.some(
+    (block) =>
+      (resourceId === null || block.group1?.id === resourceId) &&
+      block.startTime <= time &&
+      time < block.endTime,
+  );
+}
+
+function DailyBlockCard({
+  block,
+  onSelect,
+}: {
+  block: CalendarBlock;
+  onSelect: (block: CalendarBlock) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(block)}
+      className="focus-ring block w-full rounded-lg border border-dashed border-muted/60 bg-surface px-2 py-2 text-left"
+      aria-label={`Abrir bloqueio das ${block.startTime} às ${block.endTime}`}
+    >
+      <p className="flex items-center gap-1.5 truncate text-xs font-semibold">
+        <Ban className="h-3.5 w-3.5 shrink-0 text-muted" />
+        Bloqueado · {block.startTime}–{block.endTime}
+      </p>
+      <p className="mt-0.5 truncate text-[11px] text-muted">
+        {block.reason || "Indisponível"}{block.series ? " · Recorrente" : ""}
+      </p>
+    </button>
   );
 }
 

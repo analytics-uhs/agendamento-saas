@@ -1,0 +1,65 @@
+"use client";
+
+import { Ban, CalendarDays, Clock3, LoaderCircle, Pencil, Repeat2, Trash2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { removeCalendarBlock } from "@/app/admin/calendar-block-actions";
+import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
+import { formatLongDate } from "@/lib/date";
+import type { CalendarBlock } from "@/types/appointments";
+
+export function CalendarBlockDetails({
+  block,
+  onClose,
+  onEdit,
+  onDeleted,
+}: {
+  block: CalendarBlock;
+  onClose: () => void;
+  onEdit: () => void;
+  onDeleted: (blocks: CalendarBlock[], message: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [saving, startTransition] = useTransition();
+  function remove(scope: "single" | "future") {
+    startTransition(async () => {
+      const result = await removeCalendarBlock(block.id, scope, block.blockDate);
+      if (!result.ok) setFeedback(result.message);
+      else onDeleted(result.data, result.message);
+    });
+  }
+  return (
+    <Modal title="Detalhes do bloqueio" onClose={onClose}>
+      <div className="space-y-5 p-4 sm:p-5">
+        <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Ban className="h-4 w-4" /></span>
+          <div><p className="font-semibold">Período bloqueado</p><p className="mt-0.5 text-sm text-muted">{block.reason || "Sem motivo informado"}</p></div>
+        </div>
+        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+          <div><dt className="flex items-center gap-1.5 text-xs text-muted"><CalendarDays className="h-3.5 w-3.5" />Data</dt><dd className="mt-1 font-medium capitalize">{formatLongDate(block.blockDate)}</dd></div>
+          <div><dt className="flex items-center gap-1.5 text-xs text-muted"><Clock3 className="h-3.5 w-3.5" />Período</dt><dd className="mt-1 font-medium tabular-nums">{block.startTime}–{block.endTime}</dd></div>
+          {block.group1 ? <div><dt className="text-xs text-muted">{block.group1.label}</dt><dd className="mt-1 font-medium">{block.group1.name}</dd></div> : null}
+          {block.series ? <div><dt className="flex items-center gap-1.5 text-xs text-muted"><Repeat2 className="h-3.5 w-3.5" />Recorrência</dt><dd className="mt-1 font-medium">{block.series.repeatCount ? `${block.series.repeatCount} ocorrências` : "Permanente"}</dd></div> : null}
+        </dl>
+        {feedback ? <p className="rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-danger">{feedback}</p> : null}
+        {confirming ? (
+          <div className="rounded-xl border border-danger/25 bg-danger/5 p-4">
+            <p className="text-sm font-semibold">Remover bloqueio</p>
+            <p className="mt-1 text-xs text-muted">Agendamentos existentes não serão alterados.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" disabled={saving} onClick={() => remove("single")}>{saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}Somente este</Button>
+              {block.series ? <Button variant="danger" size="sm" disabled={saving} onClick={() => remove("future")}>Este e os próximos</Button> : null}
+              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>Voltar</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2 border-t pt-4">
+            {!block.series ? <Button variant="ghost" onClick={onEdit}><Pencil className="h-4 w-4" />Editar</Button> : null}
+            <Button variant="danger" onClick={() => setConfirming(true)}><Trash2 className="h-4 w-4" />Remover</Button>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
