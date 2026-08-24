@@ -18,8 +18,8 @@ export function LoginForm({ next }: { next?: string }) {
 
   return <main className="flex min-h-screen items-center justify-center bg-surface px-4 py-8"><div className="w-full max-w-sm text-center">
     <div className="flex justify-center">
-      <div className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5">
-        <Image src={appIcon} alt="UHS Analytics" priority className="h-auto w-28 sm:w-30" />
+      <div className="rounded-2xl bg-white p-2.5 shadow-sm ring-1 ring-black/5">
+        <Image src={appIcon} alt="UHS Analytics" priority className="h-auto w-20 object-contain sm:w-22 lg:w-24" />
       </div>
     </div>
     <h1 className="mt-3 text-2xl font-semibold tracking-tight">AgendaFácil</h1>
