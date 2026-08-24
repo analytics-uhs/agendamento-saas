@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CalendarDays, Check, Clock3 } from "lucide-react";
 import { useMemo, useSyncExternalStore } from "react";
+import { BusinessLogo } from "@/components/ui/business-logo";
+import { WhatsappIcon } from "@/components/ui/social-icons";
 import { appearanceStyle } from "@/lib/appearance";
 import { normalizeWhatsapp } from "@/lib/availability";
 import { formatDuration, formatLongDate } from "@/lib/date";
@@ -39,19 +41,20 @@ export function BookingConfirmationCard({ slug, confirmation }: { slug: string; 
     ? appearanceStyle(configuredPalette, confirmation.appearance.themePreference)
     : undefined;
 
-  return <main style={style} data-theme={confirmation?.appearance?.themePreference} className="flex min-h-screen items-center justify-center bg-surface px-4 py-10 text-foreground"><div className="w-full max-w-md rounded-2xl border bg-card p-6 text-center">
-    <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary text-white"><CheckCircle2 className="h-7 w-7" /></span>
-    <h1 className="mt-4 text-xl font-semibold">{confirmation ? "Tudo certo! Seu agendamento está confirmado. 😊" : "Confirmação do agendamento"}</h1>
-    {confirmation ? <div className="mt-3 space-y-2 text-sm leading-relaxed text-muted"><p>Esperamos você no dia e horário agendados.</p><p>Se precisar cancelar ou fazer alguma alteração, entre em contato diretamente com o estabelecimento.</p></div> : <p className="mt-1 text-sm text-muted">Os detalhes desta confirmação não estão mais disponíveis neste dispositivo.</p>}
-    {confirmation && whatsappNumber ? <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="focus-ring mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90">💬 Entrar em contato pelo WhatsApp</a> : null}
-    {confirmation ? <dl className="mt-6 space-y-3 rounded-xl border p-4 text-left text-sm">
-      <div className="flex justify-between gap-3"><dt className="text-muted">Estabelecimento</dt><dd className="font-medium">{confirmation.business.name}</dd></div>
+  return <main style={style} data-theme={confirmation?.appearance?.themePreference} className="flex min-h-screen justify-center bg-surface px-4 py-6 text-foreground sm:items-center sm:py-10"><div className="w-full max-w-md text-center">
+    {confirmation ? <div className="mb-10 flex items-center justify-center gap-2"><BusinessLogo name={confirmation.business.name} logoUrl={confirmation.business.logoUrl} size="sm" /><p className="text-sm font-semibold">{confirmation.business.name}</p></div> : null}
+    <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-success/10 text-success"><Check className="h-7 w-7" strokeWidth={2.5} /></span>
+    <h1 className="mt-4 text-2xl font-semibold tracking-[-0.02em]">{confirmation ? "Seu horário está confirmado." : "Confirmação do agendamento"}</h1>
+    {confirmation ? <div className="mx-auto mt-2 max-w-sm space-y-2 text-sm leading-relaxed text-muted"><p>Tudo certo! Esperamos você no dia e horário agendados.</p></div> : <p className="mt-2 text-sm text-muted">Os detalhes desta confirmação não estão mais disponíveis neste dispositivo.</p>}
+    {confirmation ? <dl className="mt-7 space-y-3 rounded-xl border bg-card p-4 text-left text-sm">
+      <div className="flex items-center gap-3 border-b pb-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarDays className="h-5 w-5" /></span><div className="min-w-0"><dt className="sr-only">Data e horário</dt><dd className="font-semibold capitalize">{formatLongDate(confirmation.appointmentDate)}</dd><dd className="mt-0.5 flex items-center gap-1.5 text-xs text-muted"><Clock3 className="h-3.5 w-3.5" />{confirmation.startTime}–{confirmation.endTime} · {formatDuration(confirmation.durationMinutes)}</dd></div></div>
+      <div className="flex justify-between gap-3"><dt className="text-muted">Estabelecimento</dt><dd className="text-right font-medium">{confirmation.business.name}</dd></div>
       {confirmation.group1 ? <div className="flex justify-between gap-3"><dt className="text-muted">{confirmation.group1.label}</dt><dd className="font-medium">{confirmation.group1.name}</dd></div> : null}
       {confirmation.group2 ? <div className="flex justify-between gap-3"><dt className="text-muted">{confirmation.group2.label}</dt><dd className="font-medium">{confirmation.group2.name}</dd></div> : null}
-      <div className="flex justify-between gap-3"><dt className="text-muted">Data</dt><dd className="font-medium capitalize">{formatLongDate(confirmation.appointmentDate)}</dd></div>
-      <div className="flex justify-between gap-3"><dt className="text-muted">Horário</dt><dd className="font-medium">{confirmation.startTime}–{confirmation.endTime}</dd></div>
-      <div className="flex justify-between gap-3"><dt className="text-muted">Duração</dt><dd className="font-medium">{formatDuration(confirmation.durationMinutes)}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-muted">Cliente</dt><dd className="text-right font-medium">{confirmation.customerName}</dd></div>
     </dl> : null}
-    <Link href={`/agendar/${slug}`} className="focus-ring mt-6 flex h-11 w-full items-center justify-center rounded-xl border bg-card text-sm font-semibold hover:bg-surface">Fazer novo agendamento</Link>
+    {confirmation && whatsappNumber ? <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="focus-ring mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-success bg-card px-4 py-3 text-sm font-semibold text-success transition-colors hover:bg-success/10"><WhatsappIcon className="h-4 w-4" />Entrar em contato pelo WhatsApp</a> : null}
+    {confirmation ? <p className="mt-3 text-left text-xs leading-relaxed text-muted">Se precisar cancelar ou fazer alguma alteração, entre em contato diretamente com o estabelecimento.</p> : null}
+    <Link href={`/agendar/${slug}`} className="focus-ring mt-5 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold text-primary hover:bg-primary/5">Fazer novo agendamento</Link>
   </div></main>;
 }
