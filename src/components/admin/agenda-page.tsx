@@ -3,6 +3,7 @@
 import {
   Clock3,
   Ban,
+  Info,
   LoaderCircle,
   Plus,
   Repeat2,
@@ -29,7 +30,7 @@ import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label, Select } from "@/components/ui/field";
-import { manualAppointmentDuration } from "@/lib/appointments";
+import { isWithinBusinessHours, manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
 import {
   formatDuration,
@@ -133,6 +134,12 @@ export function AgendaPageContent({
     group2DurationMinutes: selectedGroupTwo?.durationMinutes ?? null,
     blocks: form.blocks,
   });
+  const outsideBusinessHours = Boolean(form.startTime && selectedDuration && !isWithinBusinessHours({
+    date: selectedDate,
+    startTime: form.startTime,
+    durationMinutes: selectedDuration,
+    businessHours: config.businessHours,
+  }));
   const configurationInvalid = Boolean(
     (groupOne && groupOne.options.length === 0) ||
     (groupTwo && groupTwo.options.length === 0) ||
@@ -506,6 +513,7 @@ export function AgendaPageContent({
                 : "duração inválida"}
             </p>
           ) : null}
+          {outsideBusinessHours ? <p role="status" className="mt-4 flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm text-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><span>Este horário está fora do funcionamento configurado. O agendamento será criado somente pelo Admin e não abrirá disponibilidade na página pública.</span></p> : null}
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCreating(false)}>
               Cancelar

@@ -104,6 +104,7 @@ export interface Database {
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
+      get_admin_booking_availability: { Args: { p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_admin_appointment_edit_availability: { Args: { p_appointment_id: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
       get_platform_business_detail: { Args: { p_business_id: string }; Returns: Json };

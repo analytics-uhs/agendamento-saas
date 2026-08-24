@@ -1,6 +1,7 @@
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
+  CalendarBlock,
   DailyCalendarWindow,
 } from "@/types/appointments";
 
@@ -52,18 +53,29 @@ export function buildDailyCalendarRows(
   windows: DailyCalendarWindow[],
   slotMinutes: number,
   appointments: AdminAppointment[],
+  blocks: CalendarBlock[] = [],
 ): DailyCalendarRow[] {
-  if (!windows.length) return [];
   const safeStep = Math.max(5, slotMinutes);
-  const first = Math.min(...windows.map((window) => toMinutes(window.startTime)));
-  const last = Math.max(...windows.map((window) => toMinutes(window.endTime)));
+  const starts = [
+    ...windows.map((window) => toMinutes(window.startTime)),
+    ...appointments.map((appointment) => toMinutes(appointment.startTime)),
+    ...blocks.map((block) => toMinutes(block.startTime)),
+  ];
+  const ends = [
+    ...windows.map((window) => toMinutes(window.endTime)),
+    ...appointments.map((appointment) => toMinutes(appointment.endTime)),
+    ...blocks.map((block) => toMinutes(block.endTime)),
+  ];
+  if (!starts.length || !ends.length) return [];
+  const first = Math.min(...starts);
+  const last = Math.max(...ends);
   const times = new Set<string>();
   for (let minute = first; minute < last; minute += safeStep) times.add(toTime(minute));
   times.add(toTime(last));
   appointments.forEach((appointment) => {
-    const minute = toMinutes(appointment.startTime);
-    if (minute >= first && minute < last) times.add(appointment.startTime);
+    times.add(appointment.startTime);
   });
+  blocks.forEach((block) => times.add(block.startTime));
   return [...times]
     .sort((left, right) => toMinutes(left) - toMinutes(right))
     .map((time) => {

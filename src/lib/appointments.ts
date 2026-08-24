@@ -1,5 +1,6 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
-import type { ManualAppointmentInput } from "@/types/appointments";
+import type { DailyCalendarWindow, ManualAppointmentInput } from "@/types/appointments";
+import { parseISO } from "@/lib/date";
 
 export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   scheduled: "Agendado",
@@ -56,4 +57,26 @@ export function buildManualAppointmentInput(input: ManualAppointmentInput): Manu
     customerName: input.customerName,
     customerWhatsapp: input.customerWhatsapp,
   };
+}
+
+function timeToMinutes(time: string) {
+  const [hours = 0, minutes = 0] = time.slice(0, 5).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+export function isWithinBusinessHours(input: {
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  businessHours?: Array<DailyCalendarWindow & { weekday: number }>;
+}) {
+  const weekday = parseISO(input.date).getDay();
+  const start = timeToMinutes(input.startTime);
+  const end = start + input.durationMinutes;
+  return (input.businessHours ?? []).some(
+    (window) =>
+      window.weekday === weekday &&
+      start >= timeToMinutes(window.startTime) &&
+      end <= timeToMinutes(window.endTime),
+  );
 }

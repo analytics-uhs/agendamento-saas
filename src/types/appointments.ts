@@ -35,6 +35,7 @@ export type AppointmentSchedulingConfig = {
   groups: AppointmentGroup[];
   durationMode: DurationMode;
   fixedDurationMinutes: number;
+  businessHours?: Array<DailyCalendarWindow & { weekday: number }>;
 };
 
 export type DailyCalendarWindow = { startTime: string; endTime: string };

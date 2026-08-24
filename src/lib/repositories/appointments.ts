@@ -92,12 +92,13 @@ export async function getBusinessHoursForDate(
 
 export async function getAppointmentSchedulingConfig(businessId: string): Promise<AppointmentSchedulingConfig> {
   const supabase = await createClient();
-  const [groupsResult, optionsResult, settingsResult] = await Promise.all([
+  const [groupsResult, optionsResult, settingsResult, hoursResult] = await Promise.all([
     supabase.from("booking_groups").select("id, position, label").eq("business_id", businessId).eq("active", true).order("sort_order"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes").eq("business_id", businessId).eq("active", true).order("sort_order"),
     supabase.from("business_settings").select("duration_mode, fixed_duration_minutes").eq("business_id", businessId).single(),
+    supabase.from("business_hours").select("weekday, start_time, end_time").eq("business_id", businessId).eq("active", true).order("weekday").order("start_time"),
   ]);
-  const error = groupsResult.error ?? optionsResult.error ?? settingsResult.error;
+  const error = groupsResult.error ?? optionsResult.error ?? settingsResult.error ?? hoursResult.error;
   if (error || !settingsResult.data) throw new Error(`Não foi possível carregar a configuração da agenda: ${error?.message ?? "configuração ausente"}`);
 
   const groups: AppointmentGroup[] = (groupsResult.data ?? []).flatMap((group) => {
@@ -116,6 +117,11 @@ export async function getAppointmentSchedulingConfig(businessId: string): Promis
     groups,
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,
+    businessHours: (hoursResult.data ?? []).map((hour) => ({
+      weekday: hour.weekday,
+      startTime: hour.start_time.slice(0, 5),
+      endTime: hour.end_time.slice(0, 5),
+    })),
   };
 }
 
@@ -126,8 +132,7 @@ export async function getAdminAvailability(input: {
   group2OptionId: string | null;
 }): Promise<{ data: BookingSlot[]; error: AppointmentRepositoryError | null }> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_booking_availability", {
-    p_slug: input.businessSlug,
+  const { data, error } = await supabase.rpc("get_admin_booking_availability", {
     p_date: input.date,
     p_group_1_option_id: input.group1OptionId,
     p_group_2_option_id: input.group2OptionId,
