@@ -8,6 +8,7 @@ import { formatNumericDate } from "@/lib/date";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
+import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -65,14 +66,15 @@ export async function loadDailyAdminCalendar(
   if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
   const business = await requireCurrentBusiness();
   try {
-    const [appointments, windows] = await Promise.all([
+    const [appointments, blocks, windows] = await Promise.all([
       listAppointments(business.id, date),
+      listCalendarBlocks(business.id, date),
       getBusinessHoursForDate(business.id, date),
     ]);
     return {
       ok: true,
       message: "Agenda diária atualizada.",
-      data: { appointments, windows },
+      data: { appointments, blocks, windows },
     };
   } catch {
     return { ok: false, message: "Não foi possível carregar a agenda diária." };

@@ -6,6 +6,7 @@ import { formatLongDate } from "@/lib/date";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
+  CalendarBlock,
 } from "@/types/appointments";
 
 export function Dashboard({
@@ -14,6 +15,7 @@ export function Dashboard({
   summaryAppointments,
   operationalDate,
   operationalAppointments,
+  operationalBlocks,
   config,
   businessActive,
   initialCreating,
@@ -23,6 +25,7 @@ export function Dashboard({
   summaryAppointments: AdminAppointment[];
   operationalDate: string;
   operationalAppointments: AdminAppointment[];
+  operationalBlocks: CalendarBlock[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
   initialCreating: boolean;
@@ -74,6 +77,7 @@ export function Dashboard({
           embedded
           initialDate={operationalDate}
           initialAppointments={operationalAppointments}
+          initialBlocks={operationalBlocks}
           config={config}
           businessActive={businessActive}
           initialCreating={initialCreating}

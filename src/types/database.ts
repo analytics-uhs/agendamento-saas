@@ -66,6 +66,18 @@ export interface Database {
         Update: { business_id?: string; group_1_option_id?: string | null; group_2_option_id?: string | null; customer_name?: string; customer_whatsapp?: string; weekday?: number; start_time?: string; duration_minutes?: number; blocks?: number; starts_on?: string; repeat_count?: number | null; active?: boolean; created_by?: string | null; updated_at?: string };
         Relationships: [];
       };
+      calendar_block_series: {
+        Row: { id: string; business_id: string; group_1_option_id: string | null; weekday: number; start_time: string; end_time: string; starts_on: string; repeat_count: number | null; reason: string | null; active: boolean; created_by: string | null } & Timestamps;
+        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; weekday: number; start_time: string; end_time: string; starts_on: string; repeat_count?: number | null; reason?: string | null; active?: boolean; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { group_1_option_id?: string | null; weekday?: number; start_time?: string; end_time?: string; starts_on?: string; repeat_count?: number | null; reason?: string | null; active?: boolean; updated_at?: string };
+        Relationships: [];
+      };
+      calendar_blocks: {
+        Row: { id: string; business_id: string; group_1_option_id: string | null; block_date: string; start_time: string; end_time: string; reason: string | null; series_id: string | null; cancelled_at: string | null; created_by: string | null; created_at: string; updated_at: string; resource_id: string; block_period: string };
+        Insert: { id?: string; business_id: string; group_1_option_id?: string | null; block_date: string; start_time: string; end_time: string; reason?: string | null; series_id?: string | null; cancelled_at?: string | null; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { block_date?: string; start_time?: string; end_time?: string; reason?: string | null; cancelled_at?: string | null; updated_at?: string };
+        Relationships: [];
+      };
       admin_notifications: {
         Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; read_at: string | null; push_dispatched_at: string | null; push_claimed_at: string | null; push_claim_token: string | null; push_delivery_status: "delivered" | "no_subscriptions" | null; created_at: string };
         Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null; created_at?: string };
@@ -111,6 +123,10 @@ export interface Database {
       create_recurring_appointment_series: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_starts_on: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string; p_repeat_count?: number | null }; Returns: Json };
       materialize_recurring_appointments: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
       cancel_recurring_appointment: { Args: { p_appointment_id: string; p_scope: string }; Returns: Json };
+      create_calendar_blocks: { Args: { p_group_1_option_ids: string[]; p_date: string; p_start_time: string; p_end_time: string; p_reason?: string | null; p_recurring?: boolean; p_repeat_count?: number | null }; Returns: Json };
+      materialize_calendar_blocks: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
+      update_calendar_block: { Args: { p_block_id: string; p_date: string; p_start_time: string; p_end_time: string; p_reason?: string | null }; Returns: boolean };
+      delete_calendar_block: { Args: { p_block_id: string; p_scope?: string }; Returns: Json };
       set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
       update_admin_appointment_occurrence: { Args: { p_appointment_id: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: boolean };
       set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
