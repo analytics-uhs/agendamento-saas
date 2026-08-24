@@ -53,8 +53,8 @@ export function BookingConfirmationCard({ slug, confirmation }: { slug: string; 
       {confirmation.group2 ? <div className="flex justify-between gap-3"><dt className="text-muted">{confirmation.group2.label}</dt><dd className="font-medium">{confirmation.group2.name}</dd></div> : null}
       <div className="flex justify-between gap-3"><dt className="text-muted">Cliente</dt><dd className="text-right font-medium">{confirmation.customerName}</dd></div>
     </dl> : null}
+    {confirmation ? <p className="mx-auto mt-4 max-w-sm text-center text-xs leading-relaxed text-muted">Se precisar cancelar ou fazer alguma alteração, entre em contato diretamente com o estabelecimento.</p> : null}
     {confirmation && whatsappNumber ? <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noopener noreferrer" className="focus-ring mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-success bg-card px-4 py-3 text-sm font-semibold text-success transition-colors hover:bg-success/10"><WhatsappIcon className="h-4 w-4" />Entrar em contato pelo WhatsApp</a> : null}
-    {confirmation ? <p className="mt-3 text-left text-xs leading-relaxed text-muted">Se precisar cancelar ou fazer alguma alteração, entre em contato diretamente com o estabelecimento.</p> : null}
     <Link href={`/agendar/${slug}`} className="focus-ring mt-5 inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold text-primary hover:bg-primary/5">Fazer novo agendamento</Link>
   </div></main>;
 }
