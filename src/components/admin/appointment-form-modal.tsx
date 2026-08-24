@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Repeat2 } from "lucide-react";
+import { Info, LoaderCircle, Repeat2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import {
   createManualAppointment,
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Label, Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import { buildManualAppointmentInput, initialAppointmentBlocks, manualAppointmentDuration } from "@/lib/appointments";
+import { buildManualAppointmentInput, initialAppointmentBlocks, isWithinBusinessHours, manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import { recurrenceSummary } from "@/lib/recurrence";
@@ -82,6 +82,12 @@ export function AppointmentFormModal({
     : startTime ? [startTime] : [];
   const group2Duration = groupTwo?.options.find((option) => option.id === group2OptionId)?.durationMinutes ?? null;
   const duration = manualAppointmentDuration({ mode: config.durationMode, fixedDurationMinutes: config.fixedDurationMinutes, group2DurationMinutes: group2Duration, blocks });
+  const outsideBusinessHours = Boolean(startTime && duration && !isWithinBusinessHours({
+    date,
+    startTime,
+    durationMinutes: duration,
+    businessHours: config.businessHours,
+  }));
 
   function submit() {
     if (!startTime) return;
@@ -111,6 +117,7 @@ export function AppointmentFormModal({
         <div className="mt-4"><p className="mb-2 text-sm font-medium">Horário</p>{loading ? <EmptyState className="flex items-center justify-center gap-2"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando disponibilidade...</EmptyState> : slots.length ? <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{slots.map((slot) => <button key={slot.startTime} type="button" onClick={() => { if (config.durationMode === "fixed_multiple") { const next = selectFixedMultipleSlot(slots, startTime, blocks, slot.startTime); setStartTime(next.startTime); setBlocks(next.blocks); setSequenceMessage(next.rejected ? "Os horários selecionados precisam ser seguidos." : null); } else { setStartTime(slot.startTime); setBlocks(1); } }} className={classes("focus-ring rounded-xl border bg-card py-2.5 text-sm font-semibold", selectedTimes.includes(slot.startTime) && "border-primary bg-primary text-white")}>{slot.startTime}</button>)}</div> : <EmptyState>Nenhum horário disponível nesta data.</EmptyState>}</div>
         {sequenceMessage ? <p role="status" className="mt-3 text-xs font-medium text-danger">{sequenceMessage}</p> : null}
         {startTime && selectedSlot && config.durationMode === "fixed_multiple" ? <p className="mt-3 text-xs text-muted">{startTime} às {fixedMultipleEndTime(startTime, selectedSlot.durationMinutes, blocks)} · {blocks} {blocks === 1 ? "horário selecionado" : "horários selecionados"} · {formatDuration(selectedSlot.durationMinutes * blocks)}</p> : null}
+        {outsideBusinessHours ? <p role="status" className="mt-4 flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm text-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><span>Este horário está fora do funcionamento configurado. O agendamento será criado somente pelo Admin e não abrirá disponibilidade na página pública.</span></p> : null}
         {!editing ? <div className="mt-4 rounded-xl border bg-surface/50 p-4"><label className="flex cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" className="h-4 w-4 accent-primary" checked={recurring} onChange={(event) => setRecurring(event.target.checked)} />Repetir semanalmente</label>{recurring ? <div className="mt-4 space-y-3 border-t pt-4"><div className="grid gap-2 sm:grid-cols-2"><label className="flex items-center gap-2 rounded-xl border bg-background p-3 text-sm"><input type="radio" name="modal-recurrence" checked={recurrenceType === "permanent"} onChange={() => setRecurrenceType("permanent")} />Permanente</label><label className="flex items-center gap-2 rounded-xl border bg-background p-3 text-sm"><input type="radio" name="modal-recurrence" checked={recurrenceType === "count"} onChange={() => setRecurrenceType("count")} />Quantidade de repetições</label></div>{recurrenceType === "count" ? <Input type="number" min={2} max={260} value={repeatCount} onChange={(event) => setRepeatCount(Number(event.target.value))} /> : null}{startTime ? <p className="flex items-center gap-2 text-sm font-medium text-primary"><Repeat2 className="h-4 w-4" />{recurrenceSummary(date, startTime, recurrenceType === "count" ? repeatCount : null)}</p> : null}</div> : null}</div> : null}
         {startTime ? <p className="mt-4 text-sm text-muted">{formatLongDate(date)} · {startTime} · {duration ? formatDuration(duration) : "duração inválida"}</p> : null}
         {message ? <p role="alert" className="mt-4 whitespace-pre-line rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-danger">{message}</p> : null}

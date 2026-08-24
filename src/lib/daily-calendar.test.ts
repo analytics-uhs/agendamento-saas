@@ -125,3 +125,18 @@ test("considera toda a duração do appointment como slot ocupado", () => {
   assert.equal(isResourceOccupied([item], null, "09:00"), true);
   assert.equal(isResourceOccupied([item], null, "09:30"), false);
 });
+
+test("expande a grade por appointment e bloqueio mesmo em dia fechado", () => {
+  const rows = buildDailyCalendarRows([], 60, [appointment({ startTime: "14:00", endTime: "18:00" })], [{
+    id: "block-1",
+    blockDate: "2026-08-24",
+    startTime: "20:00",
+    endTime: "22:00",
+    reason: null,
+    group1: null,
+    series: null,
+  }]);
+  assert.equal(rows[0]?.time, "14:00");
+  assert.equal(rows.at(-1)?.time, "22:00");
+  assert.equal(rows.every((row) => !row.open), true);
+});

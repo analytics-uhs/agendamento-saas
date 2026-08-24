@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appointmentSourceLabels, appointmentStatusLabels, buildManualAppointmentInput, canTransitionAppointment, initialAppointmentBlocks, manualAppointmentDuration } from "./appointments";
+import { appointmentSourceLabels, appointmentStatusLabels, buildManualAppointmentInput, canTransitionAppointment, initialAppointmentBlocks, isWithinBusinessHours, manualAppointmentDuration } from "./appointments";
 
 test("mapeia status e origem para labels administrativas", () => {
   assert.deepEqual(appointmentStatusLabels, {
@@ -50,4 +50,15 @@ test("reconstrói blocos atuais e preserva startTime + blocks no payload adminis
     customerName: "Cliente",
     customerWhatsapp: "5553999999999",
   });
+});
+
+test("identifica horário administrativo dentro, fora e em dia fechado", () => {
+  const businessHours = [
+    { weekday: 1, startTime: "08:00", endTime: "12:00" },
+    { weekday: 1, startTime: "14:00", endTime: "20:00" },
+  ];
+  assert.equal(isWithinBusinessHours({ date: "2026-08-24", startTime: "09:00", durationMinutes: 60, businessHours }), true);
+  assert.equal(isWithinBusinessHours({ date: "2026-08-24", startTime: "12:00", durationMinutes: 60, businessHours }), false);
+  assert.equal(isWithinBusinessHours({ date: "2026-08-23", startTime: "14:00", durationMinutes: 240, businessHours }), false);
+  assert.equal(isWithinBusinessHours({ date: "2026-08-24", startTime: "19:30", durationMinutes: 60, businessHours }), false);
 });

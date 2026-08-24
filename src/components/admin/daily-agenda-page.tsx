@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Clock3, LoaderCircle, Plus } from "lucide-react";
+import { Ban, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
@@ -85,17 +85,10 @@ export function DailyAgendaPage({
     windows,
     calendarSlotMinutes(config),
     appointments,
+    blocks,
   );
   const selectedAppointment = appointments.find(
     (appointment) => appointment.id === selectedId,
-  );
-  const appointmentsOutsideWindows = appointments.filter(
-    (appointment) =>
-      !windows.some(
-        (window) =>
-          appointment.startTime >= window.startTime &&
-          appointment.startTime < window.endTime,
-      ),
   );
   const canCreate = businessActive && selectedDate >= todayISO();
 
@@ -217,12 +210,6 @@ export function DailyAgendaPage({
               O estabelecimento não possui horário de funcionamento ativo
               nesta data.
             </EmptyState>
-          ) : null}
-          {appointmentsOutsideWindows.length ? (
-            <OutsideHoursAppointments
-              appointments={appointmentsOutsideWindows}
-              onSelect={setSelectedId}
-            />
           ) : null}
         </>
       )}
@@ -354,14 +341,16 @@ function DailyGridRow({
       <div className="sticky left-0 z-10 min-h-20 border-b border-r bg-background px-2 py-3 text-center text-xs font-semibold tabular-nums text-muted">
         {row.time}
       </div>
-      {resources.map((resource) => (
-        <div
+      {resources.map((resource) => {
+        const slotAppointments = appointmentsForResource(appointments, resource.id, row.time);
+        const slotBlocks = blocksForResource(blocks, resource.id, row.time);
+        return <div
           key={`${row.time}-${resource.id ?? "business"}`}
           className={classes("relative min-h-20 border-b border-r p-1.5 last:border-r-0", !row.open && "bg-muted/10")}
         >
           <div className="space-y-1.5">
-            {blocksForResource(blocks, resource.id, row.time).map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
-            {appointmentsForResource(appointments, resource.id, row.time).map(
+            {slotBlocks.map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
+            {slotAppointments.map(
               (appointment) => (
                 <DailyAppointmentCard
                   key={appointment.id}
@@ -373,9 +362,9 @@ function DailyGridRow({
             )}
           </div>
           {row.open && canCreate && !isResourceOccupied(appointments, resource.id, row.time) && !isBlockOccupied(blocks, resource.id, row.time) ? <button type="button" aria-label={`Novo agendamento às ${row.time} para ${resource.name}`} onClick={() => onCreate(row.time, resource.id)} className="focus-ring absolute inset-1.5 rounded-lg opacity-0 transition-opacity hover:bg-primary/5 hover:opacity-100 focus:opacity-100"><Plus className="mx-auto h-4 w-4 text-primary" /></button> : null}
-          {!row.open ? <span className="pointer-events-none absolute inset-0 grid place-items-center text-[10px] font-medium text-muted/70">Fechado</span> : null}
+          {!row.open && !slotAppointments.length && !slotBlocks.length ? <span className="pointer-events-none absolute inset-0 grid place-items-center text-[10px] font-medium text-muted/70">Fora do funcionamento</span> : null}
         </div>
-      ))}
+      })}
     </>
   );
 }
@@ -462,7 +451,7 @@ function MobileDailyGrid({
                     />
                   ))}
                   {slotBlocks.map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
-                  {!row.open ? <span className="block py-2 text-center text-xs font-medium text-muted">Fechado</span> : null}
+                  {!row.open && !slotAppointments.length && !slotBlocks.length ? <span className="block py-2 text-center text-xs font-medium text-muted">Fora do funcionamento</span> : null}
                   {slotCanCreate ? <button type="button" onClick={() => onCreate(row.time, selectedResourceId)} className="focus-ring flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted hover:border-primary hover:text-primary"><Plus className="h-3.5 w-3.5" />Novo</button> : null}
                 </div>
               </div>
@@ -565,35 +554,5 @@ function DailyBlockCard({
         {block.reason || "Indisponível"}{block.series ? " · Recorrente" : ""}
       </p>
     </button>
-  );
-}
-
-function OutsideHoursAppointments({
-  appointments,
-  onSelect,
-}: {
-  appointments: AdminAppointment[];
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <section className="mt-4 rounded-xl border border-accent/30 bg-accent/5 p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">
-        <Clock3 className="h-4 w-4 text-accent" />
-        Fora do horário configurado
-      </h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {appointments.map((appointment) => (
-          <button
-            key={appointment.id}
-            type="button"
-            onClick={() => onSelect(appointment.id)}
-            className="focus-ring rounded-lg border bg-background px-3 py-2 text-left text-xs"
-          >
-            <span className="font-semibold">{appointment.startTime}</span> ·{" "}
-            {appointment.customerName}
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
