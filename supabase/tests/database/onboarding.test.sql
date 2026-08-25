@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 create temp table onboarding_tap_results (result text);
 grant insert, select on onboarding_tap_results to authenticated;
-insert into onboarding_tap_results select plan(9);
+insert into onboarding_tap_results select plan(10);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values ('30000000-0000-4000-8000-000000000001', 'onboarding@example.test', '{"name":"Owner"}');
@@ -82,6 +82,15 @@ insert into onboarding_tap_results select throws_ok(
 );
 
 reset role;
+
+insert into onboarding_tap_results select results_eq(
+  $$select count(*)::bigint
+    from private.founder_offer_claims as claim
+    join public.businesses as business on business.id = claim.business_id
+    where business.slug = 'arena-teste'$$,
+  array[1::bigint],
+  'a successfully completed onboarding claims exactly one founder spot'
+);
 
 insert into onboarding_tap_results select results_eq(
   $$select public, file_size_limit from storage.buckets where id = 'business-logos'$$,
