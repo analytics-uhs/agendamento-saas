@@ -20,6 +20,7 @@ import {
 import { classes } from "@/lib/classes";
 import { calendarSlotMinutes } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate } from "@/lib/date";
+import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
 import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AppointmentSchedulingConfig,
@@ -67,7 +68,7 @@ export function CalendarBlockModal({
         if (block && date === block.blockDate) {
           const available = calendarBlockSlots(result.data, step);
           const start = available.indexOf(block.startTime);
-          const end = available.findIndex((time) => time >= block.endTime);
+          const end = available.findIndex((time) => timeToMinutes(time) >= endTimeToMinutes(block.endTime));
           setSelectedSlots(start >= 0 ? available.slice(start, end < 0 ? undefined : end) : []);
         } else setSelectedSlots([]);
       } else setFeedback(result.message);

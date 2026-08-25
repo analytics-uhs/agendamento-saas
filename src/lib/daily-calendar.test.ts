@@ -140,3 +140,16 @@ test("expande a grade por appointment e bloqueio mesmo em dia fechado", () => {
   assert.equal(rows.at(-1)?.time, "22:00");
   assert.equal(rows.every((row) => !row.open), true);
 });
+
+test("Agenda mostra o último bloco antes da meia-noite sem linha 00:00", () => {
+  const rows = buildDailyCalendarRows(
+    [{ startTime: "17:00", endTime: "00:00" }],
+    60,
+    [],
+  );
+  assert.equal(rows.some((row) => row.time === "23:00" && row.open), true);
+  assert.equal(rows.some((row) => row.time === "00:00"), false);
+  assert.equal(isResourceOccupied([
+    appointment({ startTime: "23:00", endTime: "00:00" }),
+  ], null, "23:00"), true);
+});

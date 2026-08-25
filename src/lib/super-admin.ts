@@ -1,5 +1,6 @@
 import type { DurationMode, Json } from "@/types/database";
 import type { BusinessStatusFilter, PlatformBusinessDetail, PlatformBusinessPage, PlatformBusinessQuery, PlatformMetrics } from "@/types/super-admin";
+import { displayEndTime } from "@/lib/time-of-day";
 
 function object(value: Json | undefined): Record<string, Json | undefined> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
@@ -84,7 +85,7 @@ export function parsePlatformBusinessDetail(value: Json | null): PlatformBusines
   const hours = Array.isArray(root.hours) ? root.hours.flatMap((rawHour) => {
     const hour = object(rawHour);
     if (!hour || number(hour.weekday) === null || boolean(hour.active) === null || !text(hour.start_time) || !text(hour.end_time)) return [];
-    return [{ weekday: number(hour.weekday)!, active: boolean(hour.active)!, startTime: text(hour.start_time)!.slice(0, 5), endTime: text(hour.end_time)!.slice(0, 5) }];
+    return [{ weekday: number(hour.weekday)!, active: boolean(hour.active)!, startTime: text(hour.start_time)!.slice(0, 5), endTime: displayEndTime(text(hour.end_time)!) }];
   }) : [];
 
   const members = Array.isArray(root.members) ? root.members.flatMap((rawMember) => {
@@ -101,7 +102,7 @@ export function parsePlatformBusinessDetail(value: Json | null): PlatformBusines
     if (!(appointment.source === "public" || appointment.source === "admin")) return [];
     return [{
       id: text(appointment.id)!, customerName: text(appointment.customer_name)!, appointmentDate: text(appointment.appointment_date)!,
-      startTime: text(appointment.start_time)!.slice(0, 5), endTime: text(appointment.end_time)!.slice(0, 5),
+      startTime: text(appointment.start_time)!.slice(0, 5), endTime: displayEndTime(text(appointment.end_time)!),
       status: appointment.status as "scheduled" | "completed" | "cancelled" | "no_show", source: appointment.source as "public" | "admin", group1Name: text(appointment.group_1_name), group2Name: text(appointment.group_2_name),
     }];
   }) : [];

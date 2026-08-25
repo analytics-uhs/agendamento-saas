@@ -16,6 +16,7 @@ import { appearanceStyle } from "@/lib/appearance";
 import { formatWhatsappInput, normalizeWhatsapp } from "@/lib/availability";
 import { classes } from "@/lib/classes";
 import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
+import { endTimeToMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 import { consecutiveSelectionTimes, fixedMultipleEndTime, selectFixedMultipleSlot } from "@/lib/fixed-multiple-selection";
 import { getPalette } from "@/lib/palettes";
 import { bookingCtaHelper, publicBookingSteps, type PublicBookingStepId } from "@/lib/public-booking-flow";
@@ -112,7 +113,7 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
       const dayHours = booking.hours.filter((item) => item.weekday === parseISO(selectedDate).getDay());
       if (!dayHours.length) return;
       const base = booking.settings.durationMode === "group_2" ? groupTwo?.options.find((option) => option.id === group2)?.durationMinutes ?? 30 : booking.settings.fixedDurationMinutes;
-      setSlots(dayHours.flatMap((hour) => { const [startHour = 0, startMinute = 0] = hour.startTime.split(":").map(Number); const [endHour = 0, endMinute = 0] = hour.endTime.split(":").map(Number); const start = startHour * 60 + startMinute; const end = endHour * 60 + endMinute; return Array.from({ length: Math.max(0, Math.floor((end - start) / base)) }, (_, index) => ({ startTime: `${String(Math.floor((start + index * base) / 60)).padStart(2, "0")}:${String((start + index * base) % 60).padStart(2, "0")}`, durationMinutes: base, maxBlocks: Math.min(3, Math.floor((end - start - index * base) / base)) })); }));
+      setSlots(dayHours.flatMap((hour) => { const start = timeToMinutes(hour.startTime); const end = endTimeToMinutes(hour.endTime); const starts = Array.from({ length: Math.max(0, Math.floor((end - start) / base)) }, (_, index) => start + index * base); if (hour.endTime === "00:00" && end - base >= start && !starts.includes(end - base)) starts.push(end - base); return starts.sort((left, right) => left - right).map((slotStart) => ({ startTime: minutesToTime(slotStart), durationMinutes: base, maxBlocks: Math.min(3, Math.floor((end - slotStart) / base)) })); }));
       return;
     }
     startSlotsTransition(async () => { const result = await getAvailability({ slug: booking.business.slug, date: selectedDate, group1OptionId: group1, group2OptionId: group2 }); if (request !== availabilityRequest.current) return; if (result.ok) setSlots(result.data); else setMessage(result.message); });

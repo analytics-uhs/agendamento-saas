@@ -1,6 +1,7 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
 import type { DailyCalendarWindow, ManualAppointmentInput } from "@/types/appointments";
 import { parseISO } from "@/lib/date";
+import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
 
 export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   scheduled: "Agendado",
@@ -59,11 +60,6 @@ export function buildManualAppointmentInput(input: ManualAppointmentInput): Manu
   };
 }
 
-function timeToMinutes(time: string) {
-  const [hours = 0, minutes = 0] = time.slice(0, 5).split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
 export function isWithinBusinessHours(input: {
   date: string;
   startTime: string;
@@ -77,6 +73,6 @@ export function isWithinBusinessHours(input: {
     (window) =>
       window.weekday === weekday &&
       start >= timeToMinutes(window.startTime) &&
-      end <= timeToMinutes(window.endTime),
+      end <= endTimeToMinutes(window.endTime),
   );
 }

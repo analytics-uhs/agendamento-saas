@@ -6,6 +6,7 @@ import type {
   CalendarBlockInput,
 } from "@/types/appointments";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
+import { displayEndTime } from "@/lib/time-of-day";
 
 export async function listCalendarBlocks(
   businessId: string,
@@ -55,7 +56,7 @@ export async function listCalendarBlocks(
       id: block.id,
       blockDate: block.block_date,
       startTime: block.start_time.slice(0, 5),
-      endTime: block.end_time.slice(0, 5),
+      endTime: displayEndTime(block.end_time),
       reason: block.reason,
       group1:
         group?.active && option
