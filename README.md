@@ -6,6 +6,7 @@ SaaS multiempresa de agendamentos. A interface Next.js foi adaptada do MVP visua
 
 O projeto já possui autenticação, fundação multiempresa, configuração real do estabelecimento e gestão completa do MVP de agendamentos:
 
+- landing comercial responsiva na rota `/`, com demonstração do produto e oferta Fundadores centralizada em configuração local;
 - login, logout, sessão SSR e proteção de `/admin` com Supabase Auth;
 - modelo multiempresa isolado por estabelecimento;
 - migrations, constraints, índices e Row Level Security (RLS);
@@ -47,6 +48,8 @@ VAPID_SUBJECT=mailto:notifications@example.com
 npm install
 npm run dev
 ```
+
+A página inicial pública apresenta o produto e direciona o CTA de teste para o fluxo real de onboarding. O acesso administrativo permanece em `/login`; autenticação, callbacks e proteção de `/admin` preservam o mesmo comportamento anterior.
 
 Para subir a stack local (Docker necessário), aplicar todas as migrations, carregar o seed e testar:
 
