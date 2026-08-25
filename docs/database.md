@@ -148,6 +148,14 @@ Cada sucesso por dispositivo é registrado em `admin_notification_push_deliverie
 
 Para diagnóstico operacional, o servidor informa apenas a etapa, erro sanitizado, `statusCode`, contagens de claim/subscriptions/entregas e booleanos de presença das quatro variáveis necessárias. Endpoint, `p256dh`, `auth`, service role e VAPID privada nunca são registrados. Se a configuração server-side estiver incompleta, a fila permanece pendente e o booking continua confirmado.
 
+## Lote Fundadores
+
+O contador comercial usa uma configuração única em `private.founder_offer_config`: 50 vagas, baseline de 38 ocupadas e marco persistido em `2026-08-25 16:45:00 America/Sao_Paulo`. Negócios anteriores ao marco já fazem parte do baseline e não são recontados.
+
+Uma vaga só é reivindicada ao final transacional de `complete_business_onboarding`. A reivindicação usa o `business_id`, não o usuário, e fica em `private.founder_offer_claims` sem exclusão em cascata; inativação, falta de acesso ou cancelamento futuro não devolvem a vaga. A chave única torna o registro idempotente. O total apresentado é `min(50, 38 + reivindicações)`, portanto disponibilidade e percentual nunca ultrapassam seus limites.
+
+A landing não lê essas tabelas. A RPC anônima `get_public_founder_offer()` retorna somente `totalSpots`, `occupiedSpots`, `availableSpots` e `occupiedPercentage`. O Server Component consulta essa superfície com a chave pública, revalida em 60 segundos e usa 38/12/76 como fallback se a leitura falhar; nenhuma service role ou informação identificável de negócio é enviada ao visitante.
+
 ## Migrations e tipos
 
 As migrations são aplicadas em ordem:

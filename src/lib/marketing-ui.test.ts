@@ -15,6 +15,20 @@ test("mantém CTA, navegação e FAQ acessíveis na landing", async () => {
   assert.match(source, /id="preco"/);
   assert.match(source, /aria-expanded=\{open\}/);
   assert.match(source, /aria-controls=\{answerId\}/);
+  assert.match(source, /Começar 15 dias grátis sem cartão/);
+  assert.doesNotMatch(source, /Começar meus 15 dias grátis/);
+  assert.doesNotMatch(source, />15 dias grátis · Sem cartão</);
+  assert.match(source, /Lote Fundadores esgotado/);
+});
+
+test("recebe os agregados da oferta sem manter números de vagas no JSX", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /founderOffer\.occupiedSpots/);
+  assert.match(source, /founderOffer\.availableSpots/);
+  assert.match(source, /founderOffer\.occupiedPercentage/);
+  assert.doesNotMatch(source, /38 de 50/);
+  assert.doesNotMatch(source, /12 vagas disponíveis/);
 });
 
 test("reutiliza o logo real e mantém o crédito acessível no rodapé", async () => {
