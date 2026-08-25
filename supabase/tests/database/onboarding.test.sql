@@ -2,8 +2,35 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 create temp table onboarding_tap_results (result text);
+create temp table onboarding_test_payload (payload jsonb);
 grant insert, select on onboarding_tap_results to authenticated;
+grant select on onboarding_test_payload to authenticated;
 insert into onboarding_tap_results select plan(10);
+
+insert into onboarding_test_payload (payload)
+values ('{
+  "name":"Arena Teste",
+  "slug":"arena-teste",
+  "whatsapp":"51999990000",
+  "address":"Rua do Teste, 10",
+  "google_maps_url":"https://maps.google.com/?q=arena-teste",
+  "instagram_url":"https://instagram.com/arena-teste",
+  "facebook_url":"https://facebook.com/arena-teste",
+  "groups":[
+    {"position":1,"label":"Quadra","active":true,"required":true,"options":[{"name":"Quadra 1","sort_order":0}]},
+    {"position":2,"label":"Esporte","active":true,"required":true,"options":[{"name":"Futevôlei","duration_minutes":60,"sort_order":0}]}
+  ],
+  "hours":[
+    {"weekday":0,"active":false,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":1,"active":true,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":2,"active":true,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":3,"active":true,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":4,"active":true,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":5,"active":true,"windows":[{"start_time":"08:00","end_time":"18:00"}]},
+    {"weekday":6,"active":true,"windows":[{"start_time":"09:00","end_time":"14:00"}]}
+  ],
+  "settings":{"duration_mode":"group_2","fixed_duration_minutes":60,"palette":{"id":"original"},"theme_preference":"system"}
+}'::jsonb);
 
 insert into auth.users (id, email, raw_user_meta_data)
 values ('30000000-0000-4000-8000-000000000001', 'onboarding@example.test', '{"name":"Owner"}');
@@ -12,29 +39,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"30000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
 
 insert into onboarding_tap_results select lives_ok(
-  $$select public.complete_business_onboarding('{
-    "name":"Arena Teste",
-    "slug":"arena-teste",
-    "whatsapp":"51999990000",
-    "address":"Rua do Teste, 10",
-    "google_maps_url":"https://maps.google.com/?q=arena-teste",
-    "instagram_url":"https://instagram.com/arena-teste",
-    "facebook_url":"https://facebook.com/arena-teste",
-    "groups":[
-      {"position":1,"label":"Quadra","active":true,"required":true,"options":[{"name":"Quadra 1","sort_order":0}]},
-      {"position":2,"label":"Esporte","active":true,"required":true,"options":[{"name":"Futevôlei","duration_minutes":60,"sort_order":0}]}
-    ],
-    "hours":[
-      {"weekday":0,"active":false,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":1,"active":true,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":2,"active":true,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":3,"active":true,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":4,"active":true,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":5,"active":true,"start_time":"08:00","end_time":"18:00"},
-      {"weekday":6,"active":true,"start_time":"09:00","end_time":"14:00"}
-    ],
-    "settings":{"duration_mode":"group_2","fixed_duration_minutes":60,"palette":{"id":"original"},"theme_preference":"system"}
-  }'::jsonb)$$,
+  $$select public.complete_business_onboarding(payload) from onboarding_test_payload$$,
   'onboarding creates the first configured business atomically'
 );
 
@@ -75,7 +80,7 @@ insert into onboarding_tap_results select results_eq(
 );
 
 insert into onboarding_tap_results select throws_ok(
-  $$select public.complete_business_onboarding('{}'::jsonb)$$,
+  $$select public.complete_business_onboarding(payload) from onboarding_test_payload$$,
   '23505',
   'user already has a business',
   'onboarding cannot create a second first business'
