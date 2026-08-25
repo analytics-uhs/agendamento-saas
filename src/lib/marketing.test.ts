@@ -18,7 +18,7 @@ test("centraliza a oferta Fundadores aprovada", () => {
   assert.equal(FOUNDER_OFFER.currentPrice, "39,90");
   assert.equal(FOUNDER_OFFER.nextPrice, "49,90");
   assert.equal(FOUNDER_OFFER.officialPrice, "59,90");
-  assert.equal(MARKETING_TRIAL_HREF, "/onboarding");
+  assert.equal(MARKETING_TRIAL_HREF, "/criar-conta");
 });
 
 test("soma negócios elegíveis ao baseline e limita a oferta a 50 vagas", () => {
