@@ -14,5 +14,5 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(new URL(next, request.url));
   }
 
-  return NextResponse.redirect(new URL("/?error=auth_callback", request.url));
+  return NextResponse.redirect(new URL("/login?error=auth_callback", request.url));
 }

@@ -6,7 +6,7 @@ export async function requireAuthenticatedUser() {
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
 
-  if (error || !userId) redirect("/");
+  if (error || !userId) redirect("/login");
 
   return { id: userId, email: typeof data.claims.email === "string" ? data.claims.email : null };
 }
