@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell, CalendarDays, Check, Clock3 } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import agendaFacilLogo from "@/app/icon.png";
 import { FOUNDER_OFFER, MARKETING_TRIAL_HREF, founderOfferAvailability } from "@/lib/marketing";
 import "./marketing-landing.css";
 
@@ -21,8 +20,9 @@ const FAQ = [
   ["O preço de fundador permanece?", "Sim, para os primeiros 50 negócios enquanto a assinatura permanecer ativa."],
 ] as const;
 
-function Brand({ priority = false }: { priority?: boolean }) {
-  return <span className="sm-brand"><Image className="sm-brand-logo" src={agendaFacilLogo} alt="AgendaFácil" sizes="42px" priority={priority} /> <span aria-hidden="true">AgendaFácil</span></span>;
+function Brand({ priority = false, variant = "dark" }: { priority?: boolean; variant?: "dark" | "light" }) {
+  const logoSrc = variant === "light" ? "/brand/agendafacil-logo-claro.png" : "/brand/agendafacil-logo-escuro.png";
+  return <span className="sm-brand"><Image className="sm-brand-logo" src={logoSrc} alt="AgendaFácil" width={500} height={500} sizes="42px" priority={priority} /> <span aria-hidden="true">AgendaFácil</span></span>;
 }
 
 function TrialLink({ className = "sm-cta", children = "Começar meus 15 dias grátis" }: { className?: string; children?: React.ReactNode }) {
@@ -154,6 +154,6 @@ export function MarketingLanding() {
 
       <section className="sm-final"><div className="sm-shell sm-final-inner sm-reveal"><h2>Sua próxima reserva pode acontecer sem você responder uma mensagem.</h2><p>Crie sua agenda, compartilhe o link e deixe seus clientes encontrarem o melhor horário.</p><TrialLink /><div className="sm-risk">15 dias grátis · Sem cartão</div></div></section>
     </main>
-    <footer className="sm-footer"><div className="sm-shell sm-footer-row"><div className="sm-footer-brand"><Brand /><span>Agendamento simples para negócios em movimento.</span></div><div className="sm-footer-meta"><span>© 2026 AgendaFácil. Todos os direitos reservados.</span><a href="https://www.uhsanalytics.com.br/" target="_blank" rel="noopener noreferrer">Desenvolvido por UHS Analytics</a></div></div></footer>
+    <footer className="sm-footer"><div className="sm-shell sm-footer-row"><div className="sm-footer-brand"><Brand variant="light" /><span>Agendamento simples para negócios em movimento.</span></div><div className="sm-footer-meta"><span>© 2026 AgendaFácil. Todos os direitos reservados.</span><a href="https://www.uhsanalytics.com.br/" target="_blank" rel="noopener noreferrer">Desenvolvido por UHS Analytics</a></div></div></footer>
   </div>;
 }

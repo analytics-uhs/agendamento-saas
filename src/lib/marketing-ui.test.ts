@@ -20,7 +20,11 @@ test("mantém CTA, navegação e FAQ acessíveis na landing", async () => {
 test("reutiliza o logo real e mantém o crédito acessível no rodapé", async () => {
   const source = await readFile(componentPath, "utf8");
 
-  assert.match(source, /import agendaFacilLogo from "@\/app\/icon\.png"/);
+  assert.match(source, /"\/brand\/agendafacil-logo-escuro\.png"/);
+  assert.match(source, /"\/brand\/agendafacil-logo-claro\.png"/);
+  assert.doesNotMatch(source, /@\/app\/icon\.png/);
+  assert.match(source, /<Brand priority \/>/);
+  assert.match(source, /<Brand variant="light" \/>/);
   assert.match(source, /alt="AgendaFácil"/);
   assert.match(source, /href="https:\/\/www\.uhsanalytics\.com\.br\/"/);
   assert.match(source, /target="_blank"/);
