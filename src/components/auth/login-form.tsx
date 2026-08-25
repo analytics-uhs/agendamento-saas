@@ -32,7 +32,7 @@ export function LoginForm({ next }: { next?: string }) {
       <Button type="submit" className="w-full" disabled={pending}>{pending ? "Entrando..." : "Entrar"}</Button>
     </form>
     <div className="mt-4 flex justify-center"><ThemeControl compact /></div>
-    <p className="mt-4 text-sm text-muted">Ainda não tem uma conta? <Link href="/onboarding" className="focus-ring rounded font-semibold text-primary hover:underline">Criar conta</Link></p>
+    <p className="mt-4 text-sm text-muted">Ainda não tem uma conta? <Link href="/criar-conta" className="focus-ring rounded font-semibold text-primary hover:underline">Criar conta</Link></p>
     <div className="mx-auto mt-5 max-w-xs border-t pt-4 text-xs text-muted">
       <p>Precisa de ajuda?</p>
       <a href={whatsappSupportUrl} target="_blank" rel="noopener noreferrer" className="focus-ring mt-1 inline-flex items-center gap-1.5 rounded font-medium text-foreground hover:text-primary">
