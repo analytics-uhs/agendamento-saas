@@ -17,6 +17,21 @@ test("mantém CTA, navegação e FAQ acessíveis na landing", async () => {
   assert.match(source, /aria-controls=\{answerId\}/);
 });
 
+test("reutiliza o logo real e mantém o crédito acessível no rodapé", async () => {
+  const source = await readFile(componentPath, "utf8");
+
+  assert.match(source, /"\/brand\/agendafacil-logo-escuro\.png"/);
+  assert.match(source, /"\/brand\/agendafacil-logo-claro\.png"/);
+  assert.doesNotMatch(source, /@\/app\/icon\.png/);
+  assert.match(source, /<Brand priority \/>/);
+  assert.match(source, /<Brand variant="light" \/>/);
+  assert.match(source, /alt="AgendaFácil"/);
+  assert.match(source, /href="https:\/\/www\.uhsanalytics\.com\.br\/"/);
+  assert.match(source, /target="_blank"/);
+  assert.match(source, /rel="noopener noreferrer"/);
+  assert.match(source, /© 2026 AgendaFácil\. Todos os direitos reservados\./);
+});
+
 test("limpa timers e observers da demonstração automática", async () => {
   const source = await readFile(componentPath, "utf8");
 
