@@ -4,18 +4,10 @@ import type {
   CalendarBlock,
   DailyCalendarWindow,
 } from "@/types/appointments";
+import { endTimeToMinutes, MINUTES_PER_DAY, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export type DailyCalendarResource = { id: string | null; name: string };
 export type DailyCalendarRow = { time: string; open: boolean };
-
-function toMinutes(time: string) {
-  const [hours = 0, minutes = 0] = time.slice(0, 5).split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function toTime(minutes: number) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
 
 function gcd(left: number, right: number): number {
   return right === 0 ? left : gcd(right, left % right);
@@ -57,35 +49,35 @@ export function buildDailyCalendarRows(
 ): DailyCalendarRow[] {
   const safeStep = Math.max(5, slotMinutes);
   const starts = [
-    ...windows.map((window) => toMinutes(window.startTime)),
-    ...appointments.map((appointment) => toMinutes(appointment.startTime)),
-    ...blocks.map((block) => toMinutes(block.startTime)),
+    ...windows.map((window) => timeToMinutes(window.startTime)),
+    ...appointments.map((appointment) => timeToMinutes(appointment.startTime)),
+    ...blocks.map((block) => timeToMinutes(block.startTime)),
   ];
   const ends = [
-    ...windows.map((window) => toMinutes(window.endTime)),
-    ...appointments.map((appointment) => toMinutes(appointment.endTime)),
-    ...blocks.map((block) => toMinutes(block.endTime)),
+    ...windows.map((window) => endTimeToMinutes(window.endTime)),
+    ...appointments.map((appointment) => endTimeToMinutes(appointment.endTime)),
+    ...blocks.map((block) => endTimeToMinutes(block.endTime)),
   ];
   if (!starts.length || !ends.length) return [];
   const first = Math.min(...starts);
   const last = Math.max(...ends);
   const times = new Set<string>();
-  for (let minute = first; minute < last; minute += safeStep) times.add(toTime(minute));
-  times.add(toTime(last));
+  for (let minute = first; minute < last; minute += safeStep) times.add(minutesToTime(minute));
+  if (last < MINUTES_PER_DAY) times.add(minutesToTime(last));
   appointments.forEach((appointment) => {
     times.add(appointment.startTime);
   });
   blocks.forEach((block) => times.add(block.startTime));
   return [...times]
-    .sort((left, right) => toMinutes(left) - toMinutes(right))
+    .sort((left, right) => timeToMinutes(left) - timeToMinutes(right))
     .map((time) => {
-      const start = toMinutes(time);
+      const start = timeToMinutes(time);
       return {
         time,
         open: windows.some(
           (window) =>
-            start >= toMinutes(window.startTime) &&
-            start + safeStep <= toMinutes(window.endTime),
+            start >= timeToMinutes(window.startTime) &&
+            start + safeStep <= endTimeToMinutes(window.endTime),
         ),
       };
     });
@@ -117,7 +109,7 @@ export function isResourceOccupied(
     (appointment) =>
       appointment.status !== "cancelled" &&
       (resourceId === null || appointment.group1?.id === resourceId) &&
-      appointment.startTime <= time &&
-      time < appointment.endTime,
+      timeToMinutes(appointment.startTime) <= timeToMinutes(time) &&
+      timeToMinutes(time) < endTimeToMinutes(appointment.endTime),
   );
 }

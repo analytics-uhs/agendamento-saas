@@ -1,5 +1,6 @@
 import type { AppointmentStatus, DurationMode } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
+import { endTimeToMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export type BusyInterval = { startTime: string; endTime: string; status: AppointmentStatus };
 export type OpeningWindow = { active: boolean; startTime: string; endTime: string };
@@ -14,15 +15,6 @@ export type AvailabilityInput = {
   appointments: BusyInterval[];
 };
 
-export function timeToMinutes(value: string) {
-  const [hours = 0, minutes = 0] = value.slice(0, 5).split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-export function minutesToTime(value: number) {
-  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-}
-
 export function intervalsOverlap(newStart: number, newEnd: number, existingStart: number, existingEnd: number) {
   return newStart < existingEnd && newEnd > existingStart;
 }
@@ -35,13 +27,17 @@ export function generateAvailability(input: AvailabilityInput): BookingSlot[] {
   const now = input.date === input.today && input.currentTime ? timeToMinutes(input.currentTime) : null;
   const busy = input.appointments
     .filter((appointment) => appointment.status !== "cancelled")
-    .map((appointment) => ({ start: timeToMinutes(appointment.startTime), end: timeToMinutes(appointment.endTime) }));
+    .map((appointment) => ({ start: timeToMinutes(appointment.startTime), end: endTimeToMinutes(appointment.endTime) }));
   const slots: BookingSlot[] = [];
 
   for (const businessHour of input.businessHours.filter((hour) => hour.active)) {
     const opening = timeToMinutes(businessHour.startTime);
-    const closing = timeToMinutes(businessHour.endTime);
-    for (let start = opening; start + duration <= closing; start += duration) {
+    const closing = endTimeToMinutes(businessHour.endTime);
+    const starts: number[] = [];
+    for (let start = opening; start + duration <= closing; start += duration) starts.push(start);
+    if (businessHour.endTime === "00:00" && closing - duration >= opening && !starts.includes(closing - duration))
+      starts.push(closing - duration);
+    for (const start of starts.sort((left, right) => left - right)) {
       if (now !== null && start <= now) continue;
       if (input.durationMode === "fixed_multiple") {
         let maxBlocks = 0;

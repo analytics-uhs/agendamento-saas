@@ -27,6 +27,7 @@ import {
   type DailyCalendarResource,
 } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
+import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
@@ -527,8 +528,8 @@ function isBlockOccupied(
   return blocks.some(
     (block) =>
       (resourceId === null || block.group1?.id === resourceId) &&
-      block.startTime <= time &&
-      time < block.endTime,
+      timeToMinutes(block.startTime) <= timeToMinutes(time) &&
+      timeToMinutes(time) < endTimeToMinutes(block.endTime),
   );
 }
 

@@ -1,13 +1,5 @@
 import type { DailyCalendarWindow } from "@/types/appointments";
-
-function toMinutes(time: string) {
-  const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function toTime(minutes: number) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-}
+import { endTimeToMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export function calendarBlockSlots(
   windows: DailyCalendarWindow[],
@@ -17,10 +9,10 @@ export function calendarBlockSlots(
   return windows.flatMap((window) => {
     const result: string[] = [];
     for (
-      let minute = toMinutes(window.startTime);
-      minute < toMinutes(window.endTime);
+      let minute = timeToMinutes(window.startTime);
+      minute < endTimeToMinutes(window.endTime);
       minute += safeStep
-    ) result.push(toTime(minute));
+    ) result.push(minutesToTime(minute));
     return result;
   });
 }
@@ -36,8 +28,8 @@ export function selectCalendarBlockSlot(
   const endIndex = slots.indexOf(clicked);
   if (endIndex < startIndex) return [clicked];
   const range = slots.slice(startIndex, endIndex + 1);
-  const step = range.length > 1 ? toMinutes(range[1]) - toMinutes(range[0]) : 0;
-  if (range.some((time, index) => index > 0 && toMinutes(time) - toMinutes(range[index - 1]) !== step))
+  const step = range.length > 1 ? timeToMinutes(range[1]) - timeToMinutes(range[0]) : 0;
+  if (range.some((time, index) => index > 0 && timeToMinutes(time) - timeToMinutes(range[index - 1]) !== step))
     return [clicked];
   return range;
 }
@@ -47,7 +39,7 @@ export function calendarBlockEndTime(
   slotMinutes: number,
 ) {
   if (!selected.length) return null;
-  return toTime(toMinutes(selected[selected.length - 1]) + Math.max(5, slotMinutes));
+  return minutesToTime(timeToMinutes(selected[selected.length - 1]) + Math.max(5, slotMinutes));
 }
 
 export function toggleCalendarBlockResource(

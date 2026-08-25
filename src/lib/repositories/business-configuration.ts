@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { weekdayLabels } from "@/lib/business-form";
+import { displayEndTime } from "@/lib/time-of-day";
 import type { BusinessForm, BusinessGroupForm } from "@/types/business";
 
 export async function getBusinessConfiguration(businessId: string): Promise<BusinessForm> {
@@ -46,7 +47,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
       windows: rows.map((hour) => ({
         id: hour.id,
         startTime: hour.start_time.slice(0, 5),
-        endTime: hour.end_time.slice(0, 5),
+        endTime: displayEndTime(hour.end_time),
       })),
     };
   });

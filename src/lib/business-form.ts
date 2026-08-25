@@ -1,6 +1,7 @@
 import type { BusinessForm, BusinessHourForm, BusinessHourWindowForm, VisualThemePreference } from "@/types/business";
 import type { DurationMode } from "@/types/database";
 import { getPalette } from "@/lib/palettes";
+import { endTimeToMinutes, isValidSameDayTimeRange, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export const weekdayLabels = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -124,21 +125,12 @@ export function createEmptyBusinessForm(): BusinessForm {
   };
 }
 
-function minutes(value: string) {
-  const [hour = 0, minute = 0] = value.split(":").map(Number);
-  return hour * 60 + minute;
-}
-
-function time(value: number) {
-  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-}
-
 export function validateBusinessHours(hours: BusinessHourForm[]) {
   if (hours.length !== 7 || new Set(hours.map((hour) => hour.weekday)).size !== 7) return "Configure os sete dias da semana.";
   for (const hour of hours) {
-    const sorted = [...hour.windows].sort((first, second) => first.startTime.localeCompare(second.startTime));
-    if (sorted.some((window) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.endTime) || window.startTime >= window.endTime)) return "O horário final deve ser posterior ao inicial.";
-    if (sorted.some((window, index) => index > 0 && sorted[index - 1].endTime > window.startTime)) return `Os horários de ${hour.label} não podem se sobrepor.`;
+    const sorted = [...hour.windows].sort((first, second) => timeToMinutes(first.startTime) - timeToMinutes(second.startTime));
+    if (sorted.some((window) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(window.endTime) || !isValidSameDayTimeRange(window.startTime, window.endTime))) return "O horário final deve ser posterior ao inicial.";
+    if (sorted.some((window, index) => index > 0 && endTimeToMinutes(sorted[index - 1].endTime) > timeToMinutes(window.startTime))) return `Os horários de ${hour.label} não podem se sobrepor.`;
   }
   return null;
 }
@@ -149,12 +141,12 @@ export function cloneBusinessHourWindows(windows: BusinessHourWindowForm[]) {
 
 export function nextBusinessHourWindow(windows: BusinessHourWindowForm[]): BusinessHourWindowForm | null {
   if (!windows.length) return { startTime: "08:00", endTime: "18:00" };
-  const sorted = [...windows].sort((first, second) => first.startTime.localeCompare(second.startTime));
+  const sorted = [...windows].sort((first, second) => timeToMinutes(first.startTime) - timeToMinutes(second.startTime));
   let cursor = 8 * 60;
   for (const window of sorted) {
-    const start = minutes(window.startTime);
-    if (start - cursor >= 60) return { startTime: time(cursor), endTime: time(cursor + 60) };
-    cursor = Math.max(cursor, minutes(window.endTime));
+    const start = timeToMinutes(window.startTime);
+    if (start - cursor >= 60) return { startTime: minutesToTime(cursor), endTime: minutesToTime(cursor + 60) };
+    cursor = Math.max(cursor, endTimeToMinutes(window.endTime));
   }
-  return cursor + 60 <= 23 * 60 + 59 ? { startTime: time(cursor), endTime: time(cursor + 60) } : null;
+  return cursor + 60 <= 24 * 60 ? { startTime: minutesToTime(cursor), endTime: minutesToTime(cursor + 60) } : null;
 }

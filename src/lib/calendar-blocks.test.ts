@@ -32,3 +32,9 @@ test("toggles selected resources without duplication", () => {
     assert.deepEqual(toggleCalendarBlockResource(["a", "b"], "a"), ["b"]);
     assert.deepEqual(toggleCalendarBlockResource(["b"], "a"), ["b", "a"]);
 });
+
+test("gera bloqueio até meia-noite sem criar um slot 00:00", () => {
+  const slots = calendarBlockSlots([{ startTime: "17:00", endTime: "00:00" }], 60);
+  assert.deepEqual(slots, ["17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]);
+  assert.equal(calendarBlockEndTime(["22:00", "23:00"], 60), "00:00");
+});

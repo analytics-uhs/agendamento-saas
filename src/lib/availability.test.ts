@@ -80,6 +80,37 @@ test("não oferece datas passadas", () => {
   assert.equal(generateAvailability({ ...base, date: "2026-08-17" }).length, 0);
 });
 
+test("gera o slot de 23:00 quando a janela termina à meia-noite", () => {
+  const result = generateAvailability({
+    ...base,
+    businessHours: [{ active: true, startTime: "17:00", endTime: "00:00" }],
+    fixedDurationMinutes: 60,
+  });
+  assert.deepEqual(result.map((slot) => slot.startTime), ["17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]);
+});
+
+test("duração de 120 minutos cabe às 22:00, mas não às 23:00", () => {
+  const result = generateAvailability({
+    ...base,
+    durationMode: "group_2",
+    group2DurationMinutes: 120,
+    businessHours: [{ active: true, startTime: "17:00", endTime: "00:00" }],
+  });
+  assert.equal(result.some((slot) => slot.startTime === "22:00"), true);
+  assert.equal(result.some((slot) => slot.startTime === "23:00"), false);
+});
+
+test("fixed_multiple permite dois blocos terminando exatamente à meia-noite", () => {
+  const result = generateAvailability({
+    ...base,
+    durationMode: "fixed_multiple",
+    fixedDurationMinutes: 60,
+    businessHours: [{ active: true, startTime: "17:00", endTime: "00:00" }],
+  });
+  assert.equal(result.find((slot) => slot.startTime === "22:00")?.maxBlocks, 2);
+  assert.equal(result.find((slot) => slot.startTime === "23:00")?.maxBlocks, 1);
+});
+
 test("formata WhatsApp brasileiro enquanto o usuário digita", () => {
   assert.equal(formatWhatsappInput("5"), "(5");
   assert.equal(formatWhatsappInput("53"), "(53");

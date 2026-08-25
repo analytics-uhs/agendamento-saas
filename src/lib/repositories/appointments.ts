@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus, Json } from "@/types/database";
 import { occurrenceNumber } from "@/lib/recurrence";
 import { parseISO } from "@/lib/date";
+import { displayEndTime } from "@/lib/time-of-day";
 import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
@@ -48,7 +49,7 @@ export async function listAppointments(businessId: string, startDate: string, en
       customerWhatsapp: appointment.customer_whatsapp,
       appointmentDate: appointment.appointment_date,
       startTime: appointment.start_time.slice(0, 5),
-      endTime: appointment.end_time.slice(0, 5),
+      endTime: displayEndTime(appointment.end_time),
       durationMinutes: appointment.duration_minutes,
       status: appointment.status,
       source: appointment.source,
@@ -86,7 +87,7 @@ export async function getBusinessHoursForDate(
     throw new Error(`Não foi possível carregar os horários: ${error.message}`);
   return (data ?? []).map((window) => ({
     startTime: window.start_time.slice(0, 5),
-    endTime: window.end_time.slice(0, 5),
+    endTime: displayEndTime(window.end_time),
   }));
 }
 
@@ -120,7 +121,7 @@ export async function getAppointmentSchedulingConfig(businessId: string): Promis
     businessHours: (hoursResult.data ?? []).map((hour) => ({
       weekday: hour.weekday,
       startTime: hour.start_time.slice(0, 5),
-      endTime: hour.end_time.slice(0, 5),
+      endTime: displayEndTime(hour.end_time),
     })),
   };
 }

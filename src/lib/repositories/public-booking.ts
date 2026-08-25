@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPalette } from "@/lib/palettes";
+import { displayEndTime } from "@/lib/time-of-day";
 import type { Json } from "@/types/database";
 import type { PublicBookingData } from "@/types/public-booking";
 
@@ -29,7 +30,7 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
   const hours = Array.isArray(root.hours) ? root.hours.flatMap((rawHour) => {
     const hour = object(rawHour);
     return hour && typeof hour.weekday === "number" && typeof hour.start_time === "string" && typeof hour.end_time === "string"
-      ? [{ weekday: hour.weekday, startTime: hour.start_time.slice(0, 5), endTime: hour.end_time.slice(0, 5) }]
+      ? [{ weekday: hour.weekday, startTime: hour.start_time.slice(0, 5), endTime: displayEndTime(hour.end_time) }]
       : [];
   }) : [];
   const paletteData = object(settings.palette);
