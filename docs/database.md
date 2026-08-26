@@ -129,6 +129,23 @@ Cada componente cria na mesma transação uma `resource_allocation`. O produto j
 
 Todos os estados exceto `cancelled` mantêm a allocation ativa. O helper privado de mudança de status e o trigger de sincronização desativam a allocation atomicamente ao cancelar; isso permite que uma futura RPC cancele apenas o complemento sem afetar o appointment. As primitivas privadas de criação não possuem grants para clientes e foram desenhadas para participar da mesma transação de uma futura RPC combinada. `anon` não lê nenhuma das três tabelas; membros autenticados possuem somente leitura do próprio negócio via RLS, e mutações diretas continuam revogadas.
 
+### Disponibilidade e criação agregada pública
+
+`get_public_complementary_availability(slug, date, start_time, end_time)` é a superfície anônima curada do Grupo complementar. Ela publica somente o nome configurado, `intent_name`, modo de ocupação e opções ativas com um booleano de disponibilidade. IDs internos de negócio, allocations brutas e dados de clientes não são retornados.
+
+- `day`: não aceita horários, exige pelo menos uma janela ativa de `business_hours` no weekday e verifica a opção no intervalo técnico da data inteira;
+- `time_slot`: exige início/fim futuros e inteiramente contidos em uma única janela ativa; intervals adjacentes continuam válidos;
+- grupo ou opção inativos não são publicados;
+- a consulta é somente leitura e não cria locks persistentes ou registros.
+
+`create_public_reservation(slug, payload)` cria de forma transacional uma reserva somente principal, somente complementar ou combinada. A RPC valida estritamente as chaves do payload, resolve grupo/opção pelo catálogo ativo do mesmo tenant, normaliza cliente/WhatsApp e copia os snapshots diretamente do banco.
+
+O appointment principal continua sendo criado pela RPC legada `create_public_appointment`, sem alteração de signature ou comportamento. Um contexto local de transação, validado por trigger, liga esse insert ao novo `reservation_id`. Assim, duração, Grupo principal/secundário, horários, bloqueios e exclusion constraint existentes permanecem sob a autoridade do motor atual, sem uma segunda implementação paralela.
+
+Locks são adquiridos em ordem determinística: primeiro `business_id + date`, depois `option_id + date` do complemento. A criação complementar ainda revalida `resource_allocations`, e a exclusion constraint é a barreira final. Conflitos são traduzidos para `reservation_primary_conflict` ou `reservation_complementary_conflict` (`23P01`). Se qualquer componente falhar, PostgreSQL reverte reservation, appointment, reservation resource, allocation e efeitos transacionais associados, sem estado parcial.
+
+A exceção administrativa fora de `business_hours` não faz parte dessas RPCs públicas. Uma futura superfície Admin deverá ser separada e poderá ignorar somente a validação de funcionamento, nunca tenant, conflicts, allocations, blocks ou constraints.
+
 ## Agenda administrativa
 
 Membros autenticados consultam appointments do próprio negócio através de repositories server-only e RLS. Dashboard e Agenda não recebem `business_id` do browser. Os detalhes exibem cliente, WhatsApp, duração, grupos, status e origem, sem mostrar identificadores técnicos.
@@ -190,6 +207,10 @@ As migrations são aplicadas em ordem:
 15. `20260822150000_minimal_service_role_push_grants.sql` — grants mínimos do dispatcher server-side nas tabelas de subscriptions e entregas.
 16. `20260826010000_complementary_group_catalog.sql` — posição 3, modo de ocupação e nome curto configurável do Grupo complementar.
 17. `20260826020000_reservation_allocation_engine.sql` — agregado de reservas, componentes complementares, allocations e proteção GiST de concorrência.
+18. `20260826030000_complementary_group_onboarding.sql` — onboarding atômico opcional do Grupo complementar, preservando payloads legados e o claim Fundadores.
+19. `20260826040000_complementary_availability_and_reservations.sql` — disponibilidade pública curada e criação agregada transacional com reutilização do motor legado.
+20. `20260826050000_fix_complementary_rpc_trim.sql` — corrige a resolução explícita da normalização textual nas RPCs complementares.
+21. `20260826060000_fix_primary_only_reservation_response.sql` — preserva a resposta do agregado quando a reserva contém somente o Grupo principal.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 

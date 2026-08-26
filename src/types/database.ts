@@ -122,11 +122,13 @@ export interface Database {
       get_public_founder_offer: { Args: never; Returns: Json };
       create_admin_appointment: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
+      create_public_reservation: { Args: { p_slug: string; p_payload: Json }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_admin_booking_availability: { Args: { p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_admin_appointment_edit_availability: { Args: { p_appointment_id: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
+      get_public_complementary_availability: { Args: { p_slug: string; p_date: string; p_start_time?: string | null; p_end_time?: string | null }; Returns: Json };
       get_platform_business_detail: { Args: { p_business_id: string }; Returns: Json };
       get_platform_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
       is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
