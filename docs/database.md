@@ -8,12 +8,15 @@
 
 Todos os registros de negócio carregam ou derivam `business_id`:
 
-- `booking_groups`: exatamente posições 1 ou 2, com nome e estado configuráveis;
+- `booking_groups`: posições 1 e 2 preservam os grupos principal/secundário; a posição 3 cataloga o Grupo complementar opcional e define `time_slot` ou `day`;
 - `booking_options`: opções genéricas ligadas ao grupo; `duration_minutes` serve ao modo `group_2`;
 - `business_hours`: janelas normalizadas por dia, de 0 (domingo) a 6 (sábado); cada linha representa um único período de funcionamento;
 - `business_settings`: duração, paleta e preferência de tema;
 - `appointments`: reservas públicas ou administrativas; `source` registra `public`/`admin`, e os estados não cancelados bloqueiam disponibilidade.
 - `appointment_series`: definição administrativa de uma recorrência semanal em um único dia/horário; `repeat_count` nulo significa permanente e `appointments.series_id` distingue ocorrências materializadas de reservas avulsas.
+- `reservations`: intenção agregada que futuramente coordena um appointment principal e um ou mais componentes complementares;
+- `reservation_resources`: componentes complementares com modo de ocupação e nomes do catálogo preservados como snapshots;
+- `resource_allocations`: barreira única de concorrência dos recursos complementares.
 
 Foreign keys compostas impedem que opções de outra empresa sejam referenciadas. Um trigger também valida que `group_1_option_id` e `group_2_option_id` apontem para as posições lógicas corretas. Outro trigger impede remover ou rebaixar o último owner.
 
@@ -116,6 +119,16 @@ Antes do insert, `create_public_appointment` obtém um advisory transaction lock
 
 Duas requisições para o mesmo slot são serializadas; a segunda recebe `booking_conflict` (`23P01`). A Server Action converte isso em mensagem amigável e recarrega a disponibilidade. O cliente nunca recebe mensagens internas do PostgreSQL.
 
+### Agregado e ocupação de recursos complementares
+
+`reservations` não possui status global autoritativo: o estado pertence a seus componentes. `appointments.reservation_id` é opcional e usa FK composta com `business_id`; todos os registros históricos permanecem válidos com `null`, sem backfill ou mudança no motor atual. Appointments continuam sendo a autoridade temporal e a constraint de concorrência do Grupo principal.
+
+`reservation_resources` representa somente componentes do Grupo complementar. A opção deve pertencer ao grupo de posição 3 do mesmo negócio. `occupancy_mode`, nome da opção e nome do grupo são snapshots imutáveis, portanto renomear ou reconfigurar o catálogo não altera o histórico. Em `day`, a entidade armazena apenas `reservation_date`, sem horários fictícios; em `time_slot`, início e fim são obrigatórios e precisam formar um intervalo válido.
+
+Cada componente cria na mesma transação uma `resource_allocation`. O produto já opera appointments e horários como data/hora civil local e usa `America/Sao_Paulo` para “agora”; por compatibilidade, allocations também usam `tsrange`, sem misturar timestamps UTC. Um componente `day` é convertido somente na barreira técnica para `[data 00:00, data seguinte 00:00)`. Um `time_slot` usa `[data + início, data + fim)`. A exclusion constraint GiST combina `business_id`, `option_id` e sobreposição de `occupied_period`, aceitando intervalos adjacentes e opções diferentes.
+
+Todos os estados exceto `cancelled` mantêm a allocation ativa. O helper privado de mudança de status e o trigger de sincronização desativam a allocation atomicamente ao cancelar; isso permite que uma futura RPC cancele apenas o complemento sem afetar o appointment. As primitivas privadas de criação não possuem grants para clientes e foram desenhadas para participar da mesma transação de uma futura RPC combinada. `anon` não lê nenhuma das três tabelas; membros autenticados possuem somente leitura do próprio negócio via RLS, e mutações diretas continuam revogadas.
+
 ## Agenda administrativa
 
 Membros autenticados consultam appointments do próprio negócio através de repositories server-only e RLS. Dashboard e Agenda não recebem `business_id` do browser. Os detalhes exibem cliente, WhatsApp, duração, grupos, status e origem, sem mostrar identificadores técnicos.
@@ -175,6 +188,8 @@ As migrations são aplicadas em ordem:
 13. `20260822010000_admin_booking_notifications.sql` — notificações por destinatário, Realtime, subscriptions Web Push, RPCs de leitura/registro e fila server-only.
 14. `20260822020000_reliable_admin_push_claims.sql` — leases temporários, confirmação pós-envio e ledger de entrega por dispositivo.
 15. `20260822150000_minimal_service_role_push_grants.sql` — grants mínimos do dispatcher server-side nas tabelas de subscriptions e entregas.
+16. `20260826010000_complementary_group_catalog.sql` — posição 3, modo de ocupação e nome curto configurável do Grupo complementar.
+17. `20260826020000_reservation_allocation_engine.sql` — agregado de reservas, componentes complementares, allocations e proteção GiST de concorrência.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
