@@ -1,4 +1,5 @@
 import type { AppointmentSource, AppointmentStatus, BusinessRole, DurationMode } from "@/types/database";
+import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
 import type { VisualThemePreference } from "@/types/business";
 
 export type PlatformMetrics = {
@@ -54,7 +55,7 @@ export type PlatformBusinessDetail = {
     themePreference: VisualThemePreference;
   } | null;
   groups: {
-    position: 1 | 2;
+    position: LegacyBookingGroupPosition;
     label: string;
     active: boolean;
     required: boolean;

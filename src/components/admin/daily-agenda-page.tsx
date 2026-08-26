@@ -174,7 +174,7 @@ export function DailyAgendaPage({
         </p>
       ) : resources.length === 0 ? (
         <EmptyState size="lg" className="mt-4">
-          O {resourceLabel ?? "Grupo 1"} está ativo, mas não possui opções
+          O {resourceLabel ?? "Grupo principal"} está ativo, mas não possui opções
           ativas.
         </EmptyState>
       ) : (

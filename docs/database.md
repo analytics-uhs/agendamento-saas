@@ -94,19 +94,19 @@ A constraint `business_hours_no_overlapping_windows` usa intervalos `[início, f
 
 - `fixed`: exatamente um bloco de `fixed_duration_minutes`;
 - `fixed_multiple`: a RPC informa quantos blocos livres e consecutivos cabem em cada início;
-- `group_2`: usa `duration_minutes` da opção ativa do Grupo 2 e aceita exatamente um bloco.
+- `group_2`: usa `duration_minutes` da opção ativa do Grupo secundário e aceita exatamente um bloco.
 
 ### Modelo de recurso
 
-No MVP, a opção selecionada do Grupo 1 é a identidade do recurso independente da agenda:
+No MVP, a opção selecionada do Grupo principal é a identidade do recurso independente da agenda. A representação técnica permanece `position = 1` e `group_1_*`:
 
-- `Grupo 1 = Quadra`: cada quadra pode receber uma reserva simultânea;
-- `Grupo 1 = Profissional`: cada profissional possui disponibilidade independente;
-- Grupo 1 inativo: o estabelecimento inteiro é um único recurso.
+- `Grupo principal = Quadra`: cada quadra pode receber uma reserva simultânea;
+- `Grupo principal = Profissional`: cada profissional possui disponibilidade independente;
+- Grupo principal inativo: o estabelecimento inteiro é um único recurso.
 
-Consequentemente, opções diferentes do Grupo 1 podem ter appointments no mesmo intervalo, enquanto appointments da mesma opção não podem se sobrepor. Sem Grupo 1 ativo, dois appointments do negócio no mesmo intervalo entram em conflito. O Grupo 2 classifica a reserva e pode definir sua duração, mas nunca altera o escopo de concorrência.
+Consequentemente, opções diferentes do Grupo principal podem ter appointments no mesmo intervalo, enquanto appointments da mesma opção não podem se sobrepor. Sem Grupo principal ativo, dois appointments do negócio no mesmo intervalo entram em conflito. O Grupo secundário classifica a reserva e pode definir sua duração, mas nunca altera o escopo de concorrência.
 
-Essa regra é uma decisão estrutural do motor, não uma inferência baseada no nome configurado para o grupo. Internamente, a chave do recurso é `group_1_option_id` quando aplicável e `business_id` quando não há Grupo 1 ativo.
+Essa regra é uma decisão estrutural do motor, não uma inferência baseada no nome configurado para o grupo. Internamente, a chave do recurso é `group_1_option_id` quando aplicável e `business_id` quando não há Grupo principal ativo.
 
 O MVP usa `America/Sao_Paulo` para definir “agora”; uma configuração de fuso por estabelecimento deve preceder expansão internacional.
 

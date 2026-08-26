@@ -18,22 +18,22 @@ O AgendaFácil permite que pequenos estabelecimentos configurem sua operação d
 
 ## Positioning
 
-O AgendaFácil é uma solução de agendamento flexível para diferentes segmentos. Seu mecanismo central são dois grupos genéricos e configuráveis — Grupo 1 e Grupo 2 — que permitem modelar recursos e ofertas sem fixar o produto em conceitos como profissional, serviço, quadra, esporte ou sala.
+O AgendaFácil é uma solução de agendamento flexível para diferentes segmentos. Seu mecanismo central usa grupos genéricos e configuráveis — Grupo principal, Grupo secundário e, na evolução aprovada, Grupo complementar — que permitem modelar recursos e ofertas sem fixar o produto em conceitos como profissional, serviço, quadra, esporte ou sala.
 
 ## Operating Context
 
 - O estabelecimento cria e configura seu negócio no onboarding administrativo.
 - Owners e admins operam a agenda, criam agendamentos avulsos ou recorrentes, alteram status e enviam lembretes por WhatsApp.
-- O Grupo 1, quando ativo, representa o recurso independente de concorrência da agenda; sem Grupo 1, o estabelecimento funciona como um único recurso.
-- O Grupo 2 representa uma segunda dimensão configurável e pode determinar a duração quando o modo escolhido for `group_2`.
+- O Grupo principal, quando ativo, representa o recurso independente de concorrência da agenda; sem ele, o estabelecimento funciona como um único recurso.
+- O Grupo secundário representa uma segunda dimensão configurável e pode determinar a duração quando o modo escolhido for `group_2`.
 - O consumidor seleciona opções, data e horário na página pública e recebe a confirmação sem autenticação.
 - Notificações internas, Realtime, Web Push opt-in e PWA apoiam a operação diária do administrador.
 
 ## Capabilities and Constraints
 
 - O sistema é SaaS multiempresa, com dados isolados por estabelecimento e papéis iniciais `owner` e `admin`.
-- Grupo 1 e Grupo 2 permanecem genéricos, configuráveis e independentes de segmentos específicos.
-- Os únicos modos de duração são `fixed`, `fixed_multiple` e `group_2`; não existe duração baseada no Grupo 1.
+- Grupo principal, Grupo secundário e Grupo complementar permanecem genéricos, configuráveis e independentes de segmentos específicos.
+- Os únicos modos de duração são `fixed`, `fixed_multiple` e `group_2`; não existe duração baseada no Grupo principal.
 - O funcionamento pode possuir múltiplos intervalos por dia, e nenhuma reserva pode atravessar uma janela fechada.
 - A página pública usa uma janela móvel de sete dias consecutivos, iniciada em hoje mais os seis dias seguintes.
 - Agendamentos públicos são avulsos. Recorrências semanais são criadas e administradas apenas no painel.
