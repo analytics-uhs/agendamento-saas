@@ -69,7 +69,7 @@ Os únicos modos de duração são:
 
 1. `fixed` — duração fixa;
 2. `fixed_multiple` — duração fixa com múltiplos blocos;
-3. `group_2` — duração definida pela opção do Grupo 2.
+3. `group_2` — duração definida pela opção do Grupo secundário.
 
 A página pública mantém a janela móvel de sete dias (hoje + seis dias), não uma semana fixa.
 
@@ -93,9 +93,9 @@ Veja [docs/database.md](docs/database.md) para o modelo, RLS, Super Admin e supe
 
 A rota `/agendar/[slug]` carrega apenas a configuração pública curada. Ao escolher os grupos e uma data, consulta slots reais e respeita horário de funcionamento, data/hora atual, duração e appointments não cancelados. A navegação continua sendo uma janela móvel de sete dias: hoje + seis dias, com avanços e retornos de sete dias.
 
-`fixed` oferece um bloco fixo; `fixed_multiple` calcula quantos blocos consecutivos cabem a partir do horário; `group_2` usa `duration_minutes` da opção ativa do Grupo 2. A criação é feita pela RPC transacional `create_public_appointment`, nunca por insert anônimo direto.
+`fixed` oferece um bloco fixo; `fixed_multiple` calcula quantos blocos consecutivos cabem a partir do horário; `group_2` usa `duration_minutes` da opção ativa do Grupo secundário. A criação é feita pela RPC transacional `create_public_appointment`, nunca por insert anônimo direto.
 
-Cada dia pode ter várias janelas normalizadas, como `08:00–11:00` e `14:00–20:00`. A disponibilidade é gerada separadamente dentro de cada janela: o intervalo fechado não produz slots e nenhuma duração, inclusive múltiplos blocos ou duração do Grupo 2, pode atravessar seu limite. Períodos adjacentes são aceitos; períodos sobrepostos são rejeitados no formulário, na RPC de persistência e por constraint no banco.
+Cada dia pode ter várias janelas normalizadas, como `08:00–11:00` e `14:00–20:00`. A disponibilidade é gerada separadamente dentro de cada janela: o intervalo fechado não produz slots e nenhuma duração, inclusive múltiplos blocos ou duração do Grupo secundário, pode atravessar seu limite. Períodos adjacentes são aceitos; períodos sobrepostos são rejeitados no formulário, na RPC de persistência e por constraint no banco.
 
 A confirmação é devolvida pela RPC sem dados administrativos e mantida somente no `sessionStorage` do dispositivo, evitando dados pessoais na URL. Consulte [docs/database.md](docs/database.md) para as garantias de concorrência e a superfície pública.
 
@@ -103,9 +103,9 @@ O cabeçalho público pode exibir endereço e links opcionais para WhatsApp, Goo
 
 ### Concorrência por recurso
 
-No MVP, o Grupo 1 define o recurso independente da agenda. Quando ele está ativo, cada `group_1_option_id` possui sua própria disponibilidade: duas quadras diferentes ou dois profissionais diferentes podem receber reservas no mesmo horário, mas a mesma quadra ou o mesmo profissional não pode ter intervalos sobrepostos. Quando o Grupo 1 está inativo, o estabelecimento inteiro é um único recurso e, portanto, só pode existir uma reserva por intervalo.
+No MVP, o Grupo principal define o recurso independente da agenda. Tecnicamente, ele preserva `position = 1` e os nomes legados `group_1_*`. Quando está ativo, cada `group_1_option_id` possui sua própria disponibilidade: duas quadras diferentes ou dois profissionais diferentes podem receber reservas no mesmo horário, mas a mesma quadra ou o mesmo profissional não pode ter intervalos sobrepostos. Quando está inativo, o estabelecimento inteiro é um único recurso e, portanto, só pode existir uma reserva por intervalo.
 
-Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Profissional” sejam apenas exemplos configuráveis. O Grupo 2 nunca define o recurso concorrente.
+Essa é uma decisão estrutural do motor, embora os nomes “Quadra” e “Profissional” sejam apenas exemplos configuráveis. O Grupo secundário, tecnicamente preservado como `position = 2` e `group_2_*`, nunca define o recurso concorrente.
 
 ## Gestão administrativa
 
