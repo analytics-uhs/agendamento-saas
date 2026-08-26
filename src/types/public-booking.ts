@@ -1,10 +1,11 @@
 import type { DurationMode } from "@/types/database";
 import type { VisualThemePreference } from "@/types/business";
+import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
 import type { Palette } from "@/types/scheduling";
 
 export type PublicBookingOption = { id: string; name: string; durationMinutes: number | null };
 export type PublicBookingGroup = {
-  position: 1 | 2;
+  position: LegacyBookingGroupPosition;
   label: string;
   required: boolean;
   options: PublicBookingOption[];

@@ -1,6 +1,7 @@
 import type { BusinessForm, BusinessHourForm, BusinessHourWindowForm, VisualThemePreference } from "@/types/business";
 import type { DurationMode } from "@/types/database";
 import { getPalette } from "@/lib/palettes";
+import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
 import { endTimeToMinutes, isValidSameDayTimeRange, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export const weekdayLabels = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -59,7 +60,7 @@ export function validateSlug(value: string) {
 export function validateDuration(mode: DurationMode, fixedMinutes: number, group2Durations: Array<number | null>) {
   if (!(["fixed", "fixed_multiple", "group_2"] as DurationMode[]).includes(mode)) return "Modo de duração inválido.";
   if (mode !== "group_2" && (!Number.isInteger(fixedMinutes) || fixedMinutes < 5 || fixedMinutes > 1440)) return "A duração fixa deve ficar entre 5 e 1440 minutos.";
-  if (mode === "group_2" && group2Durations.some((duration) => !duration || !Number.isInteger(duration) || duration < 5 || duration > 1440)) return "Defina uma duração entre 5 e 1440 minutos para cada opção do Grupo 2.";
+  if (mode === "group_2" && group2Durations.some((duration) => !duration || !Number.isInteger(duration) || duration < 5 || duration > 1440)) return "Defina uma duração entre 5 e 1440 minutos para cada opção do Grupo secundário.";
   return null;
 }
 
@@ -70,9 +71,10 @@ export function validateBusinessForm(form: BusinessForm) {
   const contactError = validateBusinessContact(form);
   if (contactError) return contactError;
   for (const group of form.groups) {
-    if (!group.label.trim()) return `Informe o nome do Grupo ${group.position}.`;
-    if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao Grupo ${group.position}.`;
-    if (group.options.some((option) => !option.name.trim())) return `Preencha todas as opções do Grupo ${group.position}.`;
+    const groupName = bookingGroupProductName(group.position);
+    if (!group.label.trim()) return `Informe o nome do ${groupName}.`;
+    if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao ${groupName}.`;
+    if (group.options.some((option) => !option.name.trim())) return `Preencha todas as opções do ${groupName}.`;
   }
   const hoursError = validateBusinessHours(form.hours);
   if (hoursError) return hoursError;
@@ -90,7 +92,7 @@ export function toOnboardingPayload(form: BusinessForm) {
       position: group.position, label: group.label.trim(), active: group.active, required: group.required,
       options: group.options.map((option, sort_order) => ({
         name: option.name.trim(),
-        duration_minutes: form.durationMode === "group_2" && group.position === 2 ? option.durationMinutes : null,
+        duration_minutes: form.durationMode === "group_2" && group.position === bookingGroupPosition("secondary") ? option.durationMinutes : null,
         sort_order,
       })),
     })),
@@ -114,8 +116,8 @@ export function createEmptyBusinessForm(): BusinessForm {
     name: "", slug: "", whatsapp: "", logoUrl: null, address: "",
     googleMapsUrl: "", instagramUrl: "", facebookUrl: "",
     groups: [
-      { position: 1, label: "Grupo 1", active: true, required: true, options: [] },
-      { position: 2, label: "Grupo 2", active: true, required: true, options: [] },
+      { position: bookingGroupPosition("primary"), label: "Grupo principal", active: true, required: true, options: [] },
+      { position: bookingGroupPosition("secondary"), label: "Grupo secundário", active: true, required: true, options: [] },
     ],
     hours: weekdayLabels.map((label, weekday) => ({
       weekday, label, active: weekday >= 1 && weekday <= 6,

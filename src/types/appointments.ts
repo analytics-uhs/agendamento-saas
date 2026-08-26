@@ -1,5 +1,6 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
+import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
 
 export type AppointmentGroupSelection = { id: string; label: string; name: string };
 export type AppointmentSeriesSummary = {
@@ -30,7 +31,7 @@ export type AdminAppointment = {
 };
 
 export type AppointmentOption = { id: string; name: string; durationMinutes: number | null };
-export type AppointmentGroup = { position: 1 | 2; label: string; options: AppointmentOption[] };
+export type AppointmentGroup = { position: LegacyBookingGroupPosition; label: string; options: AppointmentOption[] };
 export type AppointmentSchedulingConfig = {
   groups: AppointmentGroup[];
   durationMode: DurationMode;

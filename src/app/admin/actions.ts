@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
+import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
 import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -64,7 +65,8 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
   if (durationError) return { ok: false, message: durationError };
 
   for (const group of input.groups) {
-    if (!group.id || !group.label.trim()) return { ok: false, message: `Revise o Grupo ${group.position}.` };
+    const groupName = bookingGroupProductName(group.position);
+    if (!group.id || !group.label.trim()) return { ok: false, message: `Revise o ${groupName}.` };
     const { error: groupError } = await current.supabase.from("booking_groups").update({
       label: group.label.trim(), active: group.active, required: group.required, sort_order: group.position,
     }).eq("id", group.id).eq("business_id", current.business.id);
@@ -79,10 +81,10 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
       if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
     }
     for (const [sortOrder, option] of group.options.entries()) {
-      if (!option.name.trim()) return { ok: false, message: `Preencha todas as opções do Grupo ${group.position}.` };
+      if (!option.name.trim()) return { ok: false, message: `Preencha todas as opções do ${groupName}.` };
       const values = {
         name: option.name.trim(), sort_order: sortOrder, active: true,
-        duration_minutes: input.durationMode === "group_2" && group.position === 2 ? option.durationMinutes : null,
+        duration_minutes: input.durationMode === "group_2" && group.position === bookingGroupPosition("secondary") ? option.durationMinutes : null,
       };
       const result = option.id
         ? await current.supabase.from("booking_options").update(values).eq("id", option.id).eq("business_id", current.business.id)

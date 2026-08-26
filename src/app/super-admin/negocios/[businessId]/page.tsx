@@ -7,6 +7,7 @@ import { BusinessStatusBadge } from "@/components/super-admin/business-status-ba
 import { BusinessStatusControl } from "@/components/super-admin/business-status-control";
 import { FacebookIcon, InstagramIcon } from "@/components/ui/social-icons";
 import { formatDuration, formatLongDate, formatShortDate } from "@/lib/date";
+import { bookingGroupProductName } from "@/lib/booking-groups";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin";
 import { getPalette } from "@/lib/palettes";
 import { getPlatformBusinessDetail } from "@/lib/repositories/super-admin";
@@ -14,7 +15,7 @@ import { getPlatformBusinessDetail } from "@/lib/repositories/super-admin";
 export const metadata: Metadata = { title: "Detalhe do negócio | Super Admin" };
 
 const weekdays = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-const durationLabels = { fixed: "Duração fixa", fixed_multiple: "Duração fixa + múltiplos blocos", group_2: "Duração pelo Grupo 2" } as const;
+const durationLabels = { fixed: "Duração fixa", fixed_multiple: "Duração fixa + múltiplos blocos", group_2: "Duração pelo Grupo secundário" } as const;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function dateTime(value: string) {
@@ -50,7 +51,7 @@ export default async function PlatformBusinessDetailPage({ params }: { params: P
       <section className="rounded-xl border bg-background p-5"><h2 className="font-semibold">Configuração da agenda</h2>{settings ? <dl className="mt-4 grid gap-4 text-sm"><div><dt className="text-xs text-muted">Modo de duração</dt><dd className="mt-1 font-medium">{durationLabels[settings.durationMode]}</dd></div>{settings.durationMode !== "group_2" ? <div><dt className="text-xs text-muted">Duração base</dt><dd className="mt-1 font-medium">{formatDuration(settings.fixedDurationMinutes)}</dd></div> : null}</dl> : <p className="mt-4 text-sm text-muted">Configuração ainda não concluída.</p>}</section>
     </div>
 
-    <section className="mt-5 rounded-xl border bg-background p-5"><h2 className="font-semibold">Grupos e opções</h2><div className="mt-4 grid gap-4 md:grid-cols-2">{detail.groups.length ? detail.groups.map((group) => <article key={group.position} className="rounded-xl border bg-surface/50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs text-muted">Grupo {group.position}</p><h3 className="font-semibold">{group.label}</h3></div><BusinessStatusBadge active={group.active} /></div>{group.options.length ? <ul className="mt-3 space-y-2">{group.options.map((option) => <li key={option.id} className="flex items-center justify-between gap-3 text-sm"><span className={option.active ? "font-medium" : "text-muted line-through"}>{option.name}</span>{option.durationMinutes ? <span className="text-xs text-muted">{formatDuration(option.durationMinutes)}</span> : null}</li>)}</ul> : <p className="mt-3 text-sm text-muted">Nenhuma opção.</p>}</article>) : <p className="text-sm text-muted">Grupos ainda não configurados.</p>}</div></section>
+    <section className="mt-5 rounded-xl border bg-background p-5"><h2 className="font-semibold">Grupos e opções</h2><div className="mt-4 grid gap-4 md:grid-cols-2">{detail.groups.length ? detail.groups.map((group) => <article key={group.position} className="rounded-xl border bg-surface/50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs text-muted">{bookingGroupProductName(group.position)}</p><h3 className="font-semibold">{group.label}</h3></div><BusinessStatusBadge active={group.active} /></div>{group.options.length ? <ul className="mt-3 space-y-2">{group.options.map((option) => <li key={option.id} className="flex items-center justify-between gap-3 text-sm"><span className={option.active ? "font-medium" : "text-muted line-through"}>{option.name}</span>{option.durationMinutes ? <span className="text-xs text-muted">{formatDuration(option.durationMinutes)}</span> : null}</li>)}</ul> : <p className="mt-3 text-sm text-muted">Nenhuma opção.</p>}</article>) : <p className="text-sm text-muted">Grupos ainda não configurados.</p>}</div></section>
 
     <section className="mt-5 rounded-xl border bg-background p-5"><h2 className="font-semibold">Horários de funcionamento</h2><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{hourDays.map((day) => <div key={day.label} className="rounded-xl border px-3 py-2 text-sm"><span>{day.label}</span>{day.windows.length ? <div className="mt-1 space-y-0.5">{day.windows.map((window) => <p key={`${window.startTime}-${window.endTime}`} className="font-medium">{window.startTime}–{window.endTime}</p>)}</div> : <p className="mt-1 text-muted">Fechado</p>}</div>)}</div></section>
 

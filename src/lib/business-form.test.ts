@@ -39,7 +39,7 @@ test("aceita somente os três modos de duração", () => {
   assert.equal(validateDuration("fixed_multiple", 30, []), null);
   assert.equal(validateDuration("group_2", 60, [30, 45]), null);
   assert.equal(validateDuration("group_1" as never, 60, []), "Modo de duração inválido.");
-  assert.match(validateDuration("group_2", 60, [null]) ?? "", /Grupo 2/);
+  assert.match(validateDuration("group_2", 60, [null]) ?? "", /Grupo secundário/);
 });
 
 test("transforma formulário em payload persistível e preserva a ordem", () => {
