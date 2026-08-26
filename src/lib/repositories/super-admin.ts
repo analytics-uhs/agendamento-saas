@@ -2,6 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { parsePlatformBusinessDetail, parsePlatformBusinessPage, parsePlatformMetrics } from "@/lib/super-admin";
+import { getBookingGroupCatalog } from "@/lib/repositories/booking-groups";
 import type { BusinessStatusFilter } from "@/types/super-admin";
 
 export async function isPlatformAdmin() {
@@ -32,9 +33,10 @@ export async function listPlatformBusinesses(input: { search: string; status: Bu
 
 export async function getPlatformBusinessDetail(businessId: string) {
   const supabase = await createClient();
-  const [{ data, error }, contactResult] = await Promise.all([
+  const [{ data, error }, contactResult, groups] = await Promise.all([
     supabase.rpc("get_platform_business_detail", { p_business_id: businessId }),
     supabase.from("businesses").select("address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).maybeSingle(),
+    getBookingGroupCatalog(businessId),
   ]);
   if (error) throw new Error(`Não foi possível carregar o negócio: ${error.message}`);
   if (contactResult.error) throw new Error(`Não foi possível carregar os contatos do negócio: ${contactResult.error.message}`);
@@ -42,6 +44,20 @@ export async function getPlatformBusinessDetail(businessId: string) {
   if (!detail) return null;
   return {
     ...detail,
+    groups: groups.map((group) => ({
+      position: group.position,
+      label: group.label,
+      intentName: group.intentName,
+      occupancyMode: group.occupancyMode,
+      active: group.active,
+      required: group.required,
+      options: group.options.map((option) => ({
+        id: option.id,
+        name: option.name,
+        durationMinutes: option.durationMinutes,
+        active: option.active,
+      })),
+    })),
     business: {
       ...detail.business,
       address: contactResult.data?.address ?? null,

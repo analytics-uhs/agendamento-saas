@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parsePlatformBusinessPage, parsePlatformBusinessQuery, parsePlatformMetrics } from "./super-admin";
+import { parsePlatformBusinessDetail, parsePlatformBusinessPage, parsePlatformBusinessQuery, parsePlatformMetrics } from "./super-admin";
 
 test("normaliza busca, filtro e paginação do Super Admin", () => {
   assert.deepEqual(parsePlatformBusinessQuery({ q: "  Arena  ", status: "inactive", page: "3" }), { search: "Arena", status: "inactive", page: 3 });
@@ -27,3 +27,23 @@ test("transforma página de negócios sem calcular agregados no frontend", () =>
   assert.equal(page.totalPages, 2);
 });
 
+test("interpreta o Grupo complementar no detalhe do Super Admin", () => {
+  const detail = parsePlatformBusinessDetail({
+    business: {
+      id: "business-id", name: "Arena", slug: "arena", active: true,
+      created_at: "2026-08-18T10:00:00Z", updated_at: "2026-08-18T10:00:00Z",
+    },
+    settings: null,
+    groups: [{
+      position: 3, label: "Espaços adicionais", intent_name: "Espaço",
+      occupancy_mode: "day", active: true, required: false,
+      options: [{ id: "option-id", name: "Sala de apoio", active: true, duration_minutes: null }],
+    }],
+    hours: [], members: [], appointment_summary: {}, recent_appointments: [],
+  });
+
+  assert.equal(detail?.groups[0]?.position, 3);
+  assert.equal(detail?.groups[0]?.intentName, "Espaço");
+  assert.equal(detail?.groups[0]?.occupancyMode, "day");
+  assert.equal(detail?.groups[0]?.required, false);
+});

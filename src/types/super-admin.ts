@@ -1,5 +1,5 @@
-import type { AppointmentSource, AppointmentStatus, BusinessRole, DurationMode } from "@/types/database";
-import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
+import type { AppointmentSource, AppointmentStatus, BookingGroupOccupancyMode, BusinessRole, DurationMode } from "@/types/database";
+import type { BookingGroupPosition } from "@/lib/booking-groups";
 import type { VisualThemePreference } from "@/types/business";
 
 export type PlatformMetrics = {
@@ -55,8 +55,10 @@ export type PlatformBusinessDetail = {
     themePreference: VisualThemePreference;
   } | null;
   groups: {
-    position: LegacyBookingGroupPosition;
+    position: BookingGroupPosition;
     label: string;
+    intentName: string | null;
+    occupancyMode: BookingGroupOccupancyMode | null;
     active: boolean;
     required: boolean;
     options: { id: string; name: string; durationMinutes: number | null; active: boolean }[];

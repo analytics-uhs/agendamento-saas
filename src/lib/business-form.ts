@@ -70,15 +70,24 @@ export function validateBusinessForm(form: BusinessForm) {
   if (slugError) return slugError;
   const contactError = validateBusinessContact(form);
   if (contactError) return contactError;
-  for (const group of form.groups) {
-    const groupName = bookingGroupProductName(group.position);
-    if (!group.label.trim()) return `Informe o nome do ${groupName}.`;
-    if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao ${groupName}.`;
-    if (group.options.some((option) => !option.name.trim())) return `Preencha todas as opções do ${groupName}.`;
-  }
+  const groupsError = validateBusinessGroups(form.groups);
+  if (groupsError) return groupsError;
   const hoursError = validateBusinessHours(form.hours);
   if (hoursError) return hoursError;
   return validateDuration(form.durationMode, form.fixedDurationMinutes, form.groups[1].options.map((option) => option.durationMinutes));
+}
+
+export function validateBusinessGroups(groups: BusinessForm["groups"]) {
+  for (const group of groups) {
+    const groupName = bookingGroupProductName(group.position);
+    const complementary = group.position === bookingGroupPosition("complementary");
+    if ((!complementary || group.active) && !group.label.trim()) return `Informe o nome do ${groupName}.`;
+    if (complementary && group.active && !group.occupancyMode) return "Defina como o Grupo complementar ocupa a agenda.";
+    if (complementary && group.intentName.trim().length > 80) return "O nome curto do Grupo complementar deve ter no máximo 80 caracteres.";
+    if (group.active && group.options.length === 0) return `Adicione ao menos uma opção ao ${groupName}.`;
+    if (group.options.some((option) => !option.name.trim())) return `Preencha todas as opções do ${groupName}.`;
+  }
+  return null;
 }
 
 export function toOnboardingPayload(form: BusinessForm) {
@@ -88,8 +97,10 @@ export function toOnboardingPayload(form: BusinessForm) {
     google_maps_url: normalizeOptionalUrl(form.googleMapsUrl),
     instagram_url: normalizeOptionalUrl(form.instagramUrl),
     facebook_url: normalizeOptionalUrl(form.facebookUrl),
-    groups: form.groups.map((group) => ({
+    groups: form.groups.filter((group) => group.position !== bookingGroupPosition("complementary") || group.active).map((group) => ({
       position: group.position, label: group.label.trim(), active: group.active, required: group.required,
+      intent_name: group.intentName.trim() || null,
+      occupancy_mode: group.occupancyMode,
       options: group.options.map((option, sort_order) => ({
         name: option.name.trim(),
         duration_minutes: form.durationMode === "group_2" && group.position === bookingGroupPosition("secondary") ? option.durationMinutes : null,
@@ -116,8 +127,9 @@ export function createEmptyBusinessForm(): BusinessForm {
     name: "", slug: "", whatsapp: "", logoUrl: null, address: "",
     googleMapsUrl: "", instagramUrl: "", facebookUrl: "",
     groups: [
-      { position: bookingGroupPosition("primary"), label: "Grupo principal", active: true, required: true, options: [] },
-      { position: bookingGroupPosition("secondary"), label: "Grupo secundário", active: true, required: true, options: [] },
+      { position: bookingGroupPosition("primary"), label: "Grupo principal", active: true, required: true, intentName: "", occupancyMode: null, options: [] },
+      { position: bookingGroupPosition("secondary"), label: "Grupo secundário", active: true, required: true, intentName: "", occupancyMode: null, options: [] },
+      { position: bookingGroupPosition("complementary"), label: "Grupo complementar", active: false, required: false, intentName: "Espaço", occupancyMode: "day", options: [] },
     ],
     hours: weekdayLabels.map((label, weekday) => ({
       weekday, label, active: weekday >= 1 && weekday <= 6,
