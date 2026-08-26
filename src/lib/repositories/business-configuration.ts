@@ -7,7 +7,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
   const supabase = await createClient();
   const [businessResult, groupsResult, optionsResult, hoursResult, settingsResult] = await Promise.all([
     supabase.from("businesses").select("id, name, slug, whatsapp, logo_url, address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).single(),
-    supabase.from("booking_groups").select("id, position, label, active, required").eq("business_id", businessId).order("position"),
+    supabase.from("booking_groups").select("id, position, label, active, required").eq("business_id", businessId).in("position", [1, 2]).order("position"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes, sort_order").eq("business_id", businessId).order("sort_order"),
     supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday").order("start_time"),
     supabase.from("business_settings").select("duration_mode, fixed_duration_minutes, palette, theme_preference").eq("business_id", businessId).single(),
@@ -18,7 +18,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
   if (!businessResult.data || !groupsResult.data || !optionsResult.data || !hoursResult.data || !settingsResult.data) {
     throw new Error("A configuração do estabelecimento está incompleta.");
   }
-  if (groupsResult.data.length !== 2) throw new Error("Os Grupos 1 e 2 não estão configurados corretamente.");
+  if (groupsResult.data.length !== 2) throw new Error("Os Grupos principal e secundário não estão configurados corretamente.");
 
   const groups = groupsResult.data.map((group): BusinessGroupForm => ({
     id: group.id,
