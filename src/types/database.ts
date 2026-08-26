@@ -6,6 +6,7 @@ export type ThemePreference = "light" | "dark" | "system";
 export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_show";
 export type AppointmentSource = "public" | "admin";
 export type AdminNotificationType = "new_public_appointment";
+export type BookingGroupOccupancyMode = "time_slot" | "day";
 
 type Timestamps = { created_at: string; updated_at: string };
 
@@ -31,9 +32,9 @@ export interface Database {
         Relationships: [{ foreignKeyName: "business_members_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       booking_groups: {
-        Row: { id: string; business_id: string; position: number; label: string; active: boolean; required: boolean; sort_order: number } & Timestamps;
-        Insert: { id?: string; business_id: string; position: number; label: string; active?: boolean; required?: boolean; sort_order?: number; created_at?: string; updated_at?: string };
-        Update: { position?: number; label?: string; active?: boolean; required?: boolean; sort_order?: number; updated_at?: string };
+        Row: { id: string; business_id: string; position: number; label: string; occupancy_mode: BookingGroupOccupancyMode | null; intent_name: string | null; active: boolean; required: boolean; sort_order: number } & Timestamps;
+        Insert: { id?: string; business_id: string; position: number; label: string; occupancy_mode?: BookingGroupOccupancyMode | null; intent_name?: string | null; active?: boolean; required?: boolean; sort_order?: number; created_at?: string; updated_at?: string };
+        Update: { position?: number; label?: string; occupancy_mode?: BookingGroupOccupancyMode | null; intent_name?: string | null; active?: boolean; required?: boolean; sort_order?: number; updated_at?: string };
         Relationships: [{ foreignKeyName: "booking_groups_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       booking_options: {
@@ -139,6 +140,7 @@ export interface Database {
       theme_preference: ThemePreference;
       appointment_status: AppointmentStatus;
       appointment_source: AppointmentSource;
+      booking_group_occupancy_mode: BookingGroupOccupancyMode;
     };
     CompositeTypes: Record<string, never>;
   };
