@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { resolveUserDestination } from "@/lib/auth/destination";
 import { createClient } from "@/lib/supabase/server";
-import { isPlatformAdmin } from "@/lib/repositories/super-admin";
 
 export type LoginState = { message: string | null };
 
@@ -18,23 +18,11 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
   if (!email || !password) return { message: "Informe e-mail e senha." };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { message: "E-mail ou senha inválidos." };
 
-  const platformAdmin = await isPlatformAdmin();
-
-  if (platformAdmin) {
-    redirect("/super-admin");
-  }
-
-  const { data: membership } = await supabase
-    .from("business_members")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-  if (!membership) redirect("/onboarding");
-
-  redirect(safeAdminPath(formData.get("next")));
+  const destination = await resolveUserDestination(data.user.id);
+  redirect(destination === "/admin" ? safeAdminPath(formData.get("next")) : destination);
 }
 
 export async function logout() {

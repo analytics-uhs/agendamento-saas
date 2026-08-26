@@ -6,7 +6,7 @@ export const FOUNDER_OFFER = {
   officialPrice: "59,90",
 } as const;
 
-export const MARKETING_TRIAL_HREF = "/onboarding";
+export const MARKETING_TRIAL_HREF = "/criar-conta";
 
 export type FounderOfferAvailability = {
   totalSpots: number;
