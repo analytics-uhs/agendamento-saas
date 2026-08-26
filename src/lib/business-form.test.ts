@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cloneBusinessHourWindows, createEmptyBusinessForm, nextBusinessHourWindow, normalizeOptionalUrl, normalizeSlug, normalizeVisualTheme, slugCandidate, toOnboardingPayload, validateBusinessContact, validateBusinessHours, validateDuration, validateSlug } from "./business-form";
+import { cloneBusinessHourWindows, createEmptyBusinessForm, nextBusinessHourWindow, normalizeOptionalUrl, normalizeSlug, normalizeVisualTheme, slugCandidate, toOnboardingPayload, validateBusinessContact, validateBusinessGroups, validateBusinessHours, validateDuration, validateSlug } from "./business-form";
 
 test("normaliza slug com espaços, acentos e caixa alta", () => {
   assert.equal(normalizeSlug("  Clínica São João  "), "clinica-sao-joao");
@@ -64,8 +64,56 @@ test("transforma formulário em payload persistível e preserva a ordem", () => 
   assert.deepEqual(payload.groups[0].options.map((option) => option.sort_order), [0, 1]);
   assert.deepEqual(payload.groups[0].options.map((option) => option.duration_minutes), [null, null]);
   assert.equal(payload.groups[1].options[0].duration_minutes, 60);
+  assert.equal(payload.groups.length, 2);
   assert.equal(payload.hours.length, 7);
   assert.equal(payload.hours[1].windows.length, 1);
+});
+
+test("mantém o Grupo complementar ausente por padrão para payloads legados", () => {
+  const form = createEmptyBusinessForm();
+  form.groups[0].options = [{ name: "Opção principal", durationMinutes: null }];
+  form.groups[1].options = [{ name: "Opção secundária", durationMinutes: null }];
+  assert.equal(form.groups[2].active, false);
+  assert.equal(validateBusinessGroups(form.groups), null);
+  assert.deepEqual(toOnboardingPayload(form).groups.map((group) => group.position), [1, 2]);
+});
+
+test("serializa Grupo complementar por dia e por horário", () => {
+  const form = createEmptyBusinessForm();
+  form.groups[0].options = [{ name: "Opção principal", durationMinutes: null }];
+  form.groups[1].options = [{ name: "Opção secundária", durationMinutes: null }];
+  const complementary = form.groups[2];
+  complementary.active = true;
+  complementary.label = "Espaços adicionais";
+  complementary.intentName = "Espaço";
+  complementary.occupancyMode = "day";
+  complementary.options = [{ name: "Sala de apoio", durationMinutes: null }];
+
+  assert.equal(validateBusinessGroups(form.groups), null);
+  let payloadGroup = toOnboardingPayload(form).groups[2];
+  assert.equal(payloadGroup.position, 3);
+  assert.equal(payloadGroup.intent_name, "Espaço");
+  assert.equal(payloadGroup.occupancy_mode, "day");
+  assert.equal(payloadGroup.required, false);
+
+  complementary.occupancyMode = "time_slot";
+  payloadGroup = toOnboardingPayload(form).groups[2];
+  assert.equal(payloadGroup.occupancy_mode, "time_slot");
+});
+
+test("Grupo complementar ativo exige modo de ocupação e opção válida", () => {
+  const form = createEmptyBusinessForm();
+  form.groups[0].options = [{ name: "Opção principal", durationMinutes: null }];
+  form.groups[1].options = [{ name: "Opção secundária", durationMinutes: null }];
+  const complementary = form.groups[2];
+  complementary.active = true;
+  complementary.occupancyMode = null;
+  assert.match(validateBusinessGroups(form.groups) ?? "", /ocupa a agenda/);
+
+  complementary.occupancyMode = "day";
+  assert.match(validateBusinessGroups(form.groups) ?? "", /ao menos uma opção/);
+  complementary.options = [{ name: "", durationMinutes: null }];
+  assert.match(validateBusinessGroups(form.groups) ?? "", /Preencha todas as opções/);
 });
 
 test("valida janelas adjacentes e rejeita sobreposição", () => {

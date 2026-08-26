@@ -1,11 +1,12 @@
-import type { DurationMode, ThemePreference } from "@/types/database";
-import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
+import type { BookingGroupPosition } from "@/lib/booking-groups";
+import type { BookingGroupOccupancyMode, DurationMode, ThemePreference } from "@/types/database";
 
 export type VisualThemePreference = Exclude<ThemePreference, "system">;
 
 export type BusinessOptionForm = { id?: string; name: string; durationMinutes: number | null };
 export type BusinessGroupForm = {
-  id?: string; position: LegacyBookingGroupPosition; label: string; active: boolean; required: boolean;
+  id?: string; position: BookingGroupPosition; label: string; active: boolean; required: boolean;
+  intentName: string; occupancyMode: BookingGroupOccupancyMode | null;
   options: BusinessOptionForm[];
 };
 export type BusinessHourWindowForm = { id?: string; startTime: string; endTime: string };
@@ -15,7 +16,7 @@ export type BusinessHourForm = {
 export type BusinessForm = {
   id?: string; name: string; slug: string; whatsapp: string; logoUrl: string | null;
   address: string; googleMapsUrl: string; instagramUrl: string; facebookUrl: string;
-  groups: [BusinessGroupForm, BusinessGroupForm];
+  groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm];
   hours: BusinessHourForm[];
   durationMode: DurationMode;
   fixedDurationMinutes: number;

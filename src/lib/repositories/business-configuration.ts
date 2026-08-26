@@ -7,7 +7,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
   const supabase = await createClient();
   const [businessResult, groupsResult, optionsResult, hoursResult, settingsResult] = await Promise.all([
     supabase.from("businesses").select("id, name, slug, whatsapp, logo_url, address, google_maps_url, instagram_url, facebook_url").eq("id", businessId).single(),
-    supabase.from("booking_groups").select("id, position, label, active, required").eq("business_id", businessId).in("position", [1, 2]).order("position"),
+    supabase.from("booking_groups").select("id, position, label, intent_name, occupancy_mode, active, required").eq("business_id", businessId).in("position", [1, 2, 3]).order("position"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes, sort_order").eq("business_id", businessId).order("sort_order"),
     supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday").order("start_time"),
     supabase.from("business_settings").select("duration_mode, fixed_duration_minutes, palette, theme_preference").eq("business_id", businessId).single(),
@@ -18,20 +18,47 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
   if (!businessResult.data || !groupsResult.data || !optionsResult.data || !hoursResult.data || !settingsResult.data) {
     throw new Error("A configuração do estabelecimento está incompleta.");
   }
-  if (groupsResult.data.length !== 2) throw new Error("Os Grupos principal e secundário não estão configurados corretamente.");
+  const legacyGroups = groupsResult.data.filter((group) => group.position === 1 || group.position === 2);
+  if (legacyGroups.length !== 2) throw new Error("Os Grupos principal e secundário não estão configurados corretamente.");
 
-  const groups = groupsResult.data.map((group): BusinessGroupForm => ({
+  const groups = legacyGroups.map((group): BusinessGroupForm => ({
     id: group.id,
     position: group.position as 1 | 2,
     label: group.label,
     active: group.active,
     required: group.required,
+    intentName: "",
+    occupancyMode: null,
     options: optionsResult.data.filter((option) => option.group_id === group.id).map((option) => ({
       id: option.id,
       name: option.name,
       durationMinutes: option.duration_minutes,
     })),
-  })) as [BusinessGroupForm, BusinessGroupForm];
+  }));
+  const storedComplementary = groupsResult.data.find((group) => group.position === 3);
+  const complementary: BusinessGroupForm = storedComplementary ? {
+    id: storedComplementary.id,
+    position: 3,
+    label: storedComplementary.label,
+    active: storedComplementary.active,
+    required: storedComplementary.required,
+    intentName: storedComplementary.intent_name ?? "",
+    occupancyMode: storedComplementary.occupancy_mode,
+    options: optionsResult.data.filter((option) => option.group_id === storedComplementary.id).map((option) => ({
+      id: option.id,
+      name: option.name,
+      durationMinutes: null,
+    })),
+  } : {
+    position: 3,
+    label: "Grupo complementar",
+    active: false,
+    required: false,
+    intentName: "Espaço",
+    occupancyMode: "day",
+    options: [],
+  };
+  const configuredGroups = [...groups, complementary] as [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm];
 
   const palette = settingsResult.data.palette;
   const paletteId = palette && typeof palette === "object" && !Array.isArray(palette) && typeof palette.id === "string"
@@ -62,7 +89,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     googleMapsUrl: businessResult.data.google_maps_url ?? "",
     instagramUrl: businessResult.data.instagram_url ?? "",
     facebookUrl: businessResult.data.facebook_url ?? "",
-    groups,
+    groups: configuredGroups,
     hours,
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,

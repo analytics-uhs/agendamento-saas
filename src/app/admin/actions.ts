@@ -5,7 +5,7 @@ import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
 import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
-import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
+import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessGroups, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult, BusinessForm, BusinessGroupForm, BusinessHourForm, VisualThemePreference } from "@/types/business";
@@ -58,21 +58,35 @@ export async function saveLogoUrl(url: string): Promise<ActionResult> {
   return { ok: true, message: "Logo atualizado." };
 }
 
-export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }): Promise<ActionResult> {
+export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }): Promise<ActionResult> {
   const current = await context();
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
+  const groupsError = validateBusinessGroups(input.groups);
+  if (groupsError) return { ok: false, message: groupsError };
   const durationError = validateDuration(input.durationMode, input.fixedDurationMinutes, input.groups[1].options.map((option) => option.durationMinutes));
   if (durationError) return { ok: false, message: durationError };
 
   for (const group of input.groups) {
     const groupName = bookingGroupProductName(group.position);
-    if (!group.id || !group.label.trim()) return { ok: false, message: `Revise o ${groupName}.` };
-    const { error: groupError } = await current.supabase.from("booking_groups").update({
-      label: group.label.trim(), active: group.active, required: group.required, sort_order: group.position,
-    }).eq("id", group.id).eq("business_id", current.business.id);
+    const complementary = group.position === bookingGroupPosition("complementary");
+    if (complementary && !group.id && !group.active) continue;
+    if (!complementary && !group.id) return { ok: false, message: `Revise o ${groupName}.` };
+    const groupValues = {
+      label: group.label.trim(),
+      active: group.active,
+      required: complementary ? false : group.required,
+      sort_order: group.position,
+      intent_name: complementary ? group.intentName.trim() || null : null,
+      occupancy_mode: complementary ? group.occupancyMode : null,
+    };
+    const groupResult = group.id
+      ? await current.supabase.from("booking_groups").update(groupValues).eq("id", group.id).eq("business_id", current.business.id).select("id").single()
+      : await current.supabase.from("booking_groups").insert({ ...groupValues, business_id: current.business.id, position: group.position }).select("id").single();
+    const groupError = groupResult.error;
     if (groupError) return { ok: false, message: databaseMessage(groupError.message, groupError.code) };
+    const groupId = groupResult.data.id;
 
-    const { data: stored, error: readError } = await current.supabase.from("booking_options").select("id").eq("group_id", group.id).eq("business_id", current.business.id);
+    const { data: stored, error: readError } = await current.supabase.from("booking_options").select("id").eq("group_id", groupId).eq("business_id", current.business.id);
     if (readError) return { ok: false, message: databaseMessage(readError.message, readError.code) };
     const submittedIds = new Set(group.options.flatMap((option) => option.id ? [option.id] : []));
     const removed = stored.filter((option) => !submittedIds.has(option.id)).map((option) => option.id);
@@ -88,7 +102,7 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
       };
       const result = option.id
         ? await current.supabase.from("booking_options").update(values).eq("id", option.id).eq("business_id", current.business.id)
-        : await current.supabase.from("booking_options").insert({ ...values, business_id: current.business.id, group_id: group.id });
+        : await current.supabase.from("booking_options").insert({ ...values, business_id: current.business.id, group_id: groupId });
       if (result.error) return { ok: false, message: databaseMessage(result.error.message, result.error.code) };
     }
   }

@@ -1,4 +1,4 @@
-import type { DurationMode, Json } from "@/types/database";
+import type { BookingGroupOccupancyMode, DurationMode, Json } from "@/types/database";
 import type { BusinessStatusFilter, PlatformBusinessDetail, PlatformBusinessPage, PlatformBusinessQuery, PlatformMetrics } from "@/types/super-admin";
 import { displayEndTime } from "@/lib/time-of-day";
 
@@ -73,13 +73,22 @@ export function parsePlatformBusinessDetail(value: Json | null): PlatformBusines
 
   const groups = Array.isArray(root.groups) ? root.groups.flatMap((rawGroup) => {
     const group = object(rawGroup);
-    if (!group || (group.position !== 1 && group.position !== 2) || !text(group.label) || boolean(group.active) === null) return [];
+    if (!group || (group.position !== 1 && group.position !== 2 && group.position !== 3) || !text(group.label) || boolean(group.active) === null) return [];
     const options = Array.isArray(group.options) ? group.options.flatMap((rawOption) => {
       const option = object(rawOption);
       if (!option || !text(option.id) || !text(option.name) || boolean(option.active) === null) return [];
       return [{ id: text(option.id)!, name: text(option.name)!, durationMinutes: number(option.duration_minutes), active: boolean(option.active)! }];
     }) : [];
-    return [{ position: group.position as 1 | 2, label: text(group.label)!, active: boolean(group.active)!, required: boolean(group.required) ?? true, options }];
+    const occupancyMode: BookingGroupOccupancyMode | null = group.occupancy_mode === "day" || group.occupancy_mode === "time_slot" ? group.occupancy_mode : null;
+    return [{
+      position: group.position as 1 | 2 | 3,
+      label: text(group.label)!,
+      intentName: text(group.intent_name),
+      occupancyMode,
+      active: boolean(group.active)!,
+      required: boolean(group.required) ?? true,
+      options,
+    }];
   }) : [];
 
   const hours = Array.isArray(root.hours) ? root.hours.flatMap((rawHour) => {
