@@ -28,12 +28,14 @@ export type AdminAppointment = {
   series: AppointmentSeriesSummary | null;
   group1: AppointmentGroupSelection | null;
   group2: AppointmentGroupSelection | null;
+  complementary?: AdminComplementaryReservation | null;
 };
 
 export type AppointmentOption = { id: string; name: string; durationMinutes: number | null };
 export type AppointmentGroup = { position: LegacyBookingGroupPosition; label: string; options: AppointmentOption[] };
 export type AppointmentSchedulingConfig = {
   groups: AppointmentGroup[];
+  complementaryGroup?: { label: string; intentName: string; occupancyMode: "day" | "time_slot"; options: AppointmentOption[] } | null;
   durationMode: DurationMode;
   fixedDurationMinutes: number;
   businessHours?: Array<DailyCalendarWindow & { weekday: number }>;
@@ -57,8 +59,33 @@ export type CalendarBlock = {
 };
 export type DailyCalendarData = {
   appointments: AdminAppointment[];
+  complementaryReservations?: AdminComplementaryReservation[];
   blocks: CalendarBlock[];
   windows: DailyCalendarWindow[];
+};
+
+export type AdminComplementaryReservation = {
+  id: string;
+  reservationId: string;
+  optionId: string;
+  customerName: string;
+  customerWhatsapp: string;
+  reservationDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  occupancyMode: "day" | "time_slot";
+  status: AppointmentStatus;
+  groupName: string;
+  optionName: string;
+};
+
+export type AdminReservationIntent = "primary" | "complementary" | "combined";
+export type ManualReservationInput = {
+  intent: AdminReservationIntent;
+  primary: ManualAppointmentInput | null;
+  complementary: { optionId: string; occupancyMode: "day" | "time_slot"; date: string; startTime: string | null; endTime: string | null } | null;
+  customerName: string;
+  customerWhatsapp: string;
 };
 
 export type CalendarBlockInput = {

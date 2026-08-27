@@ -74,6 +74,7 @@ export function AppointmentDetails({
             <dd className="font-medium">{appointment.group2.name}</dd>
           </div>
         ) : null}
+        {appointment.complementary ? <div className="rounded-xl border border-accent/30 bg-accent/10 p-3 sm:col-span-2"><dt className="text-xs font-semibold">Complementar · {appointment.complementary.groupName}</dt><dd className="mt-1 font-medium">{appointment.complementary.optionName}</dd><dd className="mt-0.5 text-xs text-muted">{appointment.complementary.occupancyMode === "day" ? "Reserva do dia" : `${appointment.complementary.startTime}–${appointment.complementary.endTime}`}</dd></div> : null}
         <div>
           <dt className="text-xs text-muted">Origem</dt>
           <dd className="font-medium">
