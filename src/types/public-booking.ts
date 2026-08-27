@@ -1,13 +1,15 @@
-import type { DurationMode } from "@/types/database";
+import type { BookingGroupOccupancyMode, DurationMode } from "@/types/database";
 import type { VisualThemePreference } from "@/types/business";
-import type { LegacyBookingGroupPosition } from "@/lib/booking-groups";
+import type { BookingGroupPosition } from "@/lib/booking-groups";
 import type { Palette } from "@/types/scheduling";
 
 export type PublicBookingOption = { id: string; name: string; durationMinutes: number | null };
 export type PublicBookingGroup = {
-  position: LegacyBookingGroupPosition;
+  position: BookingGroupPosition;
   label: string;
   required: boolean;
+  intentName: string | null;
+  occupancyMode: BookingGroupOccupancyMode | null;
   options: PublicBookingOption[];
 };
 export type PublicBusinessHour = { weekday: number; startTime: string; endTime: string };
@@ -24,14 +26,33 @@ export type PublicBookingData = {
   };
 };
 export type BookingSlot = { startTime: string; durationMinutes: number; maxBlocks: number };
+export type BookingIntent = "primary" | "complementary" | "combined";
+export type ComplementaryAvailabilityOption = { id: string; name: string; available: boolean };
+export type ComplementaryAvailability = {
+  configured: boolean;
+  groupName: string | null;
+  intentName: string | null;
+  occupancyMode: BookingGroupOccupancyMode | null;
+  reservationDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  options: ComplementaryAvailabilityOption[];
+};
+export type PublicReservationPayload = {
+  customer_name: string;
+  customer_whatsapp: string;
+  primary?: { group_1_option_id: string | null; group_2_option_id: string | null; date: string; start_time: string; blocks: number };
+  complementary?: { option_id: string; occupancy_mode: BookingGroupOccupancyMode; date: string; start_time?: string; end_time?: string };
+};
 export type BookingConfirmation = {
   business: { name: string; slug: string; logoUrl: string | null; whatsapp?: string | null };
   group1: { label: string; name: string } | null;
   group2: { label: string; name: string } | null;
+  complementary: { label: string; name: string; occupancyMode: BookingGroupOccupancyMode; startTime: string | null; endTime: string | null } | null;
   appointmentDate: string;
-  startTime: string;
-  endTime: string;
-  durationMinutes: number;
+  startTime: string | null;
+  endTime: string | null;
+  durationMinutes: number | null;
   customerName: string;
   appearance?: { palette: Palette; themePreference: VisualThemePreference };
 };
