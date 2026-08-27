@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getPalette } from "@/lib/palettes";
 import { displayEndTime } from "@/lib/time-of-day";
 import type { Json } from "@/types/database";
+import type { BookingGroupOccupancyMode } from "@/types/database";
 import type { PublicBookingData } from "@/types/public-booking";
 
 function object(value: Json | undefined): Record<string, Json | undefined> | null {
@@ -17,15 +18,18 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
 
   const groups = Array.isArray(root.groups) ? root.groups.flatMap((rawGroup) => {
     const group = object(rawGroup);
-    if (!group || (group.position !== 1 && group.position !== 2) || typeof group.label !== "string") return [];
-    const position: 1 | 2 = group.position;
+    if (!group || (group.position !== 1 && group.position !== 2 && group.position !== 3) || typeof group.label !== "string") return [];
+    const position: 1 | 2 | 3 = group.position;
     const options = Array.isArray(group.options) ? group.options.flatMap((rawOption) => {
       const option = object(rawOption);
       return option && typeof option.id === "string" && typeof option.name === "string"
         ? [{ id: option.id, name: option.name, durationMinutes: typeof option.duration_minutes === "number" ? option.duration_minutes : null }]
         : [];
     }) : [];
-    return [{ position, label: group.label, required: group.required !== false, options }];
+    const complementary = position === 3;
+    const occupancyMode: BookingGroupOccupancyMode | null = group.occupancy_mode === "day" || group.occupancy_mode === "time_slot" ? group.occupancy_mode : null;
+    if (complementary && !occupancyMode) return [];
+    return [{ position, label: group.label, required: group.required !== false, intentName: complementary && typeof group.intent_name === "string" ? group.intent_name : null, occupancyMode, options }];
   }) : [];
   const hours = Array.isArray(root.hours) ? root.hours.flatMap((rawHour) => {
     const hour = object(rawHour);
