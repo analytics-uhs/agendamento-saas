@@ -3,6 +3,17 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(40);
 
+create temp table admin_push_claims (
+  notification_id uuid,
+  business_id uuid,
+  user_id uuid,
+  title text,
+  message text,
+  appointment_id uuid,
+  claim_token uuid
+);
+grant select, insert, delete on admin_push_claims to service_role;
+
 insert into auth.users (id, email, raw_user_meta_data)
 values
   ('a0000000-0000-4000-8000-000000000001', 'notification-owner@example.test', '{"name":"Notification Owner"}'),
@@ -190,12 +201,16 @@ select results_eq(
 set local role service_role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
 
+insert into admin_push_claims
+select * from public.claim_pending_admin_push_notifications('notification-business');
+
 select results_eq(
-  $$select count(*)::bigint from public.claim_pending_admin_push_notifications('notification-business')$$,
+  $$select count(*)::bigint from admin_push_claims$$,
   array[2::bigint],
   'the service role can claim pending push notifications'
 );
 
+reset role;
 select results_eq(
   $$select count(*)::bigint from public.admin_notifications where push_dispatched_at is null$$,
   array[2::bigint],
@@ -209,6 +224,8 @@ select results_eq(
   'claiming creates a temporary lease'
 );
 
+set local role service_role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
 select results_eq(
   $$select count(*)::bigint from public.claim_pending_admin_push_notifications('notification-business')$$,
   array[0::bigint],
@@ -217,22 +234,23 @@ select results_eq(
 
 select lives_ok(
   $$select public.record_admin_push_delivery(
-    (select id from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000001'),
+    (select notification_id from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000001'),
     (select id from public.push_subscriptions where user_id = 'a0000000-0000-4000-8000-000000000001'),
-    (select push_claim_token from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000001')
+    (select claim_token from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000001')
   )$$,
   'a successful device delivery is recorded under the active claim'
 );
 
 select lives_ok(
   $$select public.complete_admin_push_notification(
-    (select id from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000001'),
-    (select push_claim_token from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000001'),
+    (select notification_id from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000001'),
+    (select claim_token from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000001'),
     'delivered'
   )$$,
   'success confirms the notification only after all valid subscriptions are delivered'
 );
 
+reset role;
 select results_eq(
   $$select push_dispatched_at is not null
       and push_delivery_status = 'delivered'
@@ -244,15 +262,18 @@ select results_eq(
   'successful processing sets push_dispatched_at and clears the lease'
 );
 
+set local role service_role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
 select lives_ok(
   $$select public.complete_admin_push_notification(
-    (select id from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000002'),
-    (select push_claim_token from public.admin_notifications where user_id = 'a0000000-0000-4000-8000-000000000002'),
+    (select notification_id from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000002'),
+    (select claim_token from admin_push_claims where user_id = 'a0000000-0000-4000-8000-000000000002'),
     'no_subscriptions'
   )$$,
   'a recipient without subscriptions is completed explicitly'
 );
 
+reset role;
 select results_eq(
   $$select push_dispatched_at is not null
       and push_delivery_status = 'no_subscriptions'
@@ -279,8 +300,12 @@ insert into public.admin_notifications (
 set local role service_role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
 
+delete from admin_push_claims;
+insert into admin_push_claims
+select * from public.claim_pending_admin_push_notifications('notification-business');
+
 select results_eq(
-  $$select count(*)::bigint from public.claim_pending_admin_push_notifications('notification-business')$$,
+  $$select count(*)::bigint from admin_push_claims$$,
   array[1::bigint],
   'a newly pending notification can be claimed'
 );
@@ -288,11 +313,12 @@ select results_eq(
 select lives_ok(
   $$select public.release_admin_push_notification(
     'a5000000-0000-4000-8000-000000000001',
-    (select push_claim_token from public.admin_notifications where id = 'a5000000-0000-4000-8000-000000000001')
+    (select claim_token from admin_push_claims where notification_id = 'a5000000-0000-4000-8000-000000000001')
   )$$,
   'a transient failure releases its matching claim'
 );
 
+reset role;
 select results_eq(
   $$select count(*)::bigint from public.admin_notifications
     where id = 'a5000000-0000-4000-8000-000000000001'
@@ -303,8 +329,13 @@ select results_eq(
   'a transient failure leaves the notification pending instead of losing it'
 );
 
+set local role service_role;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
+delete from admin_push_claims;
+insert into admin_push_claims
+select * from public.claim_pending_admin_push_notifications('notification-business');
 select results_eq(
-  $$select count(*)::bigint from public.claim_pending_admin_push_notifications('notification-business')$$,
+  $$select count(*)::bigint from admin_push_claims$$,
   array[1::bigint],
   'a released notification is immediately claimable again'
 );
@@ -317,8 +348,11 @@ where id = 'a5000000-0000-4000-8000-000000000001';
 set local role service_role;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"service_role"}', true);
 
+delete from admin_push_claims;
+insert into admin_push_claims
+select * from public.claim_pending_admin_push_notifications('notification-business');
 select results_eq(
-  $$select count(*)::bigint from public.claim_pending_admin_push_notifications('notification-business')$$,
+  $$select count(*)::bigint from admin_push_claims$$,
   array[1::bigint],
   'an expired five-minute claim can be recovered by another worker'
 );

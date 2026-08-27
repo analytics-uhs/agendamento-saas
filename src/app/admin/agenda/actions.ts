@@ -10,7 +10,7 @@ import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppoi
 import type { AppointmentStatus } from "@/types/database";
 import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
 import { listResourceBlocks } from "@/lib/repositories/resource-blocks";
-import { createAdminReservation, getAdminComplementaryAvailability, listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
+import { cancelAdminReservation, cancelAdminReservationResource, createAdminReservation, getAdminComplementaryAvailability, listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
 import type { ComplementaryAvailability } from "@/types/public-booking";
 import type { ManualReservationInput } from "@/types/appointments";
 
@@ -35,6 +35,7 @@ function logAppointmentError(operation: AppointmentOperation, error: Appointment
 }
 
 function actionError(message: string, code?: string, operation: AppointmentOperation = "default"): AppointmentActionResult<never> {
+  if (message.includes("reservation_resource_not_found") || message.includes("reservation_not_found")) return { ok: false, message: "Reserva não encontrada ou sem permissão de acesso." };
   if (message.includes("reservation_complementary_conflict")) return { ok: false, conflict: true, message: "O recurso complementar já está reservado nesse período." };
   if (message.includes("reservation_primary_conflict")) return { ok: false, conflict: true, message: "O horário principal já está ocupado." };
   if (message.includes("reservation_complementary_unavailable") || message.includes("reservation_complementary_option_invalid")) return { ok: false, staleSelection: true, message: "A opção complementar não está mais disponível." };
@@ -144,6 +145,29 @@ export async function createManualReservation(input: ManualReservationInput): Pr
     getBusinessHoursForDate(business.id, date),
   ]);
   return { ok: true, message: "Reserva criada.", data: { appointments, complementaryReservations, blocks, resourceBlocks, windows } };
+}
+
+async function refreshedCalendar(businessId: string, date: string): Promise<DailyCalendarData> {
+  const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([listAppointments(businessId, date), listAdminComplementaryReservations(businessId, date), listCalendarBlocks(businessId, date), listResourceBlocks(businessId, date), getBusinessHoursForDate(businessId, date)]);
+  return { appointments, complementaryReservations, blocks, resourceBlocks, windows };
+}
+
+export async function cancelComplementaryReservation(resourceId: string, date: string): Promise<AppointmentActionResult<DailyCalendarData>> {
+  if (!uuid.test(resourceId) || !datePattern.test(date)) return { ok: false, message: "Cancelamento inválido." };
+  const business = await requireCurrentBusiness();
+  const error = await cancelAdminReservationResource(resourceId);
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin"); revalidatePath("/admin/agenda");
+  return { ok: true, message: "Reserva complementar cancelada. O recurso está disponível novamente.", data: await refreshedCalendar(business.id, date) };
+}
+
+export async function cancelCompleteReservation(reservationId: string, date: string): Promise<AppointmentActionResult<DailyCalendarData>> {
+  if (!uuid.test(reservationId) || !datePattern.test(date)) return { ok: false, message: "Cancelamento inválido." };
+  const business = await requireCurrentBusiness();
+  const error = await cancelAdminReservation(reservationId);
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin"); revalidatePath("/admin/agenda");
+  return { ok: true, message: "Reserva completa cancelada.", data: await refreshedCalendar(business.id, date) };
 }
 
 export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {

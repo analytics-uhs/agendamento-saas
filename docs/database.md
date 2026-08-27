@@ -153,7 +153,9 @@ Bloqueios complementares são criados por `create_admin_resource_blocks` para um
 
 Cada bloqueio ativo gera exatamente uma allocation cuja origem é exclusiva: `reservation_resource_id` para reserva ou `resource_block_id` para bloqueio. A exclusion constraint já existente continua sendo a autoridade final para conflito entre reserva × reserva, reserva × bloqueio e bloqueio × bloqueio. Ao cancelar, a allocation é desativada atomicamente e o recurso volta à disponibilidade.
 
-A notificação atual continua sendo produzida pelo appointment criado no caminho principal. Assim, reservas `primary-only` e combinadas preservam sino/Web Push; reservas exclusivamente complementares ainda não geram notificação administrativa nesta etapa e exigem uma evolução posterior orientada ao agregado `reservations`.
+Reservas públicas exclusivamente complementares geram a mesma notificação administrativa por um trigger de `reservation_resources`, vinculada por `admin_notifications.reservation_resource_id`. O trigger ignora agregados que possuem appointment; por isso reservas principais e combinadas continuam gerando exatamente uma notificação pelo caminho legado. A Server Action pública mantém o mesmo dispatcher de Web Push após o commit, e falhas desse efeito secundário nunca revertem a reserva.
+
+O cancelamento operacional é explícito e preserva histórico. `cancel_admin_reservation_resource` cancela somente o componente complementar e o trigger existente desativa exclusivamente sua allocation. `cancel_admin_reservation` cancela appointments e componentes do agregado na mesma transação. Não existe status duplicado em `reservations`: o estado agregado continua derivado dos componentes. Ambas as RPCs são idempotentes, resolvem autorização pelo tenant do recurso e exigem owner/admin.
 
 ## Agenda administrativa
 

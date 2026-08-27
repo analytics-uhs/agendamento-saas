@@ -8,6 +8,7 @@ export type AdminNotification = {
   title: string;
   message: string;
   appointmentId: string | null;
+  reservationResourceId: string | null;
   readAt: string | null;
   createdAt: string;
 };

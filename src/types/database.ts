@@ -106,10 +106,10 @@ export interface Database {
         Relationships: [];
       };
       admin_notifications: {
-        Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; read_at: string | null; push_dispatched_at: string | null; push_claimed_at: string | null; push_claim_token: string | null; push_delivery_status: "delivered" | "no_subscriptions" | null; created_at: string };
-        Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null; created_at?: string };
-        Update: { read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null };
-        Relationships: [{ foreignKeyName: "admin_notifications_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notifications_appointment_id_fkey"; columns: ["appointment_id"]; isOneToOne: false; referencedRelation: "appointments"; referencedColumns: ["id"] }];
+        Row: { id: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id: string | null; reservation_resource_id: string | null; read_at: string | null; push_dispatched_at: string | null; push_claimed_at: string | null; push_claim_token: string | null; push_delivery_status: "delivered" | "no_subscriptions" | null; created_at: string };
+        Insert: { id?: string; business_id: string; user_id: string; type: AdminNotificationType; title: string; message: string; appointment_id?: string | null; reservation_resource_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null; created_at?: string };
+        Update: { reservation_resource_id?: string | null; read_at?: string | null; push_dispatched_at?: string | null; push_claimed_at?: string | null; push_claim_token?: string | null; push_delivery_status?: "delivered" | "no_subscriptions" | null };
+        Relationships: [{ foreignKeyName: "admin_notifications_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notifications_appointment_id_fkey"; columns: ["appointment_id"]; isOneToOne: false; referencedRelation: "appointments"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notifications_reservation_resource_id_fkey"; columns: ["reservation_resource_id"]; isOneToOne: false; referencedRelation: "reservation_resources"; referencedColumns: ["id"] }];
       };
       push_subscriptions: {
         Row: { id: string; user_id: string; business_id: string; endpoint: string; p256dh: string; auth: string; user_agent: string | null } & Timestamps;
@@ -132,6 +132,8 @@ export interface Database {
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_public_reservation: { Args: { p_slug: string; p_payload: Json }; Returns: Json };
       create_admin_reservation: { Args: { p_payload: Json }; Returns: Json };
+      cancel_admin_reservation_resource: { Args: { p_resource_id: string }; Returns: Json };
+      cancel_admin_reservation: { Args: { p_reservation_id: string }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_admin_booking_availability: { Args: { p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };

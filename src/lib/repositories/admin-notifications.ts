@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { mapAdminNotification } from "@/lib/admin-notifications";
 import type { AdminNotificationFeed, BrowserPushSubscriptionInput } from "@/types/admin-notifications";
 
-const notificationColumns = "id, business_id, user_id, type, title, message, appointment_id, read_at, created_at";
+const notificationColumns = "id, business_id, user_id, type, title, message, appointment_id, reservation_resource_id, read_at, created_at";
 
 export async function getAdminNotificationFeed(businessId: string): Promise<AdminNotificationFeed> {
   const supabase = await createClient();

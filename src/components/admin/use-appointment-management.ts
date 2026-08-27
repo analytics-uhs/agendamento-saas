@@ -31,7 +31,9 @@ export function useAppointmentManagement(
     }
     if (
       status === "cancelled" &&
-      !window.confirm(`Cancelar o agendamento de ${appointment.customerName}?`)
+      !window.confirm(appointment.complementary?.status === "scheduled"
+        ? `Cancelar apenas ${appointment.group1?.name ?? "a agenda principal"}?\n\nA reserva de ${appointment.complementary.optionName} permanecerá ativa.`
+        : `Cancelar o agendamento de ${appointment.customerName}?`)
     )
       return;
     setFeedback(null);

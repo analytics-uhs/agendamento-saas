@@ -38,3 +38,15 @@ export async function createAdminReservation(input: ManualReservationInput): Pro
   const { error } = await supabase.rpc("create_admin_reservation", { p_payload: payload });
   return error;
 }
+
+export async function cancelAdminReservationResource(resourceId: string): Promise<AppointmentRepositoryError | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_admin_reservation_resource", { p_resource_id: resourceId });
+  return error;
+}
+
+export async function cancelAdminReservation(reservationId: string): Promise<AppointmentRepositoryError | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_admin_reservation", { p_reservation_id: reservationId });
+  return error;
+}

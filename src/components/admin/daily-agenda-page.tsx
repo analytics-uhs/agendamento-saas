@@ -2,7 +2,7 @@
 
 import { Ban, CalendarCheck2, Clock3, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
-import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
+import { cancelCompleteReservation, cancelComplementaryReservation, loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal, type AppointmentFormPrefill } from "@/components/admin/appointment-form-modal";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,6 +19,7 @@ import { CalendarBlockDetails } from "@/components/admin/calendar-block-details"
 import { BlockKindModal } from "@/components/admin/block-kind-modal";
 import { ComplementaryBlockModal } from "@/components/admin/complementary-block-modal";
 import { ResourceBlockDetails } from "@/components/admin/resource-block-details";
+import { ComplementaryReservationDetails } from "@/components/admin/complementary-reservation-details";
 import { classes } from "@/lib/classes";
 import { appointmentStatusLabels } from "@/lib/appointments";
 import {
@@ -70,6 +71,7 @@ export function DailyAgendaPage({
   const [blocks, setBlocks] = useState(initialBlocks);
   const [resourceBlocks, setResourceBlocks] = useState(initialResourceBlocks);
   const [complementaryReservations, setComplementaryReservations] = useState(initialComplementaryReservations);
+  const [selectedComplementary, setSelectedComplementary] = useState<AdminComplementaryReservation | null>(null);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [blockKindOpen, setBlockKindOpen] = useState(false);
   const [resourceBlockModalOpen, setResourceBlockModalOpen] = useState(false);
@@ -92,6 +94,7 @@ export function DailyAgendaPage({
     feedback,
     setFeedback,
     saving,
+    startSavingTransition,
     cancellingId,
     setCancellingId,
     updateStatus,
@@ -108,6 +111,20 @@ export function DailyAgendaPage({
     (appointment) => appointment.id === selectedId,
   );
   const canCreate = businessActive && selectedDate >= todayISO();
+
+  function applyCalendar(data: { appointments: AdminAppointment[]; complementaryReservations?: AdminComplementaryReservation[]; blocks: CalendarBlock[]; resourceBlocks?: ResourceBlock[]; windows: DailyCalendarWindow[] }) {
+    setAppointments(data.appointments); setComplementaryReservations(data.complementaryReservations ?? []); setBlocks(data.blocks); setResourceBlocks(data.resourceBlocks ?? []); setWindows(data.windows);
+  }
+
+  function cancelComplementary(resource: AdminComplementaryReservation) {
+    if (!window.confirm(`Cancelar ${resource.optionName}?\n\nA reserva principal permanecerá ativa.`)) return;
+    startSavingTransition(async () => { const result = await cancelComplementaryReservation(resource.id, selectedDate); if (!result.ok) setFeedback({ ok: false, message: result.message }); else { applyCalendar(result.data); setFeedback({ ok: true, message: result.message }); } });
+  }
+
+  function cancelComplete(appointment: AdminAppointment) {
+    if (!appointment.complementary || !window.confirm(`Cancelar a reserva completa?\n\n${appointment.group1?.name ?? "Agenda principal"} e ${appointment.complementary.optionName} serão cancelados.`)) return;
+    startSavingTransition(async () => { const result = await cancelCompleteReservation(appointment.complementary!.reservationId, selectedDate); if (!result.ok) setFeedback({ ok: false, message: result.message }); else { applyCalendar(result.data); setFeedback({ ok: true, message: result.message }); setSelectedId(null); } });
+  }
 
   function selectDate(date: string) {
     const request = ++requestId.current;
@@ -185,8 +202,8 @@ export function DailyAgendaPage({
         </p>
       ) : null}
 
-      {config.complementaryGroup?.occupancyMode === "day" ? <DayReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="day")} blocks={resourceBlocks.filter((item)=>item.occupancyMode==="day")} options={config.complementaryGroup.options} onSelectBlock={setSelectedResourceBlock} /> : null}
-      {config.complementaryGroup?.occupancyMode === "time_slot" && (complementaryReservations.some((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id)) || resourceBlocks.some((item)=>item.occupancyMode==="time_slot")) ? <TimeSlotReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id))} blocks={resourceBlocks.filter((item)=>item.occupancyMode==="time_slot")} onSelectBlock={setSelectedResourceBlock} /> : null}
+      {config.complementaryGroup?.occupancyMode === "day" ? <DayReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="day")} blocks={resourceBlocks.filter((item)=>item.occupancyMode==="day")} options={config.complementaryGroup.options} onSelectBlock={setSelectedResourceBlock} onSelectReservation={setSelectedComplementary} /> : null}
+      {config.complementaryGroup?.occupancyMode === "time_slot" && (complementaryReservations.some((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id)) || resourceBlocks.some((item)=>item.occupancyMode==="time_slot")) ? <TimeSlotReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id))} blocks={resourceBlocks.filter((item)=>item.occupancyMode==="time_slot")} onSelectBlock={setSelectedResourceBlock} onSelectReservation={setSelectedComplementary} /> : null}
 
       {loading ? (
         <p className="mt-4 flex items-center justify-center gap-2 rounded-xl border bg-background p-10 text-sm text-muted">
@@ -248,6 +265,8 @@ export function DailyAgendaPage({
             }
             onCancelClose={() => setCancellingId(null)}
             onEdit={() => { setEditingAppointment(selectedAppointment); setSelectedId(null); }}
+            onCancelComplementary={() => cancelComplementary(selectedAppointment.complementary!)}
+            onCancelComplete={() => cancelComplete(selectedAppointment)}
           />
         </Modal>
       ) : null}
@@ -276,11 +295,12 @@ export function DailyAgendaPage({
         <CalendarBlockDetails block={selectedBlock} onClose={() => setSelectedBlock(null)} onEdit={() => { setEditingBlock(selectedBlock); setSelectedBlock(null); }} onDeleted={(next, message) => { setBlocks(next); setFeedback({ ok: true, message }); setSelectedBlock(null); }} />
       ) : null}
       {selectedResourceBlock ? <ResourceBlockDetails block={selectedResourceBlock} onClose={() => setSelectedResourceBlock(null)} onDeleted={(next, message) => { setResourceBlocks(next); setFeedback({ ok: true, message }); setSelectedResourceBlock(null); }} /> : null}
+      {selectedComplementary ? <ComplementaryReservationDetails reservation={selectedComplementary} onClose={() => setSelectedComplementary(null)} onCancelled={(data, message) => { applyCalendar(data); setFeedback({ ok: true, message }); setSelectedComplementary(null); }} /> : null}
     </>
   );
 }
 
-function DayReservations({ reservations, blocks, options, onSelectBlock }: { reservations: AdminComplementaryReservation[]; blocks: ResourceBlock[]; options: AppointmentOption[]; onSelectBlock: (block: ResourceBlock) => void }) {
+function DayReservations({ reservations, blocks, options, onSelectBlock, onSelectReservation }: { reservations: AdminComplementaryReservation[]; blocks: ResourceBlock[]; options: AppointmentOption[]; onSelectBlock: (block: ResourceBlock) => void; onSelectReservation: (reservation: AdminComplementaryReservation) => void }) {
   const catalog = [
     ...options.map((option) => ({ id: option.id, name: option.name })),
     ...reservations
@@ -298,7 +318,7 @@ function DayReservations({ reservations, blocks, options, onSelectBlock }: { res
           const reservation = reservations.find((item) => item.optionId === option.id && item.status !== "cancelled");
           const block = blocks.find((item) => item.option.id === option.id);
           return (
-            <button type="button" disabled={!block} onClick={() => block && onSelectBlock(block)} key={option.id} className={classes("rounded-xl border bg-surface/40 p-3 text-left", block && "focus-ring border-primary/25 bg-primary/5 hover:border-primary/50")}>
+            <button type="button" disabled={!block && !reservation} onClick={() => block ? onSelectBlock(block) : reservation && onSelectReservation(reservation)} key={option.id} className={classes("rounded-xl border bg-surface/40 p-3 text-left", (block || reservation) && "focus-ring hover:border-primary/50", block && "border-primary/25 bg-primary/5")}>
               <p className="text-sm font-semibold">{option.name}</p>
               {block ? <><p className="mt-1 text-xs font-semibold text-primary">Bloqueado</p><p className="mt-1 text-xs text-muted">{block.reason || "Sem motivo informado"}</p></> : reservation ? (
                 <>
@@ -322,8 +342,8 @@ function DayReservations({ reservations, blocks, options, onSelectBlock }: { res
   );
 }
 
-function TimeSlotReservations({ reservations, blocks, onSelectBlock }: { reservations: AdminComplementaryReservation[]; blocks: ResourceBlock[]; onSelectBlock: (block: ResourceBlock) => void }) {
-  return <section className="mt-4 rounded-xl border bg-background p-4" aria-labelledby="time-slot-reservations-title"><div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-primary"/><h2 id="time-slot-reservations-title" className="text-sm font-semibold">Complementos por horário</h2></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{reservations.map((reservation)=><div key={reservation.id} className="flex items-center justify-between gap-3 rounded-xl border bg-surface/40 p-3"><div><p className="text-sm font-semibold">{reservation.optionName}</p><p className="mt-0.5 text-xs text-muted">{reservation.customerName}</p></div><span className="text-sm font-semibold tabular-nums">{reservation.startTime}–{reservation.endTime}</span></div>)}{blocks.map((block)=><button type="button" key={block.id} onClick={() => onSelectBlock(block)} className="focus-ring flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-left hover:border-primary/50"><div><p className="text-sm font-semibold">{block.option.name}</p><p className="mt-0.5 text-xs text-primary">Bloqueado{block.reason ? ` · ${block.reason}` : ""}</p></div><span className="text-sm font-semibold tabular-nums">{block.startTime}–{block.endTime}</span></button>)}</div></section>;
+function TimeSlotReservations({ reservations, blocks, onSelectBlock, onSelectReservation }: { reservations: AdminComplementaryReservation[]; blocks: ResourceBlock[]; onSelectBlock: (block: ResourceBlock) => void; onSelectReservation: (reservation: AdminComplementaryReservation) => void }) {
+  return <section className="mt-4 rounded-xl border bg-background p-4" aria-labelledby="time-slot-reservations-title"><div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-primary"/><h2 id="time-slot-reservations-title" className="text-sm font-semibold">Complementos por horário</h2></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{reservations.map((reservation)=><button type="button" onClick={() => onSelectReservation(reservation)} key={reservation.id} className="focus-ring flex items-center justify-between gap-3 rounded-xl border bg-surface/40 p-3 text-left hover:border-primary/50"><div><p className="text-sm font-semibold">{reservation.optionName}</p><p className="mt-0.5 text-xs text-muted">{reservation.customerName}</p><p className="mt-1 text-xs text-muted">{appointmentStatusLabels[reservation.status]}</p></div><span className="text-sm font-semibold tabular-nums">{reservation.startTime}–{reservation.endTime}</span></button>)}{blocks.map((block)=><button type="button" key={block.id} onClick={() => onSelectBlock(block)} className="focus-ring flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-left hover:border-primary/50"><div><p className="text-sm font-semibold">{block.option.name}</p><p className="mt-0.5 text-xs text-primary">Bloqueado{block.reason ? ` · ${block.reason}` : ""}</p></div><span className="text-sm font-semibold tabular-nums">{block.startTime}–{block.endTime}</span></button>)}</div></section>;
 }
 
 function DesktopDailyGrid({

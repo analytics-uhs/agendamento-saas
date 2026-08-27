@@ -19,6 +19,7 @@ const row: Database["public"]["Tables"]["admin_notifications"]["Row"] = {
   title: "Novo agendamento",
   message: "João agendou Quadra frente para amanhã às 18:00.",
   appointment_id: "appointment-1",
+  reservation_resource_id: null,
   read_at: null,
   push_dispatched_at: null,
   push_claimed_at: null,

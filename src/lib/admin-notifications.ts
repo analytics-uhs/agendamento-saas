@@ -11,7 +11,7 @@ type AdminNotificationRealtimeOptions = {
 
 type AdminNotificationRow = Pick<
   Database["public"]["Tables"]["admin_notifications"]["Row"],
-  "id" | "business_id" | "user_id" | "type" | "title" | "message" | "appointment_id" | "read_at" | "created_at"
+  "id" | "business_id" | "user_id" | "type" | "title" | "message" | "appointment_id" | "reservation_resource_id" | "read_at" | "created_at"
 >;
 
 export function mapAdminNotification(row: AdminNotificationRow): AdminNotification {
@@ -23,6 +23,7 @@ export function mapAdminNotification(row: AdminNotificationRow): AdminNotificati
     title: row.title,
     message: row.message,
     appointmentId: row.appointment_id,
+    reservationResourceId: row.reservation_resource_id,
     readAt: row.read_at,
     createdAt: row.created_at,
   };
