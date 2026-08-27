@@ -25,6 +25,8 @@ export function AppointmentDetails({
   onCancelScope,
   onCancelClose,
   onEdit,
+  onCancelComplementary,
+  onCancelComplete,
 }: {
   appointment: AdminAppointment;
   saving: boolean;
@@ -33,6 +35,8 @@ export function AppointmentDetails({
   onCancelScope: (scope: "single" | "future") => void;
   onCancelClose: () => void;
   onEdit?: () => void;
+  onCancelComplementary?: () => void;
+  onCancelComplete?: () => void;
 }) {
   return (
     <div className="step-in border-t bg-surface/50 p-4">
@@ -172,6 +176,16 @@ export function AppointmentDetails({
           </Button>
         </div>
       )}
+      {appointment.complementary && appointment.complementary.status === "scheduled" ? (
+        <div className="mt-4 rounded-xl border bg-background p-3">
+          <p className="text-sm font-semibold">Ações da reserva combinada</p>
+          <p className="mt-1 text-xs text-muted">Escolha o componente que deseja cancelar. O restante permanece ativo.</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" size="sm" disabled={saving} onClick={onCancelComplementary}><Ban className="h-3.5 w-3.5"/>Cancelar {appointment.complementary.optionName}</Button>
+            <Button variant="danger" size="sm" disabled={saving} onClick={onCancelComplete}><Ban className="h-3.5 w-3.5"/>Cancelar reserva completa</Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

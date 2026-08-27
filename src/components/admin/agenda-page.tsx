@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
+  cancelCompleteReservation,
+  cancelComplementaryReservation,
   createManualAppointment,
   createRecurringAppointment,
   loadDailyAdminCalendar,
@@ -217,6 +219,18 @@ export function AgendaPageContent({
     setSelectedId(null);
     setFeedback(null);
     fetchAvailability(selectedDate, next.group1OptionId, next.group2OptionId);
+  }
+
+  function cancelComplementaryComponent(appointment: AdminAppointment) {
+    const complementary = appointment.complementary;
+    if (!complementary || !window.confirm(`Cancelar ${complementary.optionName}?\n\nA reserva principal permanecerá ativa.`)) return;
+    startSavingTransition(async () => { const result = await cancelComplementaryReservation(complementary.id, selectedDate); if (!result.ok) setFeedback({ ok: false, message: result.message }); else { setAppointments(result.data.appointments); setBlocks(result.data.blocks); setResourceBlocks(result.data.resourceBlocks ?? []); setFeedback({ ok: true, message: result.message }); } });
+  }
+
+  function cancelCompleteAggregate(appointment: AdminAppointment) {
+    const complementary = appointment.complementary;
+    if (!complementary || !window.confirm(`Cancelar a reserva completa?\n\n${appointment.group1?.name ?? "Agenda principal"} e ${complementary.optionName} serão cancelados.`)) return;
+    startSavingTransition(async () => { const result = await cancelCompleteReservation(complementary.reservationId, selectedDate); if (!result.ok) setFeedback({ ok: false, message: result.message }); else { setAppointments(result.data.appointments); setBlocks(result.data.blocks); setResourceBlocks(result.data.resourceBlocks ?? []); setFeedback({ ok: true, message: result.message }); } });
   }
 
   function changeGroup(position: 1 | 2, optionId: string) {
@@ -634,6 +648,8 @@ export function AgendaPageContent({
                     }
                     onCancelClose={() => setCancellingId(null)}
                     onEdit={() => setEditingAppointment(appointment)}
+                    onCancelComplementary={() => cancelComplementaryComponent(appointment)}
+                    onCancelComplete={() => cancelCompleteAggregate(appointment)}
                   />
                 ) : null}
               </li>
