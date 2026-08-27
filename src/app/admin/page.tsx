@@ -7,6 +7,7 @@ import {
 } from "@/lib/repositories/appointments";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
+import { listResourceBlocks } from "@/lib/repositories/resource-blocks";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -25,10 +26,11 @@ export default async function DashboardPage({
       ? params.date
       : today;
   const summaryEnd = toISO(addDays(today, 7));
-  const [summaryAppointments, config, operationalBlocks] = await Promise.all([
+  const [summaryAppointments, config, operationalBlocks, operationalResourceBlocks] = await Promise.all([
     listAppointments(business.id, today, summaryEnd),
     getAppointmentSchedulingConfig(business.id),
     listCalendarBlocks(business.id, operationalDate),
+    listResourceBlocks(business.id, operationalDate),
   ]);
   const operationalAppointments =
     operationalDate >= today && operationalDate <= summaryEnd
@@ -44,6 +46,7 @@ export default async function DashboardPage({
       operationalDate={operationalDate}
       operationalAppointments={operationalAppointments}
       operationalBlocks={operationalBlocks}
+      operationalResourceBlocks={operationalResourceBlocks}
       config={config}
       businessActive={business.active}
       initialCreating={params.new === "1"}

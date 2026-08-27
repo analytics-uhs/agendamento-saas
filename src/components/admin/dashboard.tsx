@@ -7,6 +7,7 @@ import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
   CalendarBlock,
+  ResourceBlock,
 } from "@/types/appointments";
 
 export function Dashboard({
@@ -16,6 +17,7 @@ export function Dashboard({
   operationalDate,
   operationalAppointments,
   operationalBlocks,
+  operationalResourceBlocks,
   config,
   businessActive,
   initialCreating,
@@ -26,6 +28,7 @@ export function Dashboard({
   operationalDate: string;
   operationalAppointments: AdminAppointment[];
   operationalBlocks: CalendarBlock[];
+  operationalResourceBlocks: ResourceBlock[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
   initialCreating: boolean;
@@ -78,6 +81,7 @@ export function Dashboard({
           initialDate={operationalDate}
           initialAppointments={operationalAppointments}
           initialBlocks={operationalBlocks}
+          initialResourceBlocks={operationalResourceBlocks}
           config={config}
           businessActive={businessActive}
           initialCreating={initialCreating}

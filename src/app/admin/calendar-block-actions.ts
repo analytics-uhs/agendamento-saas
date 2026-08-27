@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { formatNumericDate } from "@/lib/date";
+import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
 import { getBusinessHoursForDate } from "@/lib/repositories/appointments";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import {
@@ -10,11 +11,14 @@ import {
   listCalendarBlocks,
   updateCalendarBlock,
 } from "@/lib/repositories/calendar-blocks";
+import { cancelResourceBlock, createResourceBlocks, listResourceBlocks } from "@/lib/repositories/resource-blocks";
 import type {
   AppointmentActionResult,
   CalendarBlock,
   CalendarBlockInput,
   DailyCalendarWindow,
+  ResourceBlock,
+  ResourceBlockInput,
 } from "@/types/appointments";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -108,4 +112,30 @@ export async function removeCalendarBlock(
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   return { ok: true, message: scope === "future" ? "Este e os próximos bloqueios foram removidos." : "Bloqueio removido.", data: await listCalendarBlocks(business.id, date) };
+}
+
+function resourceBlockError(message: string) {
+  if (message.includes("resource_allocation_conflict") || message.includes("23P01")) return "Um dos recursos já está reservado ou bloqueado nesse período.";
+  if (message.includes("resource_block_invalid_option")) return "Uma opção selecionada não está mais disponível.";
+  if (message.includes("resource_block_invalid_interval")) return "Revise o período informado para o bloqueio.";
+  return "Não foi possível salvar o bloqueio complementar. Tente novamente.";
+}
+
+export async function saveResourceBlock(input: ResourceBlockInput): Promise<AppointmentActionResult<ResourceBlock[]>> {
+  const timesValid = input.startTime === null && input.endTime === null || Boolean(input.startTime && input.endTime && timePattern.test(input.startTime) && timePattern.test(input.endTime) && timeToMinutes(input.startTime) < endTimeToMinutes(input.endTime));
+  if (!datePattern.test(input.date) || !input.optionIds.length || !input.optionIds.every((id) => uuid.test(id)) || !timesValid || input.reason.trim().length > 160 || (input.recurring && input.repeatCount !== null && (!Number.isInteger(input.repeatCount) || input.repeatCount < 2))) return { ok: false, message: "Revise os dados do bloqueio." };
+  const business = await requireCurrentBusiness();
+  const error = await createResourceBlocks({ ...input, reason: input.reason.trim() });
+  if (error) return { ok: false, conflict: error.code === "23P01", message: resourceBlockError(error.message) };
+  revalidatePath("/admin"); revalidatePath("/admin/agenda");
+  return { ok: true, message: input.recurring ? "Bloqueio complementar recorrente criado." : "Bloqueio complementar criado.", data: await listResourceBlocks(business.id, input.date) };
+}
+
+export async function removeResourceBlock(id: string, scope: "single" | "future", date: string): Promise<AppointmentActionResult<ResourceBlock[]>> {
+  if (!uuid.test(id) || !datePattern.test(date) || !["single", "future"].includes(scope)) return { ok: false, message: "Exclusão inválida." };
+  const business = await requireCurrentBusiness();
+  const error = await cancelResourceBlock(id, scope);
+  if (error) return { ok: false, message: resourceBlockError(error.message) };
+  revalidatePath("/admin"); revalidatePath("/admin/agenda");
+  return { ok: true, message: scope === "future" ? "Este e os próximos bloqueios foram removidos." : "Bloqueio removido.", data: await listResourceBlocks(business.id, date) };
 }
