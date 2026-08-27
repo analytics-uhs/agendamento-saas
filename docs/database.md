@@ -133,6 +133,8 @@ Todos os estados exceto `cancelled` mantêm a allocation ativa. O helper privado
 
 `get_public_complementary_availability(slug, date, start_time, end_time)` é a superfície anônima curada do Grupo complementar. Ela publica somente o nome configurado, `intent_name`, modo de ocupação e opções ativas com um booleano de disponibilidade. IDs internos de negócio, allocations brutas e dados de clientes não são retornados.
 
+`get_public_booking_page` inclui `intent_name` e `occupancy_mode` exclusivamente no objeto do Grupo complementar. Negócios legados e objetos dos Grupos principal/secundário preservam o formato anterior, permitindo que a página omita totalmente o seletor de intenção quando não existe complemento ativo.
+
 - `day`: não aceita horários, exige pelo menos uma janela ativa de `business_hours` no weekday e verifica a opção no intervalo técnico da data inteira;
 - `time_slot`: exige início/fim futuros e inteiramente contidos em uma única janela ativa; intervals adjacentes continuam válidos;
 - grupo ou opção inativos não são publicados;
@@ -145,6 +147,8 @@ O appointment principal continua sendo criado pela RPC legada `create_public_app
 Locks são adquiridos em ordem determinística: primeiro `business_id + date`, depois `option_id + date` do complemento. A criação complementar ainda revalida `resource_allocations`, e a exclusion constraint é a barreira final. Conflitos são traduzidos para `reservation_primary_conflict` ou `reservation_complementary_conflict` (`23P01`). Se qualquer componente falhar, PostgreSQL reverte reservation, appointment, reservation resource, allocation e efeitos transacionais associados, sem estado parcial.
 
 A exceção administrativa fora de `business_hours` não faz parte dessas RPCs públicas. Uma futura superfície Admin deverá ser separada e poderá ignorar somente a validação de funcionamento, nunca tenant, conflicts, allocations, blocks ou constraints.
+
+A notificação atual continua sendo produzida pelo appointment criado no caminho principal. Assim, reservas `primary-only` e combinadas preservam sino/Web Push; reservas exclusivamente complementares ainda não geram notificação administrativa nesta etapa e exigem uma evolução posterior orientada ao agregado `reservations`.
 
 ## Agenda administrativa
 
@@ -211,6 +215,7 @@ As migrations são aplicadas em ordem:
 19. `20260826040000_complementary_availability_and_reservations.sql` — disponibilidade pública curada e criação agregada transacional com reutilização do motor legado.
 20. `20260826050000_fix_complementary_rpc_trim.sql` — corrige a resolução explícita da normalização textual nas RPCs complementares.
 21. `20260826060000_fix_primary_only_reservation_response.sql` — preserva a resposta do agregado quando a reserva contém somente o Grupo principal.
+22. `20260827010000_public_complementary_group_metadata.sql` — adiciona somente `intent_name` e `occupancy_mode` do Grupo complementar ao payload público curado.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
