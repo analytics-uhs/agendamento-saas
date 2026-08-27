@@ -9,6 +9,9 @@ import type { AppointmentRepositoryError } from "@/lib/repositories/appointments
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
+import { createAdminReservation, getAdminComplementaryAvailability, listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
+import type { ComplementaryAvailability } from "@/types/public-booking";
+import type { ManualReservationInput } from "@/types/appointments";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,6 +34,10 @@ function logAppointmentError(operation: AppointmentOperation, error: Appointment
 }
 
 function actionError(message: string, code?: string, operation: AppointmentOperation = "default"): AppointmentActionResult<never> {
+  if (message.includes("reservation_complementary_conflict")) return { ok: false, conflict: true, message: "O recurso complementar já está reservado nesse período." };
+  if (message.includes("reservation_primary_conflict")) return { ok: false, conflict: true, message: "O horário principal já está ocupado." };
+  if (message.includes("reservation_complementary_unavailable") || message.includes("reservation_complementary_option_invalid")) return { ok: false, staleSelection: true, message: "A opção complementar não está mais disponível." };
+  if (message.includes("admin_reservation_forbidden") || message.includes("authentication_required")) return { ok: false, message: "Reserva não encontrada ou sem permissão de acesso." };
   if (message.includes("recurring_conflicts:")) {
     try {
       const conflicts = JSON.parse(message.slice(message.indexOf("recurring_conflicts:") + 20)) as { date: string; start_time: string }[];
@@ -66,19 +73,74 @@ export async function loadDailyAdminCalendar(
   if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
   const business = await requireCurrentBusiness();
   try {
-    const [appointments, blocks, windows] = await Promise.all([
+    const [appointments, complementaryReservations, blocks, windows] = await Promise.all([
       listAppointments(business.id, date),
+      listAdminComplementaryReservations(business.id, date),
       listCalendarBlocks(business.id, date),
       getBusinessHoursForDate(business.id, date),
     ]);
     return {
       ok: true,
       message: "Agenda diária atualizada.",
-      data: { appointments, blocks, windows },
+      data: { appointments, complementaryReservations, blocks, windows },
     };
   } catch {
     return { ok: false, message: "Não foi possível carregar a agenda diária." };
   }
+}
+
+export async function loadAdminComplementaryAvailability(input: { date: string; startTime: string | null; endTime: string | null }): Promise<AppointmentActionResult<ComplementaryAvailability>> {
+  if (!datePattern.test(input.date) || (input.startTime && !timePattern.test(input.startTime)) || (input.endTime && !timePattern.test(input.endTime))) return { ok: false, message: "Intervalo inválido." };
+  await requireCurrentBusiness();
+  const result = await getAdminComplementaryAvailability(input);
+  return result.error || !result.data ? actionError(result.error?.message ?? "invalid_availability", result.error?.code) : { ok: true, message: "Recursos atualizados.", data: result.data };
+}
+
+export async function createManualReservation(input: ManualReservationInput): Promise<AppointmentActionResult<DailyCalendarData>> {
+  const hasPrimary = input.primary !== null;
+  const hasComplementary = input.complementary !== null;
+  const expectedComponents = input.intent === "combined"
+    ? hasPrimary && hasComplementary
+    : input.intent === "primary"
+      ? hasPrimary && !hasComplementary
+      : !hasPrimary && hasComplementary;
+  const date = input.primary?.date ?? input.complementary?.date ?? "";
+  const primaryValid = !input.primary || (
+    datePattern.test(input.primary.date)
+    && timePattern.test(input.primary.startTime)
+    && validOption(input.primary.group1OptionId)
+    && validOption(input.primary.group2OptionId)
+    && Number.isInteger(input.primary.blocks)
+    && input.primary.blocks > 0
+  );
+  const complementaryValid = !input.complementary || (
+    uuid.test(input.complementary.optionId)
+    && datePattern.test(input.complementary.date)
+    && (input.complementary.occupancyMode === "day"
+      ? input.complementary.startTime === null && input.complementary.endTime === null
+      : Boolean(input.complementary.startTime && input.complementary.endTime
+        && timePattern.test(input.complementary.startTime)
+        && timePattern.test(input.complementary.endTime)))
+  );
+  if (!expectedComponents || !datePattern.test(date) || !primaryValid || !complementaryValid || (input.primary && input.complementary && input.primary.date !== input.complementary.date)) {
+    return { ok: false, message: "Revise os dados da reserva." };
+  }
+  if (input.customerName.trim().length < 2) return { ok: false, message: "Informe o nome do cliente." };
+  if (!validateWhatsapp(input.customerWhatsapp)) return { ok: false, message: "Informe um WhatsApp válido com DDD." };
+  const business = await requireCurrentBusiness();
+  if (!business.active) return { ok: false, message: "Este estabelecimento está inativo e não aceita novas reservas." };
+  const normalized = { ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) };
+  const error = await createAdminReservation(normalized);
+  if (error) return actionError(error.message, error.code);
+  revalidatePath("/admin");
+  revalidatePath("/admin/agenda");
+  const [appointments, complementaryReservations, blocks, windows] = await Promise.all([
+    listAppointments(business.id, date),
+    listAdminComplementaryReservations(business.id, date),
+    listCalendarBlocks(business.id, date),
+    getBusinessHoursForDate(business.id, date),
+  ]);
+  return { ok: true, message: "Reserva criada.", data: { appointments, complementaryReservations, blocks, windows } };
 }
 
 export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {

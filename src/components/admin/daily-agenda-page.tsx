@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, LoaderCircle, Plus } from "lucide-react";
+import { Ban, CalendarCheck2, Clock3, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
@@ -17,6 +17,7 @@ import { Modal } from "@/components/ui/modal";
 import { CalendarBlockModal } from "@/components/admin/calendar-block-modal";
 import { CalendarBlockDetails } from "@/components/admin/calendar-block-details";
 import { classes } from "@/lib/classes";
+import { appointmentStatusLabels } from "@/lib/appointments";
 import {
   appointmentsForResource,
   buildDailyCalendarRows,
@@ -30,7 +31,9 @@ import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
 import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
 import type {
   AdminAppointment,
+  AdminComplementaryReservation,
   AppointmentSchedulingConfig,
+  AppointmentOption,
   CalendarBlock,
   DailyCalendarWindow,
 } from "@/types/appointments";
@@ -41,6 +44,7 @@ const timeColumnWidth = 72;
 export function DailyAgendaPage({
   initialDate,
   initialAppointments,
+  initialComplementaryReservations,
   initialBlocks,
   initialWindows,
   config,
@@ -48,6 +52,7 @@ export function DailyAgendaPage({
 }: {
   initialDate: string;
   initialAppointments: AdminAppointment[];
+  initialComplementaryReservations: AdminComplementaryReservation[];
   initialBlocks: CalendarBlock[];
   initialWindows: DailyCalendarWindow[];
   config: AppointmentSchedulingConfig;
@@ -57,6 +62,7 @@ export function DailyAgendaPage({
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [windows, setWindows] = useState(initialWindows);
   const [blocks, setBlocks] = useState(initialBlocks);
+  const [complementaryReservations, setComplementaryReservations] = useState(initialComplementaryReservations);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
   const [editingBlock, setEditingBlock] = useState<CalendarBlock | null>(null);
@@ -106,6 +112,7 @@ export function DailyAgendaPage({
         return;
       }
       setAppointments(result.data.appointments);
+      setComplementaryReservations(result.data.complementaryReservations ?? []);
       setBlocks(result.data.blocks);
       setWindows(result.data.windows);
     });
@@ -166,6 +173,9 @@ export function DailyAgendaPage({
           {feedback.message}
         </p>
       ) : null}
+
+      {config.complementaryGroup?.occupancyMode === "day" ? <DayReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="day")} options={config.complementaryGroup.options} /> : null}
+      {config.complementaryGroup && complementaryReservations.some((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id)) ? <TimeSlotReservations reservations={complementaryReservations.filter((item)=>item.occupancyMode==="time_slot" && !appointments.some((appointment)=>appointment.complementary?.id===item.id))} /> : null}
 
       {loading ? (
         <p className="mt-4 flex items-center justify-center gap-2 rounded-xl border bg-background p-10 text-sm text-muted">
@@ -236,9 +246,10 @@ export function DailyAgendaPage({
           prefill={formPrefill ?? { date: editingAppointment!.appointmentDate }}
           appointment={editingAppointment}
           onClose={() => { setFormPrefill(null); setEditingAppointment(null); }}
-          onSaved={(next, date, message) => {
+          onSaved={(next, date, message, nextComplementary) => {
             if (date === selectedDate) setAppointments(next);
             else selectDate(date);
+            if (date === selectedDate && nextComplementary) setComplementaryReservations(nextComplementary);
             setFeedback({ ok: true, message });
             setFormPrefill(null);
             setEditingAppointment(null);
@@ -253,6 +264,51 @@ export function DailyAgendaPage({
       ) : null}
     </>
   );
+}
+
+function DayReservations({ reservations, options }: { reservations: AdminComplementaryReservation[]; options: AppointmentOption[] }) {
+  const catalog = [
+    ...options.map((option) => ({ id: option.id, name: option.name })),
+    ...reservations
+      .filter((reservation) => !options.some((option) => option.id === reservation.optionId))
+      .map((reservation) => ({ id: reservation.optionId, name: reservation.optionName })),
+  ];
+  return (
+    <section className="mt-4 rounded-xl border bg-background p-4" aria-labelledby="day-reservations-title">
+      <div className="flex items-center gap-2">
+        <CalendarCheck2 className="h-4 w-4 text-primary" />
+        <h2 id="day-reservations-title" className="text-sm font-semibold">Reservas do dia</h2>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {catalog.map((option) => {
+          const reservation = reservations.find((item) => item.optionId === option.id && item.status !== "cancelled");
+          return (
+            <div key={option.id} className="rounded-xl border bg-surface/40 p-3">
+              <p className="text-sm font-semibold">{option.name}</p>
+              {reservation ? (
+                <>
+                  <p className="mt-1 text-sm">{reservation.customerName}</p>
+                  <p className="mt-1 text-xs text-muted">{appointmentStatusLabels[reservation.status]}</p>
+                </>
+              ) : <p className="mt-1 text-xs text-success">Disponível</p>}
+            </div>
+          );
+        })}
+      </div>
+      {reservations.some((item) => item.status === "cancelled") ? (
+        <div className="mt-3 border-t pt-3">
+          <p className="text-xs font-semibold text-muted">Histórico cancelado</p>
+          {reservations.filter((item) => item.status === "cancelled").map((item) => (
+            <p key={item.id} className="mt-1 text-xs text-muted">{item.optionName} · {item.customerName}</p>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function TimeSlotReservations({ reservations }: { reservations: AdminComplementaryReservation[] }) {
+  return <section className="mt-4 rounded-xl border bg-background p-4" aria-labelledby="time-slot-reservations-title"><div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-primary"/><h2 id="time-slot-reservations-title" className="text-sm font-semibold">Complementos por horário</h2></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{reservations.map((reservation)=><div key={reservation.id} className="flex items-center justify-between gap-3 rounded-xl border bg-surface/40 p-3"><div><p className="text-sm font-semibold">{reservation.optionName}</p><p className="mt-0.5 text-xs text-muted">{reservation.customerName}</p></div><span className="text-sm font-semibold tabular-nums">{reservation.startTime}–{reservation.endTime}</span></div>)}</div></section>;
 }
 
 function DesktopDailyGrid({
@@ -493,6 +549,7 @@ function DailyAppointmentCard({
             .filter(Boolean)
             .join(" · ")}
         </p>
+        {appointment.complementary ? <p className="mt-1 truncate rounded-md bg-accent/15 px-1.5 py-1 text-xs font-medium">{appointment.complementary.optionName} · {appointment.complementary.occupancyMode === "day" ? "Reserva do dia" : `${appointment.complementary.startTime}–${appointment.complementary.endTime}`}</p> : null}
       </button>
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
         <AppointmentWhatsappReminder

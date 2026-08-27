@@ -27,18 +27,20 @@ function parseSlots(value: Json): BookingSlot[] {
 
 export async function listAppointments(businessId: string, startDate: string, endDate = startDate): Promise<AdminAppointment[]> {
   const supabase = await createClient();
-  const [appointmentsResult, groupsResult, optionsResult, seriesResult] = await Promise.all([
-    supabase.from("appointments").select("id, customer_name, customer_whatsapp, appointment_date, start_time, end_time, duration_minutes, status, source, group_1_option_id, group_2_option_id, reminder_sent_at, reminder_sent_by, series_id").eq("business_id", businessId).gte("appointment_date", startDate).lte("appointment_date", endDate).order("appointment_date").order("start_time"),
+  const [appointmentsResult, groupsResult, optionsResult, seriesResult, resourcesResult] = await Promise.all([
+    supabase.from("appointments").select("id, reservation_id, customer_name, customer_whatsapp, appointment_date, start_time, end_time, duration_minutes, status, source, group_1_option_id, group_2_option_id, reminder_sent_at, reminder_sent_by, series_id").eq("business_id", businessId).gte("appointment_date", startDate).lte("appointment_date", endDate).order("appointment_date").order("start_time"),
     supabase.from("booking_groups").select("id, position, label, active").eq("business_id", businessId),
     supabase.from("booking_options").select("id, group_id, name").eq("business_id", businessId),
     supabase.from("appointment_series").select("id, weekday, start_time, starts_on, repeat_count, active").eq("business_id", businessId),
+    supabase.from("reservation_resources").select("id, reservation_id, option_id, reservation_date, start_time, end_time, occupancy_mode, status, group_name_snapshot, option_name_snapshot").eq("business_id", businessId).gte("reservation_date", startDate).lte("reservation_date", endDate),
   ]);
-  const error = appointmentsResult.error ?? groupsResult.error ?? optionsResult.error ?? seriesResult.error;
+  const error = appointmentsResult.error ?? groupsResult.error ?? optionsResult.error ?? seriesResult.error ?? resourcesResult.error;
   if (error) throw new Error(`Não foi possível carregar os agendamentos: ${error.message}`);
 
   const groups = new Map((groupsResult.data ?? []).map((group) => [group.id, group]));
   const options = new Map((optionsResult.data ?? []).map((option) => [option.id, { ...option, group: groups.get(option.group_id) }]));
   const series = new Map((seriesResult.data ?? []).map((item) => [item.id, item]));
+  const resources = new Map((resourcesResult.data ?? []).map((item) => [item.reservation_id, item]));
   return (appointmentsResult.data ?? []).map((appointment) => {
     const group1 = appointment.group_1_option_id ? options.get(appointment.group_1_option_id) : null;
     const group2 = appointment.group_2_option_id ? options.get(appointment.group_2_option_id) : null;
@@ -66,6 +68,7 @@ export async function listAppointments(businessId: string, startDate: string, en
       } : null,
       group1: group1?.group?.active ? { id: group1.id, label: group1.group.label, name: group1.name } : null,
       group2: group2?.group?.active ? { id: group2.id, label: group2.group.label, name: group2.name } : null,
+      complementary: appointment.reservation_id && resources.get(appointment.reservation_id) ? (() => { const resource = resources.get(appointment.reservation_id)!; return { id: resource.id, reservationId: resource.reservation_id, optionId: resource.option_id, customerName: appointment.customer_name, customerWhatsapp: appointment.customer_whatsapp, reservationDate: resource.reservation_date, startTime: resource.start_time?.slice(0, 5) ?? null, endTime: resource.end_time ? displayEndTime(resource.end_time) : null, occupancyMode: resource.occupancy_mode, status: resource.status, groupName: resource.group_name_snapshot, optionName: resource.option_name_snapshot }; })() : null,
     };
   });
 }
@@ -94,7 +97,7 @@ export async function getBusinessHoursForDate(
 export async function getAppointmentSchedulingConfig(businessId: string): Promise<AppointmentSchedulingConfig> {
   const supabase = await createClient();
   const [groupsResult, optionsResult, settingsResult, hoursResult] = await Promise.all([
-    supabase.from("booking_groups").select("id, position, label").eq("business_id", businessId).eq("active", true).order("sort_order"),
+    supabase.from("booking_groups").select("id, position, label, intent_name, occupancy_mode").eq("business_id", businessId).eq("active", true).order("sort_order"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes").eq("business_id", businessId).eq("active", true).order("sort_order"),
     supabase.from("business_settings").select("duration_mode, fixed_duration_minutes").eq("business_id", businessId).single(),
     supabase.from("business_hours").select("weekday, start_time, end_time").eq("business_id", businessId).eq("active", true).order("weekday").order("start_time"),
@@ -116,6 +119,7 @@ export async function getAppointmentSchedulingConfig(businessId: string): Promis
   });
   return {
     groups,
+    complementaryGroup: (() => { const group = (groupsResult.data ?? []).find((item) => item.position === 3); return group && (group.occupancy_mode === "day" || group.occupancy_mode === "time_slot") ? { label: group.label, intentName: group.intent_name ?? group.label, occupancyMode: group.occupancy_mode, options: (optionsResult.data ?? []).filter((option) => option.group_id === group.id).map((option) => ({ id: option.id, name: option.name, durationMinutes: null })) } : null; })(),
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,
     businessHours: (hoursResult.data ?? []).map((hour) => ({

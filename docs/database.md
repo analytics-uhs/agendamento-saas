@@ -146,7 +146,7 @@ O appointment principal continua sendo criado pela RPC legada `create_public_app
 
 Locks são adquiridos em ordem determinística: primeiro `business_id + date`, depois `option_id + date` do complemento. A criação complementar ainda revalida `resource_allocations`, e a exclusion constraint é a barreira final. Conflitos são traduzidos para `reservation_primary_conflict` ou `reservation_complementary_conflict` (`23P01`). Se qualquer componente falhar, PostgreSQL reverte reservation, appointment, reservation resource, allocation e efeitos transacionais associados, sem estado parcial.
 
-A exceção administrativa fora de `business_hours` não faz parte dessas RPCs públicas. Uma futura superfície Admin deverá ser separada e poderá ignorar somente a validação de funcionamento, nunca tenant, conflicts, allocations, blocks ou constraints.
+A exceção administrativa fora de `business_hours` não faz parte dessas RPCs públicas. A superfície Admin usa RPCs separadas e ignora somente a validação de funcionamento, nunca tenant, conflicts, allocations, blocks ou constraints.
 
 A notificação atual continua sendo produzida pelo appointment criado no caminho principal. Assim, reservas `primary-only` e combinadas preservam sino/Web Push; reservas exclusivamente complementares ainda não geram notificação administrativa nesta etapa e exigem uma evolução posterior orientada ao agregado `reservations`.
 
@@ -155,6 +155,12 @@ A notificação atual continua sendo produzida pelo appointment criado no caminh
 Membros autenticados consultam appointments do próprio negócio através de repositories server-only e RLS. Dashboard e Agenda não recebem `business_id` do browser. Os detalhes exibem cliente, WhatsApp, duração, grupos, status e origem, sem mostrar identificadores técnicos.
 
 `create_admin_appointment(...)` resolve a membership `owner`/`admin`, define um contexto transacional de origem e chama `create_public_appointment`. O trigger de insert registra `source = admin` e `created_by = auth.uid()`; fora desse contexto, a origem é `public` e `created_by` permanece nulo.
+
+`create_admin_reservation(payload)` cria reservas somente do Grupo principal, somente do Grupo complementar ou combinadas. A RPC exige `owner`/`admin`, valida o catálogo ativo do negócio atual e reutiliza `create_admin_appointment` para o componente principal. O Admin pode criar `day` em dia fechado e `time_slot` fora das janelas públicas, mas os advisory locks, allocations, bloqueios e exclusion constraints continuam ativos; qualquer conflito reverte o agregado inteiro.
+
+`get_admin_complementary_availability(date, start_time, end_time)` retorna somente opções complementares ativas do negócio atual. A Agenda mantém reservas `day` em “Reservas do dia”, fora da grade horária, mostra reservas `time_slot` avulsas separadamente e anexa o snapshot complementar aos appointments combinados. Snapshots mantêm o histórico legível após renomear ou inativar uma opção. Negócios sem Grupo complementar preservam o modal e a Agenda legados.
+
+Reservas exclusivamente complementares ainda não geram notificações administrativas e o cancelamento isolado do complemento permanece para uma evolução posterior. Reservas combinadas continuam notificando pelo appointment principal existente.
 
 Na Data API, `authenticated` possui somente `SELECT` em `appointments`, ainda limitado pela RLS ao negócio do membro. Os privilégios diretos de `INSERT`, `UPDATE` e `DELETE` são revogados. Assim, a criação não contorna o motor compartilhado, a alteração de estado só ocorre por `set_appointment_status` e não há exclusão física de reservas no MVP. As RPCs são `security definer`, têm `search_path` fixo e continuam operando com os privilégios de seu proprietário, não com os grants do chamador.
 
@@ -216,6 +222,8 @@ As migrations são aplicadas em ordem:
 20. `20260826050000_fix_complementary_rpc_trim.sql` — corrige a resolução explícita da normalização textual nas RPCs complementares.
 21. `20260826060000_fix_primary_only_reservation_response.sql` — preserva a resposta do agregado quando a reserva contém somente o Grupo principal.
 22. `20260827010000_public_complementary_group_metadata.sql` — adiciona somente `intent_name` e `occupancy_mode` do Grupo complementar ao payload público curado.
+23. `20260827020000_admin_complementary_reservations.sql` — disponibilidade e criação administrativa transacional para reservas principais, complementares e combinadas.
+24. `20260827020100_fix_admin_reservation_trim.sql` — corrige a normalização textual e endurece a validação do payload da RPC administrativa.
 
 O seed cria o catálogo “Arena Central / Quadra / Esporte”, mas nenhum usuário ou credencial. Os tipos em `src/types/database.ts` devem ser regenerados após mudanças remotas com:
 
