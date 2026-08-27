@@ -783,11 +783,11 @@ Toda a suíte existente de booking engine, recorrência, bloqueios, status, noti
 - mesma allocation/exclusion;
 - visualização administrativa.
 
+Implementada com séries semanais permanentes ou por quantidade, seleção atômica de múltiplas opções e cancelamento de uma ocorrência ou desta e das próximas. O Admin escolhe entre a agenda principal e o Grupo complementar somente quando o complemento está ativo; negócios legados mantêm o fluxo anterior sem etapa adicional.
+
 Apesar da divisão incremental, a funcionalidade não deve ser exposta ao usuário final antes da conclusão desta PR e dos demais requisitos do critério de produção.
 
 ### Evoluções posteriores
-
-- recorrência complementar;
 - anexar complemento a ocorrências;
 - preços por componente;
 - preço de pacote;

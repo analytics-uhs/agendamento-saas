@@ -17,6 +17,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 - `reservations`: intenção agregada que futuramente coordena um appointment principal e um ou mais componentes complementares;
 - `reservation_resources`: componentes complementares com modo de ocupação e nomes do catálogo preservados como snapshots;
 - `resource_allocations`: barreira única de concorrência dos recursos complementares.
+- `resource_blocks` e `resource_block_series`: indisponibilidades avulsas ou semanais dos recursos complementares; cada ocorrência ocupa a mesma barreira de `resource_allocations` usada pelas reservas.
 
 Foreign keys compostas impedem que opções de outra empresa sejam referenciadas. Um trigger também valida que `group_1_option_id` e `group_2_option_id` apontem para as posições lógicas corretas. Outro trigger impede remover ou rebaixar o último owner.
 
@@ -147,6 +148,10 @@ O appointment principal continua sendo criado pela RPC legada `create_public_app
 Locks são adquiridos em ordem determinística: primeiro `business_id + date`, depois `option_id + date` do complemento. A criação complementar ainda revalida `resource_allocations`, e a exclusion constraint é a barreira final. Conflitos são traduzidos para `reservation_primary_conflict` ou `reservation_complementary_conflict` (`23P01`). Se qualquer componente falhar, PostgreSQL reverte reservation, appointment, reservation resource, allocation e efeitos transacionais associados, sem estado parcial.
 
 A exceção administrativa fora de `business_hours` não faz parte dessas RPCs públicas. A superfície Admin usa RPCs separadas e ignora somente a validação de funcionamento, nunca tenant, conflicts, allocations, blocks ou constraints.
+
+Bloqueios complementares são criados por `create_admin_resource_blocks` para uma ou várias opções do Grupo complementar. O modo `day` não armazena horários fictícios; `time_slot` exige um intervalo próprio. Séries semanais permanentes são materializadas em horizonte controlado e séries limitadas respeitam a quantidade total. `materialize_resource_blocks` é idempotente, enquanto `cancel_admin_resource_block` remove somente uma ocorrência ou esta e as próximas. Todas as mutações exigem `owner`/`admin`; acesso direto de escrita permanece revogado.
+
+Cada bloqueio ativo gera exatamente uma allocation cuja origem é exclusiva: `reservation_resource_id` para reserva ou `resource_block_id` para bloqueio. A exclusion constraint já existente continua sendo a autoridade final para conflito entre reserva × reserva, reserva × bloqueio e bloqueio × bloqueio. Ao cancelar, a allocation é desativada atomicamente e o recurso volta à disponibilidade.
 
 A notificação atual continua sendo produzida pelo appointment criado no caminho principal. Assim, reservas `primary-only` e combinadas preservam sino/Web Push; reservas exclusivamente complementares ainda não geram notificação administrativa nesta etapa e exigem uma evolução posterior orientada ao agregado `reservations`.
 

@@ -74,10 +74,18 @@ export interface Database {
         Relationships: [{ foreignKeyName: "reservation_resources_reservation_tenant_fk"; columns: ["reservation_id", "business_id"]; isOneToOne: false; referencedRelation: "reservations"; referencedColumns: ["id", "business_id"] }, { foreignKeyName: "reservation_resources_group_tenant_fk"; columns: ["group_id", "business_id"]; isOneToOne: false; referencedRelation: "booking_groups"; referencedColumns: ["id", "business_id"] }, { foreignKeyName: "reservation_resources_option_tenant_fk"; columns: ["option_id", "business_id"]; isOneToOne: false; referencedRelation: "booking_options"; referencedColumns: ["id", "business_id"] }];
       };
       resource_allocations: {
-        Row: { id: string; business_id: string; option_id: string; reservation_resource_id: string; occupancy_mode: BookingGroupOccupancyMode; allocation_date: string; start_time: string | null; end_time: string | null; occupied_period: string; active: boolean; created_at: string };
-        Insert: { id?: string; business_id: string; option_id: string; reservation_resource_id: string; occupancy_mode: BookingGroupOccupancyMode; allocation_date: string; start_time?: string | null; end_time?: string | null; active?: boolean; created_at?: string };
+        Row: { id: string; business_id: string; option_id: string; reservation_resource_id: string | null; resource_block_id: string | null; occupancy_mode: BookingGroupOccupancyMode; allocation_date: string; start_time: string | null; end_time: string | null; occupied_period: string; active: boolean; created_at: string };
+        Insert: { id?: string; business_id: string; option_id: string; reservation_resource_id?: string | null; resource_block_id?: string | null; occupancy_mode: BookingGroupOccupancyMode; allocation_date: string; start_time?: string | null; end_time?: string | null; active?: boolean; created_at?: string };
         Update: { active?: boolean };
         Relationships: [{ foreignKeyName: "resource_allocations_resource_tenant_fk"; columns: ["reservation_resource_id", "business_id"]; isOneToOne: false; referencedRelation: "reservation_resources"; referencedColumns: ["id", "business_id"] }, { foreignKeyName: "resource_allocations_option_tenant_fk"; columns: ["option_id", "business_id"]; isOneToOne: false; referencedRelation: "booking_options"; referencedColumns: ["id", "business_id"] }];
+      };
+      resource_block_series: {
+        Row: { id: string; business_id: string; group_id: string; option_id: string; occupancy_mode: BookingGroupOccupancyMode; weekday: number; start_time: string | null; end_time: string | null; starts_on: string; repeat_count: number | null; reason: string | null; active: boolean; created_by: string } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
+      };
+      resource_blocks: {
+        Row: { id: string; business_id: string; group_id: string; option_id: string; series_id: string | null; occupancy_mode: BookingGroupOccupancyMode; block_date: string; start_time: string | null; end_time: string | null; reason: string | null; active: boolean; created_by: string } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
       };
       appointment_series: {
         Row: { id: string; business_id: string; group_1_option_id: string | null; group_2_option_id: string | null; customer_name: string; customer_whatsapp: string; weekday: number; start_time: string; duration_minutes: number; blocks: number; starts_on: string; repeat_count: number | null; active: boolean; created_by: string | null } & Timestamps;
@@ -131,6 +139,9 @@ export interface Database {
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };
       get_public_complementary_availability: { Args: { p_slug: string; p_date: string; p_start_time?: string | null; p_end_time?: string | null }; Returns: Json };
       get_admin_complementary_availability: { Args: { p_date: string; p_start_time?: string | null; p_end_time?: string | null }; Returns: Json };
+      create_admin_resource_blocks: { Args: { p_option_ids: string[]; p_date: string; p_start_time?: string | null; p_end_time?: string | null; p_reason?: string | null; p_recurring?: boolean; p_repeat_count?: number | null }; Returns: Json };
+      cancel_admin_resource_block: { Args: { p_block_id: string; p_scope: string }; Returns: Json };
+      materialize_resource_blocks: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
       get_platform_business_detail: { Args: { p_business_id: string }; Returns: Json };
       get_platform_metrics: { Args: Record<PropertyKey, never>; Returns: Json };
       is_current_user_platform_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
