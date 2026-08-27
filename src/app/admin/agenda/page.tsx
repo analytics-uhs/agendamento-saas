@@ -5,16 +5,18 @@ import { getAppointmentSchedulingConfig, getBusinessHoursForDate, listAppointmen
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
 import { listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
+import { listResourceBlocks } from "@/lib/repositories/resource-blocks";
 
 export const metadata: Metadata = { title: "Agenda" };
 
 export default async function AgendaPage() {
   const business = await requireCurrentBusiness();
   const today = todayInTimeZone();
-  const [appointments, complementaryReservations, blocks, config, windows] = await Promise.all([
+  const [appointments, complementaryReservations, blocks, resourceBlocks, config, windows] = await Promise.all([
     listAppointments(business.id, today),
     listAdminComplementaryReservations(business.id, today),
     listCalendarBlocks(business.id, today),
+    listResourceBlocks(business.id, today),
     getAppointmentSchedulingConfig(business.id),
     getBusinessHoursForDate(business.id, today),
   ]);
@@ -24,6 +26,7 @@ export default async function AgendaPage() {
       initialAppointments={appointments}
       initialComplementaryReservations={complementaryReservations}
       initialBlocks={blocks}
+      initialResourceBlocks={resourceBlocks}
       initialWindows={windows}
       config={config}
       businessActive={business.active}

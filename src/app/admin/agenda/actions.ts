@@ -9,6 +9,7 @@ import type { AppointmentRepositoryError } from "@/lib/repositories/appointments
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
+import { listResourceBlocks } from "@/lib/repositories/resource-blocks";
 import { createAdminReservation, getAdminComplementaryAvailability, listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
 import type { ComplementaryAvailability } from "@/types/public-booking";
 import type { ManualReservationInput } from "@/types/appointments";
@@ -73,16 +74,17 @@ export async function loadDailyAdminCalendar(
   if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
   const business = await requireCurrentBusiness();
   try {
-    const [appointments, complementaryReservations, blocks, windows] = await Promise.all([
+    const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([
       listAppointments(business.id, date),
       listAdminComplementaryReservations(business.id, date),
       listCalendarBlocks(business.id, date),
+      listResourceBlocks(business.id, date),
       getBusinessHoursForDate(business.id, date),
     ]);
     return {
       ok: true,
       message: "Agenda diária atualizada.",
-      data: { appointments, complementaryReservations, blocks, windows },
+      data: { appointments, complementaryReservations, blocks, resourceBlocks, windows },
     };
   } catch {
     return { ok: false, message: "Não foi possível carregar a agenda diária." };
@@ -134,13 +136,14 @@ export async function createManualReservation(input: ManualReservationInput): Pr
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  const [appointments, complementaryReservations, blocks, windows] = await Promise.all([
+  const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([
     listAppointments(business.id, date),
     listAdminComplementaryReservations(business.id, date),
     listCalendarBlocks(business.id, date),
+    listResourceBlocks(business.id, date),
     getBusinessHoursForDate(business.id, date),
   ]);
-  return { ok: true, message: "Reserva criada.", data: { appointments, complementaryReservations, blocks, windows } };
+  return { ok: true, message: "Reserva criada.", data: { appointments, complementaryReservations, blocks, resourceBlocks, windows } };
 }
 
 export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {

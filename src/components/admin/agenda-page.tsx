@@ -22,6 +22,8 @@ import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
 import { CalendarBlockModal } from "@/components/admin/calendar-block-modal";
 import { CalendarBlockDetails } from "@/components/admin/calendar-block-details";
+import { BlockKindModal } from "@/components/admin/block-kind-modal";
+import { ComplementaryBlockModal } from "@/components/admin/complementary-block-modal";
 import { useAppointmentManagement } from "@/components/admin/use-appointment-management";
 import { PageHeader } from "@/components/ui/page-header";
 import { RecurringBadge } from "@/components/admin/recurring-badge";
@@ -42,6 +44,7 @@ import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
   CalendarBlock,
+  ResourceBlock,
 } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
@@ -79,6 +82,7 @@ export function AgendaPageContent({
   initialDate,
   initialAppointments,
   initialBlocks,
+  initialResourceBlocks,
   config,
   businessActive,
   embedded = false,
@@ -87,6 +91,7 @@ export function AgendaPageContent({
   initialDate: string;
   initialAppointments: AdminAppointment[];
   initialBlocks: CalendarBlock[];
+  initialResourceBlocks: ResourceBlock[];
   config: AppointmentSchedulingConfig;
   businessActive: boolean;
   embedded?: boolean;
@@ -97,7 +102,10 @@ export function AgendaPageContent({
   const [creating, setCreating] = useState(initialCreating);
   const [editingAppointment, setEditingAppointment] = useState<AdminAppointment | null>(null);
   const [blocks, setBlocks] = useState(initialBlocks);
+  const [, setResourceBlocks] = useState(initialResourceBlocks);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [blockKindOpen, setBlockKindOpen] = useState(false);
+  const [resourceBlockModalOpen, setResourceBlockModalOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
   const [editingBlock, setEditingBlock] = useState<CalendarBlock | null>(null);
   const [form, setForm] = useState(() => initialForm(config));
@@ -197,7 +205,7 @@ export function AgendaPageContent({
     startAgendaTransition(async () => {
       const result = await loadDailyAdminCalendar(date);
       if (request !== agendaRequest.current) return;
-      if (result.ok) { setAppointments(result.data.appointments); setBlocks(result.data.blocks); }
+      if (result.ok) { setAppointments(result.data.appointments); setBlocks(result.data.blocks); setResourceBlocks(result.data.resourceBlocks ?? []); }
       else setFeedback({ ok: false, message: result.message });
     });
   }
@@ -291,7 +299,7 @@ export function AgendaPageContent({
           {formatLongDate(selectedDate)}
         </p>
         <div className="flex shrink-0 gap-2">
-          <Button size="sm" variant="outline" disabled={!businessActive || selectedDate < todayISO()} onClick={() => setBlockModalOpen(true)}><Plus className="h-4 w-4" />Bloqueio</Button>
+          <Button size="sm" variant="outline" disabled={!businessActive || selectedDate < todayISO()} onClick={() => config.complementaryGroup ? setBlockKindOpen(true) : setBlockModalOpen(true)}><Plus className="h-4 w-4" />Bloqueio</Button>
           <Button size="sm" disabled={!businessActive || selectedDate < todayISO() || configurationInvalid} onClick={creating ? () => setCreating(false) : openCreation}>
             {creating ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}{creating ? "Fechar" : "Novo"}
           </Button>
@@ -652,6 +660,8 @@ export function AgendaPageContent({
         />
       ) : null}
       {blockModalOpen || editingBlock ? <CalendarBlockModal config={config} initialDate={selectedDate} block={editingBlock} onClose={() => { setBlockModalOpen(false); setEditingBlock(null); }} onSaved={(next, date, message) => { if (date === selectedDate) setBlocks(next); else selectDate(date); setFeedback({ ok: true, message }); setBlockModalOpen(false); setEditingBlock(null); }} /> : null}
+      {blockKindOpen && config.complementaryGroup ? <BlockKindModal intentName={config.complementaryGroup.intentName} onClose={() => setBlockKindOpen(false)} onSelect={(kind) => { setBlockKindOpen(false); if (kind === "primary") setBlockModalOpen(true); else setResourceBlockModalOpen(true); }} /> : null}
+      {resourceBlockModalOpen ? <ComplementaryBlockModal config={config} initialDate={selectedDate} onClose={() => setResourceBlockModalOpen(false)} onSaved={(next, date, message) => { if (date === selectedDate) setResourceBlocks(next); else selectDate(date); setFeedback({ ok: true, message }); setResourceBlockModalOpen(false); }} /> : null}
       {selectedBlock ? <CalendarBlockDetails block={selectedBlock} onClose={() => setSelectedBlock(null)} onEdit={() => { setEditingBlock(selectedBlock); setSelectedBlock(null); }} onDeleted={(next, message) => { setBlocks(next); setFeedback({ ok: true, message }); setSelectedBlock(null); }} /> : null}
     </>
   );

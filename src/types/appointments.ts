@@ -57,11 +57,38 @@ export type CalendarBlock = {
   group1: AppointmentGroupSelection | null;
   series: CalendarBlockSeriesSummary | null;
 };
+export type ResourceBlockSeriesSummary = {
+  id: string;
+  startsOn: string;
+  repeatCount: number | null;
+  active: boolean;
+};
+export type ResourceBlock = {
+  id: string;
+  blockDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  reason: string | null;
+  occupancyMode: "day" | "time_slot";
+  option: AppointmentOption;
+  series: ResourceBlockSeriesSummary | null;
+};
 export type DailyCalendarData = {
   appointments: AdminAppointment[];
   complementaryReservations?: AdminComplementaryReservation[];
   blocks: CalendarBlock[];
+  resourceBlocks?: ResourceBlock[];
   windows: DailyCalendarWindow[];
+};
+
+export type ResourceBlockInput = {
+  optionIds: string[];
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
+  reason: string;
+  recurring: boolean;
+  repeatCount: number | null;
 };
 
 export type AdminComplementaryReservation = {
