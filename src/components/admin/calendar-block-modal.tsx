@@ -20,7 +20,7 @@ import {
 import { classes } from "@/lib/classes";
 import { calendarSlotMinutes } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate } from "@/lib/date";
-import { intervalEndMinutes, isValidBookingTimeRange, endsNextDay, timeToMinutes } from "@/lib/time-of-day";
+import { intervalEndMinutes, isValidBookingTimeRange, timeToMinutes } from "@/lib/time-of-day";
 import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AppointmentSchedulingConfig,
@@ -165,7 +165,6 @@ export function CalendarBlockModal({
             <div className="space-y-1"><Label htmlFor="block-start-time">Início</Label><Input id="block-start-time" type="time" value={selectedSlots[0] ?? ""} onChange={(event) => setSelectedSlots([event.target.value])} /></div>
             <div className="space-y-1"><Label htmlFor="block-end-time">Fim</Label><Input id="block-end-time" type="time" value={endTime ?? ""} onChange={(event) => setExplicitEnd(event.target.value)} /></div>
           </div>
-          {selectedSlots[0] && endTime && endsNextDay(selectedSlots[0], endTime) ? <p className="mt-2 text-xs text-muted">Horário termina no dia seguinte.</p> : null}
           {selectedSlots.length && endTime ? (
             <p className="mt-3 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
               <CalendarClock className="h-4 w-4" />
