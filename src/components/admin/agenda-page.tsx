@@ -1,25 +1,18 @@
 "use client";
 
 import {
-  Clock3,
   Ban,
-  Info,
   LoaderCircle,
   Plus,
-  Repeat2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import {
   cancelCompleteReservation,
   cancelComplementaryReservation,
-  createManualAppointment,
-  createRecurringAppointment,
   loadDailyAdminCalendar,
-  loadAdminAvailability,
 } from "@/app/admin/agenda/actions";
 import { AppointmentWhatsappReminder } from "@/components/admin/appointment-whatsapp-reminder";
-import { formatWhatsappInput } from "@/lib/availability";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal } from "@/components/admin/appointment-form-modal";
 import { CalendarBlockModal } from "@/components/admin/calendar-block-modal";
@@ -33,52 +26,17 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { DateStrip } from "@/components/booking/date-strip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Label, Select } from "@/components/ui/field";
-import { isWithinBusinessHours, manualAppointmentDuration } from "@/lib/appointments";
 import { classes } from "@/lib/classes";
 import {
-  formatDuration,
   formatLongDate,
   todayISO,
 } from "@/lib/date";
-import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AdminAppointment,
   AppointmentSchedulingConfig,
   CalendarBlock,
   ResourceBlock,
 } from "@/types/appointments";
-import type { BookingSlot } from "@/types/public-booking";
-
-type FormState = {
-  customerName: string;
-  customerWhatsapp: string;
-  group1OptionId: string | null;
-  group2OptionId: string | null;
-  startTime: string | null;
-  blocks: number;
-  recurring: boolean;
-  recurrenceType: "permanent" | "count";
-  repeatCount: number;
-};
-
-function initialForm(config: AppointmentSchedulingConfig): FormState {
-  return {
-    customerName: "",
-    customerWhatsapp: "",
-    group1OptionId:
-      config.groups.find((group) => group.position === 1)?.options[0]?.id ??
-      null,
-    group2OptionId:
-      config.groups.find((group) => group.position === 2)?.options[0]?.id ??
-      null,
-    startTime: null,
-    blocks: 1,
-    recurring: false,
-    recurrenceType: "permanent",
-    repeatCount: 12,
-  };
-}
 
 export function AgendaPageContent({
   initialDate,
@@ -110,10 +68,7 @@ export function AgendaPageContent({
   const [resourceBlockModalOpen, setResourceBlockModalOpen] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<CalendarBlock | null>(null);
   const [editingBlock, setEditingBlock] = useState<CalendarBlock | null>(null);
-  const [form, setForm] = useState(() => initialForm(config));
-  const [slots, setSlots] = useState<BookingSlot[]>([]);
   const [loadingAgenda, startAgendaTransition] = useTransition();
-  const [loadingSlots, startSlotsTransition] = useTransition();
   const {
     appointments,
     setAppointments,
@@ -130,80 +85,19 @@ export function AgendaPageContent({
     updateReminder,
   } = useAppointmentManagement(initialAppointments, selectedDate);
   const agendaRequest = useRef(0);
-  const slotRequest = useRef(0);
-  const initialCreationHandled = useRef(false);
   const groupOne = config.groups.find((group) => group.position === 1);
   const groupTwo = config.groups.find((group) => group.position === 2);
-  const selectedSlot = slots.find((slot) => slot.startTime === form.startTime);
-  const selectedGroupTwo = groupTwo?.options.find(
-    (option) => option.id === form.group2OptionId,
-  );
-  const selectedDuration = manualAppointmentDuration({
-    mode: config.durationMode,
-    fixedDurationMinutes: config.fixedDurationMinutes,
-    group2DurationMinutes: selectedGroupTwo?.durationMinutes ?? null,
-    blocks: form.blocks,
-  });
-  const outsideBusinessHours = Boolean(form.startTime && selectedDuration && !isWithinBusinessHours({
-    date: selectedDate,
-    startTime: form.startTime,
-    durationMinutes: selectedDuration,
-    businessHours: config.businessHours,
-  }));
   const configurationInvalid = Boolean(
     (groupOne && groupOne.options.length === 0) ||
     (groupTwo && groupTwo.options.length === 0) ||
     (config.durationMode === "group_2" && !groupTwo),
   );
 
-  useEffect(() => {
-    if (!initialCreating || initialCreationHandled.current) return;
-    initialCreationHandled.current = true;
-    const request = ++slotRequest.current;
-    startSlotsTransition(async () => {
-      const result = await loadAdminAvailability({
-        date: initialDate,
-        group1OptionId: form.group1OptionId,
-        group2OptionId: form.group2OptionId,
-      });
-      if (request !== slotRequest.current) return;
-      if (result.ok) setSlots(result.data);
-      else setFeedback({ ok: false, message: result.message });
-    });
-  }, [
-    form.group1OptionId,
-    form.group2OptionId,
-    initialCreating,
-    initialDate,
-    setFeedback,
-  ]);
-
-  function fetchAvailability(
-    date: string,
-    group1OptionId = form.group1OptionId,
-    group2OptionId = form.group2OptionId,
-  ) {
-    const request = ++slotRequest.current;
-    setSlots([]);
-    setForm((current) => ({ ...current, startTime: null, blocks: 1 }));
-    startSlotsTransition(async () => {
-      const result = await loadAdminAvailability({
-        date,
-        group1OptionId,
-        group2OptionId,
-      });
-      if (request !== slotRequest.current) return;
-      if (result.ok) setSlots(result.data);
-      else setFeedback({ ok: false, message: result.message });
-    });
-  }
-
   function selectDate(date: string) {
     const request = ++agendaRequest.current;
     setSelectedDate(date);
     setSelectedId(null);
     setFeedback(null);
-    if (creating) fetchAvailability(date);
     startAgendaTransition(async () => {
       const result = await loadDailyAdminCalendar(date);
       if (request !== agendaRequest.current) return;
@@ -213,12 +107,9 @@ export function AgendaPageContent({
   }
 
   function openCreation() {
-    const next = initialForm(config);
-    setForm(next);
     setCreating(true);
     setSelectedId(null);
     setFeedback(null);
-    fetchAvailability(selectedDate, next.group1OptionId, next.group2OptionId);
   }
 
   function cancelComplementaryComponent(appointment: AdminAppointment) {
@@ -231,52 +122,6 @@ export function AgendaPageContent({
     const complementary = appointment.complementary;
     if (!complementary || !window.confirm(`Cancelar a reserva completa?\n\n${appointment.group1?.name ?? "Agenda principal"} e ${complementary.optionName} serão cancelados.`)) return;
     startSavingTransition(async () => { const result = await cancelCompleteReservation(complementary.reservationId, selectedDate); if (!result.ok) setFeedback({ ok: false, message: result.message }); else { setAppointments(result.data.appointments); setBlocks(result.data.blocks); setResourceBlocks(result.data.resourceBlocks ?? []); setFeedback({ ok: true, message: result.message }); } });
-  }
-
-  function changeGroup(position: 1 | 2, optionId: string) {
-    const nextGroup1 = position === 1 ? optionId : form.group1OptionId;
-    const nextGroup2 = position === 2 ? optionId : form.group2OptionId;
-    setForm((current) => ({
-      ...current,
-      group1OptionId: nextGroup1,
-      group2OptionId: nextGroup2,
-      startTime: null,
-      blocks: 1,
-    }));
-    setFeedback(null);
-    fetchAvailability(selectedDate, nextGroup1, nextGroup2);
-  }
-
-  function submitManualAppointment() {
-    if (!form.startTime) return;
-    setFeedback(null);
-    startSavingTransition(async () => {
-      const input = {
-        group1OptionId: form.group1OptionId,
-        group2OptionId: form.group2OptionId,
-        date: selectedDate,
-        startTime: form.startTime!,
-        blocks: form.blocks,
-        customerName: form.customerName,
-        customerWhatsapp: form.customerWhatsapp,
-      };
-      const result = form.recurring
-        ? await createRecurringAppointment({
-            ...input,
-            repeatCount:
-              form.recurrenceType === "count" ? form.repeatCount : null,
-          })
-        : await createManualAppointment(input);
-      if (!result.ok) {
-        setFeedback({ ok: false, message: result.message });
-        if (result.conflict) fetchAvailability(selectedDate);
-        if (result.staleSelection) setCreating(false);
-        return;
-      }
-      setAppointments(result.data);
-      setCreating(false);
-      setFeedback({ ok: true, message: result.message });
-    });
   }
 
   return (
@@ -327,243 +172,17 @@ export function AgendaPageContent({
         </EmptyState>
       ) : null}
       {creating ? (
-        <section className="step-in mt-4 rounded-xl border bg-background p-4">
-          <h2 className="font-semibold">Novo agendamento</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {groupOne ? (
-              <div className="space-y-1">
-                <Label htmlFor="new-g1">{groupOne.label}</Label>
-                <Select
-                  id="new-g1"
-                  value={form.group1OptionId ?? ""}
-                  onChange={(event) => changeGroup(1, event.target.value)}
-                >
-                  {groupOne.options.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-            {groupTwo ? (
-              <div className="space-y-1">
-                <Label htmlFor="new-g2">{groupTwo.label}</Label>
-                <Select
-                  id="new-g2"
-                  value={form.group2OptionId ?? ""}
-                  onChange={(event) => changeGroup(2, event.target.value)}
-                >
-                  {groupTwo.options.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                      {config.durationMode === "group_2"
-                        ? ` · ${formatDuration(option.durationMinutes ?? 0)}`
-                        : ""}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-            <div className="space-y-1">
-              <Label htmlFor="new-customer">Cliente</Label>
-              <Input
-                id="new-customer"
-                value={form.customerName}
-                maxLength={120}
-                onChange={(event) =>
-                  setForm({ ...form, customerName: event.target.value })
-                }
-                placeholder="Nome do cliente"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="new-whatsapp">WhatsApp</Label>
-              <Input
-                id="new-whatsapp"
-                inputMode="tel"
-                value={form.customerWhatsapp}
-                onChange={(event) =>
-                  setForm({ ...form, customerWhatsapp: formatWhatsappInput(event.target.value) })
-                }
-                maxLength={15}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="mb-2 text-sm font-medium">Horário</p>
-            {loadingSlots ? (
-              <EmptyState className="flex items-center justify-center gap-2">
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-                Consultando disponibilidade...
-              </EmptyState>
-            ) : slots.length ? (
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                {slots.map((slot) => (
-                  <button
-                    key={slot.startTime}
-                    type="button"
-                    onClick={() =>
-                      setForm({ ...form, startTime: slot.startTime, blocks: 1 })
-                    }
-                    className={classes(
-                      "focus-ring rounded-xl border bg-card py-2.5 text-sm font-semibold",
-                      form.startTime === slot.startTime &&
-                        "border-primary bg-primary text-white",
-                    )}
-                  >
-                    {slot.startTime}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <EmptyState>
-                Nenhum horário disponível nesta data.
-              </EmptyState>
-            )}
-          </div>
-          {form.startTime &&
-          selectedSlot &&
-          config.durationMode === "fixed_multiple" ? (
-            <div className="mt-4">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted">
-                <Clock3 className="h-3.5 w-3.5" />
-                Duração a partir de {form.startTime}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {Array.from(
-                  { length: selectedSlot.maxBlocks },
-                  (_, index) => index + 1,
-                ).map((blocks) => (
-                  <button
-                    key={blocks}
-                    type="button"
-                    onClick={() => setForm({ ...form, blocks })}
-                    className={classes(
-                      "focus-ring rounded-xl border bg-card px-4 py-2 text-sm font-semibold",
-                      form.blocks === blocks &&
-                        "border-primary bg-primary text-white",
-                    )}
-                  >
-                    {formatDuration(selectedSlot.durationMinutes * blocks)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <div className="mt-4 rounded-xl border bg-surface/50 p-4">
-            <label className="flex cursor-pointer items-center gap-3 text-sm font-medium">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-primary"
-                checked={form.recurring}
-                onChange={(event) =>
-                  setForm({ ...form, recurring: event.target.checked })
-                }
-              />
-              Repetir semanalmente
-            </label>
-            {form.recurring ? (
-              <div className="step-in mt-4 space-y-3 border-t pt-4">
-                <p className="text-sm font-medium">Repetição</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border bg-background p-3 text-sm">
-                    <input
-                      type="radio"
-                      name="recurrence"
-                      className="accent-primary"
-                      checked={form.recurrenceType === "permanent"}
-                      onChange={() =>
-                        setForm({ ...form, recurrenceType: "permanent" })
-                      }
-                    />
-                    Permanente
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border bg-background p-3 text-sm">
-                    <input
-                      type="radio"
-                      name="recurrence"
-                      className="accent-primary"
-                      checked={form.recurrenceType === "count"}
-                      onChange={() =>
-                        setForm({ ...form, recurrenceType: "count" })
-                      }
-                    />
-                    Quantidade de repetições
-                  </label>
-                </div>
-                {form.recurrenceType === "count" ? (
-                  <div className="max-w-xs space-y-1">
-                    <Label htmlFor="repeat-count">Número de repetições</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="repeat-count"
-                        type="number"
-                        min={2}
-                        max={260}
-                        value={form.repeatCount}
-                        onChange={(event) =>
-                          setForm({
-                            ...form,
-                            repeatCount: Number(event.target.value),
-                          })
-                        }
-                      />
-                      <span className="text-sm text-muted">repetições</span>
-                    </div>
-                  </div>
-                ) : null}
-                {form.startTime ? (
-                  <p className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
-                    <Repeat2 className="h-4 w-4" />
-                    {recurrenceSummary(
-                      selectedDate,
-                      form.startTime,
-                      form.recurrenceType === "count" ? form.repeatCount : null,
-                    )}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          {form.startTime ? (
-            <p className="mt-4 text-sm text-muted">
-              {formatLongDate(selectedDate)} · {form.startTime} ·{" "}
-              {selectedDuration
-                ? formatDuration(selectedDuration)
-                : "duração inválida"}
-            </p>
-          ) : null}
-          {outsideBusinessHours ? <p role="status" className="mt-4 flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm text-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0 text-accent" /><span>Este horário está fora do funcionamento configurado. O agendamento será criado somente pelo Admin e não abrirá disponibilidade na página pública.</span></p> : null}
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setCreating(false)}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={
-                saving ||
-                !form.startTime ||
-                !form.customerName.trim() ||
-                !form.customerWhatsapp.trim() ||
-                !selectedDuration ||
-                (form.recurring &&
-                  form.recurrenceType === "count" &&
-                  (!Number.isInteger(form.repeatCount) || form.repeatCount < 2))
-              }
-              onClick={submitManualAppointment}
-            >
-              {saving ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : null}
-              {saving
-                ? "Adicionando..."
-                : form.recurring
-                  ? "Criar recorrência"
-                  : "Adicionar"}
-            </Button>
-          </div>
-        </section>
+        <AppointmentFormModal
+          config={config}
+          prefill={{ date: selectedDate }}
+          onClose={() => setCreating(false)}
+          onSaved={(next, date, message) => {
+            if (date === selectedDate) setAppointments(next);
+            else selectDate(date);
+            setFeedback({ ok: true, message });
+            setCreating(false);
+          }}
+        />
       ) : null}
 
       {feedback ? (
