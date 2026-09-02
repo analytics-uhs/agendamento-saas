@@ -14,6 +14,8 @@ export type AppointmentSeriesSummary = {
 };
 
 export type AdminAppointment = {
+  calendarStartTime?: string;
+  calendarEndTime?: string;
   id: string;
   customerName: string;
   customerWhatsapp: string;
@@ -41,7 +43,7 @@ export type AppointmentSchedulingConfig = {
   businessHours?: Array<DailyCalendarWindow & { weekday: number }>;
 };
 
-export type DailyCalendarWindow = { startTime: string; endTime: string };
+export type DailyCalendarWindow = { startTime: string; endTime: string; anchorMinutes?: number };
 export type CalendarBlockSeriesSummary = {
   id: string;
   startsOn: string;
@@ -49,6 +51,8 @@ export type CalendarBlockSeriesSummary = {
   active: boolean;
 };
 export type CalendarBlock = {
+  calendarStartTime?: string;
+  calendarEndTime?: string;
   id: string;
   blockDate: string;
   startTime: string;

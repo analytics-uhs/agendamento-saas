@@ -8,7 +8,7 @@ import { Input, Label } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { classes } from "@/lib/classes";
 import { recurrenceSummary } from "@/lib/recurrence";
-import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
+import { isValidBookingTimeRange } from "@/lib/time-of-day";
 import type { AppointmentSchedulingConfig, ResourceBlock } from "@/types/appointments";
 
 export function ComplementaryBlockModal({ config, initialDate, onClose, onSaved }: { config: AppointmentSchedulingConfig; initialDate: string; onClose: () => void; onSaved: (blocks: ResourceBlock[], date: string, message: string) => void }) {
@@ -23,7 +23,7 @@ export function ComplementaryBlockModal({ config, initialDate, onClose, onSaved 
   const [repeatCount, setRepeatCount] = useState(12);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [saving, startTransition] = useTransition();
-  const valid = optionIds.length > 0 && (group.occupancyMode === "day" || timeToMinutes(startTime) < endTimeToMinutes(endTime)) && (!recurring || recurrenceType === "permanent" || repeatCount >= 2);
+  const valid = optionIds.length > 0 && (group.occupancyMode === "day" || isValidBookingTimeRange(startTime, endTime)) && (!recurring || recurrenceType === "permanent" || repeatCount >= 2);
   function toggle(id: string) { setOptionIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]); }
   function submit() { if (!valid) return; startTransition(async () => { const result = await saveResourceBlock({ optionIds, date, startTime: group.occupancyMode === "day" ? null : startTime, endTime: group.occupancyMode === "day" ? null : endTime, reason, recurring, repeatCount: recurring && recurrenceType === "count" ? repeatCount : null }); if (!result.ok) setFeedback(result.message); else onSaved(result.data, date, result.message); }); }
   return <Modal title={`Bloquear ${group.intentName}`} onClose={onClose}><div className="space-y-5 p-4 sm:p-5">

@@ -48,8 +48,8 @@ insert into admin_cadence_results select results_eq(
  'business option keeps the full-day legacy hourly grid');
 insert into admin_cadence_results select results_eq(
  $$select slot->>'start_time' from jsonb_array_elements(public.get_admin_booking_availability(pg_temp.next_monday(),'fa300000-0000-4000-8000-000000000002',null)) slot$$,
- $$select to_char(time '00:15'+make_interval(hours=>hour),'HH24:MI') from generate_series(0,22) hour$$,
- 'custom Admin grid is exactly 00:15 through 22:15 without mixed whole hours');
+ $$select to_char(time '00:15'+make_interval(hours=>hour),'HH24:MI') from generate_series(0,23) hour$$,
+ 'custom Admin grid includes overnight 23:15 without mixed whole hours');
 insert into admin_cadence_results select results_eq(
  $$select slot->>'start_time' from jsonb_array_elements(public.get_booking_availability('custom-hours',pg_temp.next_monday(),'fa300000-0000-4000-8000-000000000002',null)) slot$$,
  array['18:15','19:15','20:15','21:15','22:15'],
@@ -83,7 +83,7 @@ values ('fa100000-0000-4000-8000-000000000001','fa300000-0000-4000-8000-00000000
 set local role authenticated;
 insert into admin_cadence_results select is(
  (select count(*)::integer from jsonb_array_elements(public.get_admin_booking_availability(pg_temp.next_monday()+14,'fa300000-0000-4000-8000-000000000002',null)) slot),
- 23,'multiple windows with the same phase do not duplicate the daily grid');
+ 24,'multiple windows with the same phase do not duplicate the daily grid');
 reset role;
 insert into admin_cadence_results select * from finish();
 select line from admin_cadence_results;

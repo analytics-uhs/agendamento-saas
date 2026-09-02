@@ -36,7 +36,7 @@ insert into public.booking_options (id, business_id, group_id, name, duration_mi
 insert into public.business_hours (business_id, weekday, active, start_time, end_time)
 values ('a1000000-0000-4000-8000-000000000001', 1, true, '08:00', '11:00');
 
-select hasnt_constraint('public', 'business_hours', 'business_hours_business_weekday_unique', 'one row per weekday is no longer enforced');
+select ok(not exists(select 1 from pg_constraint where conrelid='public.business_hours'::regclass and conname='business_hours_business_weekday_unique'), 'one row per weekday is no longer enforced');
 select results_eq(
   $$select value ->> 'start_time' from jsonb_array_elements(public.get_booking_availability('hours-business', pg_temp.next_monday(), null, null)) as slot(value) order by 1$$,
   array['08:00', '09:00', '10:00'],
@@ -91,10 +91,10 @@ select lives_ok(format(
   $$select public.create_recurring_appointment_series(null,null,%L::date,'09:00',1,'Window Series','11999990002',2)$$,
   pg_temp.next_monday()
 ), 'a recurrence inside an opening window is created');
-select throws_ok(format(
+select lives_ok(format(
   $$select public.create_recurring_appointment_series(null,null,%L::date,'12:00',1,'Lunch Series','11999990003',2)$$,
   pg_temp.next_monday()
-), '23P01', null, 'recurrence materialization rejects the closed interval');
+), 'administrative recurrence preserves the outside-hours exception');
 
 select set_config('request.jwt.claims', '{"sub":"a0000000-0000-4000-8000-000000000002","role":"authenticated"}', true);
 select is_empty(

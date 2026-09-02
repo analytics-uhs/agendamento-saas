@@ -32,7 +32,7 @@ import {
   type DailyCalendarResource,
 } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
-import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
+import { intervalEndMinutes, timeToMinutes } from "@/lib/time-of-day";
 import type {
   AdminAppointment,
   AdminComplementaryReservation,
@@ -579,6 +579,7 @@ function DailyAppointmentCard({
         <p className="truncate text-xs font-semibold">
           {appointment.startTime} · {appointment.customerName}
         </p>
+        {appointment.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera · até {appointment.endTime}</p> : null}
         <p className="mt-0.5 truncate text-[11px] text-muted">
           {[appointment.group2?.name, formatDuration(appointment.durationMinutes)]
             .filter(Boolean)
@@ -608,7 +609,7 @@ function blocksForResource(
   return blocks.filter(
     (block) =>
       (resourceId === null || block.group1?.id === resourceId) &&
-      block.startTime === time,
+      (block.calendarStartTime ?? block.startTime) === time,
   );
 }
 
@@ -620,8 +621,8 @@ function isBlockOccupied(
   return blocks.some(
     (block) =>
       (resourceId === null || block.group1?.id === resourceId) &&
-      timeToMinutes(block.startTime) <= timeToMinutes(time) &&
-      timeToMinutes(time) < endTimeToMinutes(block.endTime),
+      timeToMinutes(block.calendarStartTime ?? block.startTime) <= timeToMinutes(time) &&
+      timeToMinutes(time) < intervalEndMinutes(block.calendarStartTime ?? block.startTime, block.calendarEndTime ?? block.endTime),
   );
 }
 
@@ -643,6 +644,7 @@ function DailyBlockCard({
         <Ban className="h-3.5 w-3.5 shrink-0 text-muted" />
         Bloqueado · {block.startTime}–{block.endTime}
       </p>
+      {block.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera</p> : null}
       <p className="mt-0.5 truncate text-[11px] text-muted">
         {block.reason || "Indisponível"}{block.series ? " · Recorrente" : ""}
       </p>

@@ -132,8 +132,8 @@ Essas janelas limitam a disponibilidade e a criação públicas. A criação Adm
 continua permitida fora delas, respeitando conflitos, bloqueios, tenant e
 constraints. Para opções `custom`, a disponibilidade Admin estende a cadência das
 janelas efetivas por todo o dia, sem acrescentar uma grade paralela de horas cheias.
-Com duração de 60 minutos e janela 18:15–23:15, oferece 00:15, 01:15, …, 22:15;
-23:15 não cabe antes da meia-noite. Janelas com a mesma cadência não duplicam slots;
+Com duração de 60 minutos e janela 18:15–23:15, oferece 00:15, 01:15, …, 23:15;
+o último início termina no dia seguinte, permitido pela exceção administrativa. Janelas com a mesma cadência não duplicam slots;
 cadências distintas explicitamente configuradas são preservadas. Dias custom sem
 janelas usam a grade diária iniciada à meia-noite. Opções `business` mantêm o
 comportamento legado. Na edição, o início já salvo também é preservado, mesmo fora
@@ -294,6 +294,18 @@ O slug é derivado automaticamente do nome completo e exibido apenas como previe
 As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Em Horários, ativar um dia, adicionar/remover períodos e copiar a segunda-feira operam sobre a lista completa de janelas; remover a última janela fecha o dia. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
 
 `business_settings.theme_preference` conserva o enum legado no schema por compatibilidade, mas a aplicação oferece somente `light` e `dark`. A migration converte registros `system` para `light`, altera o default e as leituras defensivas também normalizam qualquer valor legado para claro. O seletor é exclusivamente por ícone.
+
+## Intervalos que atravessam a meia-noite
+
+A migration `20260901020000_cross_midnight_booking_hours.sql` mantém as colunas de data e horário existentes. A data é sempre a **data civil do início**; `end_time < start_time` significa término no dia seguinte. Horários iguais continuam inválidos. O fechamento `00:00` continua sendo normalizado para `24:00` quando apropriado: `23:15–00:00` encerra na fronteira do dia, enquanto `23:15–00:15` ocupa também os primeiros quinze minutos do dia seguinte. Não há conversão desses horários locais para UTC.
+
+`private.booking_period` centraliza o intervalo temporal semiaberto `[início, fim)`. Appointments, bloqueios e allocations usam esse período para detectar sobreposição entre datas diferentes; intervalos adjacentes continuam permitidos. A exclusão dos appointments mantém o Grupo principal como recurso. Um lock transacional por negócio/recurso coordena os guards de appointments e calendar blocks, inclusive quando as datas de início diferem. As exclusões de horários semanais usam `private.weekly_booking_period`, incluindo a virada de sábado para domingo.
+
+`private.effective_primary_periods` resolve janelas da data consultada e da véspera, preservando a precedência `business`/`custom` e a âncora original. Cada resposta de disponibilidade contém somente inícios na data civil solicitada. Assim, segunda `23:15–02:15`, com duração de 60 minutos, oferece segunda `23:15` e terça `00:15`, `01:15`. O fim completo precisa caber na janela. Blocos consecutivos podem atravessar a meia-noite; a página pública identifica explicitamente a extensão para o dia seguinte, sem confundi-la com um horário da madrugada da mesma data.
+
+O Admin mantém sua exceção de funcionamento, mas não ignora conflitos, bloqueios, tenant ou constraints. Edição e recorrência reutilizam o motor existente. A Agenda diária inclui a parcela de reservas/bloqueios iniciados na véspera; essa projeção é somente visual e não modifica a data usada pelas ações.
+
+Complementares `time_slot`, inclusive reservas combinadas e bloqueios, seguem a mesma semântica temporal e as allocations existentes. Complementares `day` continuam ocupando um único dia civil, sem horário fictício; publicamente exigem funcionamento ativo nesse dia, não apenas uma janela herdada da véspera. Não foram ampliados grants públicos nem alteradas as policies RLS.
 
 ## Storage de logos
 

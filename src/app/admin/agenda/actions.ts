@@ -1,16 +1,15 @@
 "use server";
 
+import { readDailyCalendar, listAppointmentsForDay } from "@/lib/repositories/daily-calendar";
 import { revalidatePath } from "next/cache";
 import { normalizeWhatsapp, validateWhatsapp } from "@/lib/availability";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
-import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getAdminEditAvailability, getBusinessHoursForDate, listAppointments, updateAdminAppointmentOccurrence, updateAppointmentStatus } from "@/lib/repositories/appointments";
+import { createAdminAppointment, createRecurringAppointmentSeries, cancelRecurringAppointment as cancelRecurringAppointmentRepository, getAdminAvailability, getAdminEditAvailability, updateAdminAppointmentOccurrence, updateAppointmentStatus } from "@/lib/repositories/appointments";
 import { formatNumericDate } from "@/lib/date";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
-import { listCalendarBlocks } from "@/lib/repositories/calendar-blocks";
-import { listResourceBlocks } from "@/lib/repositories/resource-blocks";
-import { cancelAdminReservation, cancelAdminReservationResource, createAdminReservation, getAdminComplementaryAvailability, listAdminComplementaryReservations } from "@/lib/repositories/admin-reservations";
+import { cancelAdminReservation, cancelAdminReservationResource, createAdminReservation, getAdminComplementaryAvailability } from "@/lib/repositories/admin-reservations";
 import type { ComplementaryAvailability } from "@/types/public-booking";
 import type { ManualReservationInput } from "@/types/appointments";
 
@@ -63,7 +62,7 @@ export async function loadAdminAppointments(date: string): Promise<AppointmentAc
   if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
   const business = await requireCurrentBusiness();
   try {
-    return { ok: true, message: "Agenda atualizada.", data: await listAppointments(business.id, date) };
+    return { ok: true, message: "Agenda atualizada.", data: await listAppointmentsForDay(business.id, date) };
   } catch {
     return { ok: false, message: "Não foi possível carregar os agendamentos." };
   }
@@ -75,13 +74,7 @@ export async function loadDailyAdminCalendar(
   if (!datePattern.test(date)) return { ok: false, message: "Data inválida." };
   const business = await requireCurrentBusiness();
   try {
-    const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([
-      listAppointments(business.id, date),
-      listAdminComplementaryReservations(business.id, date),
-      listCalendarBlocks(business.id, date),
-      listResourceBlocks(business.id, date),
-      getBusinessHoursForDate(business.id, date),
-    ]);
+    const { appointments, complementaryReservations, blocks, resourceBlocks, windows } = await readDailyCalendar(business.id, date);
     return {
       ok: true,
       message: "Agenda diária atualizada.",
@@ -137,19 +130,12 @@ export async function createManualReservation(input: ManualReservationInput): Pr
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([
-    listAppointments(business.id, date),
-    listAdminComplementaryReservations(business.id, date),
-    listCalendarBlocks(business.id, date),
-    listResourceBlocks(business.id, date),
-    getBusinessHoursForDate(business.id, date),
-  ]);
+  const { appointments, complementaryReservations, blocks, resourceBlocks, windows } = await readDailyCalendar(business.id, date);
   return { ok: true, message: "Reserva criada.", data: { appointments, complementaryReservations, blocks, resourceBlocks, windows } };
 }
 
 async function refreshedCalendar(businessId: string, date: string): Promise<DailyCalendarData> {
-  const [appointments, complementaryReservations, blocks, resourceBlocks, windows] = await Promise.all([listAppointments(businessId, date), listAdminComplementaryReservations(businessId, date), listCalendarBlocks(businessId, date), listResourceBlocks(businessId, date), getBusinessHoursForDate(businessId, date)]);
-  return { appointments, complementaryReservations, blocks, resourceBlocks, windows };
+  return readDailyCalendar(businessId, date);
 }
 
 export async function cancelComplementaryReservation(resourceId: string, date: string): Promise<AppointmentActionResult<DailyCalendarData>> {
@@ -199,7 +185,7 @@ export async function createManualAppointment(input: ManualAppointmentInput): Pr
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: "Agendamento criado.", data: await listAppointments(business.id, input.date) };
+  return { ok: true, message: "Agendamento criado.", data: await listAppointmentsForDay(business.id, input.date) };
 }
 
 export async function createRecurringAppointment(input: RecurringAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
@@ -212,7 +198,7 @@ export async function createRecurringAppointment(input: RecurringAppointmentInpu
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: "Recorrência criada.", data: await listAppointments(business.id, input.date) };
+  return { ok: true, message: "Recorrência criada.", data: await listAppointmentsForDay(business.id, input.date) };
 }
 
 export async function editAppointmentOccurrence(appointmentId: string, input: ManualAppointmentInput): Promise<AppointmentActionResult<AdminAppointment[]>> {
@@ -227,7 +213,7 @@ export async function editAppointmentOccurrence(appointmentId: string, input: Ma
   }
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: "Agendamento atualizado. A série recorrente não foi alterada.", data: await listAppointments(business.id, input.date) };
+  return { ok: true, message: "Agendamento atualizado. A série recorrente não foi alterada.", data: await listAppointmentsForDay(business.id, input.date) };
 }
 
 export async function cancelRecurringAppointment(appointmentId: string, scope: RecurringCancellationScope, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {
@@ -237,7 +223,7 @@ export async function cancelRecurringAppointment(appointmentId: string, scope: R
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: scope === "single" ? "Esta ocorrência foi cancelada." : "Esta ocorrência e as próximas foram canceladas. A série foi encerrada.", data: await listAppointments(business.id, date) };
+  return { ok: true, message: scope === "single" ? "Esta ocorrência foi cancelada." : "Esta ocorrência e as próximas foram canceladas. A série foi encerrada.", data: await listAppointmentsForDay(business.id, date) };
 }
 
 export async function changeAppointmentStatus(appointmentId: string, status: AppointmentStatus, date: string): Promise<AppointmentActionResult<AdminAppointment[]>> {
@@ -251,5 +237,5 @@ export async function changeAppointmentStatus(appointmentId: string, status: App
   }
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: status === "scheduled" ? "Agendamento restaurado." : "Status atualizado.", data: await listAppointments(business.id, date) };
+  return { ok: true, message: status === "scheduled" ? "Agendamento restaurado." : "Status atualizado.", data: await listAppointmentsForDay(business.id, date) };
 }

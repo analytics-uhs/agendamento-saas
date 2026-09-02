@@ -17,13 +17,13 @@ export function selectFixedMultipleSlot(
   const clicked = slots.find((slot) => slot.startTime === clickedTime);
   if (!clicked) return { startTime: currentStart, blocks: currentBlocks, rejected: true };
   if (!currentStart) return { startTime: clickedTime, blocks: 1, rejected: false };
-  const selected = consecutiveSelectionTimes(slots, currentStart, currentBlocks);
+  const selected = consecutiveSelectionTimes(slots, currentStart, currentBlocks).filter((time) => time >= currentStart);
   const selectedIndex = selected.indexOf(clickedTime);
   if (selectedIndex === 0) return { startTime: null, blocks: 1, rejected: false };
   if (selectedIndex > 0) return { startTime: currentStart, blocks: selectedIndex, rejected: false };
   const first = slots.find((slot) => slot.startTime === currentStart);
   const expectedNext = first ? minutesToTime(timeToMinutes(currentStart) + currentBlocks * first.durationMinutes) : null;
-  if (first && clickedTime === expectedNext && currentBlocks < first.maxBlocks)
+  if (first && timeToMinutes(currentStart) + currentBlocks * first.durationMinutes < 1440 && clickedTime === expectedNext && currentBlocks < first.maxBlocks)
     return { startTime: currentStart, blocks: currentBlocks + 1, rejected: false };
   return { startTime: currentStart, blocks: currentBlocks, rejected: true };
 }

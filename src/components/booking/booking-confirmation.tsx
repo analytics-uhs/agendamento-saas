@@ -7,6 +7,7 @@ import { BusinessLogo } from "@/components/ui/business-logo";
 import { WhatsappIcon } from "@/components/ui/social-icons";
 import { appearanceStyle } from "@/lib/appearance";
 import { normalizeWhatsapp } from "@/lib/availability";
+import { formatBookingTimeRange } from "@/lib/time-of-day";
 import { formatDuration, formatLongDate } from "@/lib/date";
 import type { BookingConfirmation } from "@/types/public-booking";
 
@@ -48,7 +49,7 @@ export function BookingConfirmationCard({ slug, confirmation }: { slug: string; 
     <h1 className="mt-4 text-2xl font-semibold tracking-[-0.02em]">{confirmation ? isComplementaryOnly ? "Sua reserva está confirmada." : "Seu horário está confirmado." : "Confirmação da reserva"}</h1>
     {confirmation ? <div className="mx-auto mt-2 max-w-sm space-y-2 text-sm leading-relaxed text-muted"><p>{isComplementaryOnly ? "Tudo certo! Esperamos você na data reservada." : "Tudo certo! Esperamos você no dia e horário agendados."}</p></div> : <p className="mt-2 text-sm text-muted">Os detalhes desta confirmação não estão mais disponíveis neste dispositivo.</p>}
     {confirmation ? <dl className="mt-7 space-y-3 rounded-xl border bg-card p-4 text-left text-sm">
-      <div className="flex items-center gap-3 border-b pb-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarDays className="h-5 w-5" /></span><div className="min-w-0"><dt className="sr-only">Data e horário</dt><dd className="font-semibold capitalize">{formatLongDate(confirmation.appointmentDate)}</dd>{confirmation.startTime && confirmation.endTime && confirmation.durationMinutes ? <dd className="mt-0.5 flex items-center gap-1.5 text-xs text-muted"><Clock3 className="h-3.5 w-3.5" />{confirmation.startTime}–{confirmation.endTime} · {formatDuration(confirmation.durationMinutes)}</dd> : <dd className="mt-0.5 text-xs text-muted">Reserva do dia</dd>}</div></div>
+      <div className="flex items-center gap-3 border-b pb-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><CalendarDays className="h-5 w-5" /></span><div className="min-w-0"><dt className="sr-only">Data e horário</dt><dd className="font-semibold capitalize">{formatLongDate(confirmation.appointmentDate)}</dd>{confirmation.startTime && confirmation.endTime && confirmation.durationMinutes ? <dd className="mt-0.5 flex items-center gap-1.5 text-xs text-muted"><Clock3 className="h-3.5 w-3.5" />{formatBookingTimeRange(confirmation.startTime, confirmation.endTime ?? confirmation.startTime)} · {formatDuration(confirmation.durationMinutes)}</dd> : <dd className="mt-0.5 text-xs text-muted">Reserva do dia</dd>}</div></div>
       <div className="flex justify-between gap-3"><dt className="text-muted">Estabelecimento</dt><dd className="text-right font-medium">{confirmation.business.name}</dd></div>
       {confirmation.group1 ? <div className="flex justify-between gap-3"><dt className="text-muted">{confirmation.group1.label}</dt><dd className="font-medium">{confirmation.group1.name}</dd></div> : null}
       {confirmation.group2 ? <div className="flex justify-between gap-3"><dt className="text-muted">{confirmation.group2.label}</dt><dd className="font-medium">{confirmation.group2.name}</dd></div> : null}

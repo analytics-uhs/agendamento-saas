@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
 import type { ResourceBlock, ResourceBlockInput } from "@/types/appointments";
 
-export async function listResourceBlocks(businessId: string, date: string): Promise<ResourceBlock[]> {
+export async function listResourceBlocks(businessId: string, date: string, endDate = date): Promise<ResourceBlock[]> {
   const supabase = await createClient();
   const [blocksResult, optionsResult, seriesResult] = await Promise.all([
-    supabase.from("resource_blocks").select("id, option_id, series_id, occupancy_mode, block_date, start_time, end_time, reason").eq("business_id", businessId).eq("block_date", date).eq("active", true).order("start_time"),
+    supabase.from("resource_blocks").select("id, option_id, series_id, occupancy_mode, block_date, start_time, end_time, reason").eq("business_id", businessId).gte("block_date", date).lte("block_date", endDate).eq("active", true).order("start_time"),
     supabase.from("booking_options").select("id, name, duration_minutes").eq("business_id", businessId),
     supabase.from("resource_block_series").select("id, starts_on, repeat_count, active").eq("business_id", businessId),
   ]);

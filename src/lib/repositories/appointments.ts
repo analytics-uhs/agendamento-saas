@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppointmentStatus, Json } from "@/types/database";
 import { occurrenceNumber } from "@/lib/recurrence";
 import { parseISO } from "@/lib/date";
-import { displayEndTime } from "@/lib/time-of-day";
+import { civilDayWindows, displayEndTime, minutesToTime } from "@/lib/time-of-day";
 import type { AdminAppointment, AppointmentGroup, AppointmentSchedulingConfig, DailyCalendarWindow, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { BookingSlot } from "@/types/public-booking";
 
@@ -81,16 +81,17 @@ export async function getBusinessHoursForDate(
   const weekday = parseISO(date).getDay();
   const { data, error } = await supabase
     .from("business_hours")
-    .select("start_time, end_time")
+    .select("weekday, start_time, end_time")
     .eq("business_id", businessId)
-    .eq("weekday", weekday)
+    .in("weekday", [weekday, (weekday + 6) % 7])
     .eq("active", true)
     .order("start_time");
   if (error)
     throw new Error(`Não foi possível carregar os horários: ${error.message}`);
-  return (data ?? []).map((window) => ({
-    startTime: window.start_time.slice(0, 5),
-    endTime: displayEndTime(window.end_time),
+  return civilDayWindows((data ?? []).map((window) => ({ weekday: window.weekday, startTime: window.start_time, endTime: window.end_time })), weekday).map(({ start, end }) => ({
+    startTime: minutesToTime(Math.max(0, start)),
+    endTime: end === 1440 ? "24:00" : minutesToTime(end),
+    anchorMinutes: start,
   }));
 }
 

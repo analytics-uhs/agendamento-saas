@@ -3,6 +3,12 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(28);
 
+-- Compare deltas: linked environments need not be empty. No customer rows are changed.
+create temporary table platform_baseline as select
+  (select count(*)::integer from public.businesses) businesses,
+  (select count(*)::integer from public.appointments where appointment_date > (now() at time zone 'America/Sao_Paulo')::date and status='scheduled') future_appointments;
+grant select on platform_baseline to authenticated;
+
 insert into auth.users (id, email, raw_user_meta_data)
 values
   ('60000000-0000-4000-8000-000000000001', 'alpha-owner@example.test', '{"name":"Alpha Owner"}'),
@@ -87,7 +93,7 @@ select results_eq(
 
 select results_eq(
   $$select (public.list_platform_businesses(null, null, 1, 20)->>'total')::integer$$,
-  array[2],
+  $$select businesses+2 from platform_baseline$$,
   'a platform admin lists businesses across tenants'
 );
 
@@ -167,7 +173,7 @@ select throws_ok(
     null, null, current_date + 30, '09:00', 1,
     'Admin Customer', '11977776666'
   )$$,
-  '22023', null,
+  '42501', 'admin_appointment_forbidden',
   'an inactive business rejects administrative appointment creation'
 );
 
@@ -212,13 +218,13 @@ select set_config('request.jwt.claims', '{"sub":"60000000-0000-4000-8000-0000000
 
 select results_eq(
   $$select (public.get_platform_metrics()->>'future_appointments')::integer$$,
-  array[1],
+  $$select future_appointments+1 from platform_baseline$$,
   'platform metrics include future appointments without loading them in the browser'
 );
 
 select results_eq(
   $$select (public.get_platform_metrics()->>'total_businesses')::integer$$,
-  array[2],
+  $$select businesses+2 from platform_baseline$$,
   'platform metrics aggregate all businesses'
 );
 

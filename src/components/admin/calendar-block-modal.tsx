@@ -20,7 +20,7 @@ import {
 import { classes } from "@/lib/classes";
 import { calendarSlotMinutes } from "@/lib/daily-calendar";
 import { formatDuration, formatLongDate } from "@/lib/date";
-import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
+import { intervalEndMinutes, isValidBookingTimeRange, endsNextDay, timeToMinutes } from "@/lib/time-of-day";
 import { recurrenceSummary } from "@/lib/recurrence";
 import type {
   AppointmentSchedulingConfig,
@@ -50,6 +50,7 @@ export function CalendarBlockModal({
     block ? [block.startTime] : [],
   );
   const [reason, setReason] = useState(block?.reason ?? "");
+  const [explicitEnd, setExplicitEnd] = useState<string | null>(block?.endTime ?? null);
   const [recurring, setRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<"permanent" | "count">("permanent");
   const [repeatCount, setRepeatCount] = useState(12);
@@ -58,7 +59,7 @@ export function CalendarBlockModal({
   const [loadingWindows, startWindowsTransition] = useTransition();
   const [saving, startSavingTransition] = useTransition();
   const slots = useMemo(() => calendarBlockSlots(windows, step), [windows, step]);
-  const endTime = calendarBlockEndTime(selectedSlots, step);
+  const endTime = explicitEnd ?? calendarBlockEndTime(selectedSlots, step);
 
   useEffect(() => {
     startWindowsTransition(async () => {
@@ -68,16 +69,17 @@ export function CalendarBlockModal({
         if (block && date === block.blockDate) {
           const available = calendarBlockSlots(result.data, step);
           const start = available.indexOf(block.startTime);
-          const end = available.findIndex((time) => timeToMinutes(time) >= endTimeToMinutes(block.endTime));
-          setSelectedSlots(start >= 0 ? available.slice(start, end < 0 ? undefined : end) : []);
-        } else setSelectedSlots([]);
+          const end = available.findIndex((time) => timeToMinutes(time) >= intervalEndMinutes(block.startTime, block.endTime));
+          setSelectedSlots(start >= 0 ? available.slice(start, end < 0 ? undefined : end) : [block.startTime]);
+          setExplicitEnd(block.endTime);
+        } else { setSelectedSlots([]); setExplicitEnd(null); }
       } else setFeedback(result.message);
     });
   }, [block, date, step]);
 
   const needsResource = Boolean(groupOne);
   const valid = Boolean(
-    selectedSlots.length && endTime && (!needsResource || resources.length) &&
+    selectedSlots.length && endTime && isValidBookingTimeRange(selectedSlots[0], endTime) && (!needsResource || resources.length) &&
       (!recurring || recurrenceType === "permanent" || repeatCount >= 2),
   );
 
@@ -153,16 +155,21 @@ export function CalendarBlockModal({
           ) : slots.length ? (
             <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
               {slots.map((slot) => (
-                <button key={slot} type="button" onClick={() => setSelectedSlots(selectCalendarBlockSlot(slots, selectedSlots, slot))} className={classes("focus-ring min-h-11 rounded-xl border bg-card px-2 text-sm font-semibold tabular-nums", selectedSlots.includes(slot) && "border-primary bg-primary text-white")}>
+                <button key={slot} type="button" onClick={() => { setExplicitEnd(null); setSelectedSlots(selectCalendarBlockSlot(slots, selectedSlots, slot)); }} className={classes("focus-ring min-h-11 rounded-xl border bg-card px-2 text-sm font-semibold tabular-nums", selectedSlots.includes(slot) && "border-primary bg-primary text-white")}>
                   {slot}
                 </button>
               ))}
             </div>
           ) : <EmptyState className="mt-3">Não há horário de funcionamento nesta data.</EmptyState>}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label htmlFor="block-start-time">Início</Label><Input id="block-start-time" type="time" value={selectedSlots[0] ?? ""} onChange={(event) => setSelectedSlots([event.target.value])} /></div>
+            <div className="space-y-1"><Label htmlFor="block-end-time">Fim</Label><Input id="block-end-time" type="time" value={endTime ?? ""} onChange={(event) => setExplicitEnd(event.target.value)} /></div>
+          </div>
+          {selectedSlots[0] && endTime && endsNextDay(selectedSlots[0], endTime) ? <p className="mt-2 text-xs text-muted">Horário termina no dia seguinte.</p> : null}
           {selectedSlots.length && endTime ? (
             <p className="mt-3 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
               <CalendarClock className="h-4 w-4" />
-              {selectedSlots[0]}–{endTime} · {formatDuration(selectedSlots.length * step)}
+              {selectedSlots[0]}–{endTime} · {formatDuration(intervalEndMinutes(selectedSlots[0], endTime) - timeToMinutes(selectedSlots[0]))}
             </p>
           ) : null}
         </div>
