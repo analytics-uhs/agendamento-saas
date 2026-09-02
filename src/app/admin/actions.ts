@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
+import { getBusinessConfiguration } from "@/lib/repositories/business-configuration";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
 import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
@@ -58,7 +59,7 @@ export async function saveLogoUrl(url: string): Promise<ActionResult> {
   return { ok: true, message: "Logo atualizado." };
 }
 
-export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }): Promise<ActionResult> {
+export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }): Promise<ActionResult<BusinessForm["groups"]>> {
   const current = await context();
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   const groupsError = validateBusinessGroups(input.groups);
@@ -114,7 +115,7 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
   }).eq("business_id", current.business.id);
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin/configuracao");
-  return { ok: true, message: "Configuração da agenda salva." };
+  return { ok: true, message: "Configuração da agenda salva.", data: (await getBusinessConfiguration(current.business.id)).groups };
 }
 
 export async function saveHours(hours: BusinessHourForm[]): Promise<ActionResult> {
