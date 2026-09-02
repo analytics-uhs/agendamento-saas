@@ -1,6 +1,6 @@
 import type { BookingIntent, PublicBookingGroup, PublicReservationPayload } from "@/types/public-booking";
 
-export type PublicBookingStepId = "intent" | "group_1" | "group_2" | "date" | "time" | "complementary" | "customer";
+export type PublicBookingStepId = "intent" | "group_1" | "group_2" | "date" | "time" | "complementary" | "customer" | "review";
 export type PublicBookingStep = { id: PublicBookingStepId; label: string };
 
 export function publicBookingSteps(groupOneLabel?: string, groupTwoLabel?: string, intent?: BookingIntent | null, complementaryLabel?: string, complementaryMode?: "day" | "time_slot" | null): PublicBookingStep[] {
@@ -15,7 +15,13 @@ export function publicBookingSteps(groupOneLabel?: string, groupTwoLabel?: strin
     ...(primary || (intent === "complementary" && complementaryMode === "time_slot") ? [{ id: "time" as const, label: "Horário" }] : []),
     ...(complementary ? [{ id: "complementary" as const, label: complementaryLabel ?? "Complemento" }] : []),
     { id: "customer" as const, label: "Seus dados" },
+    { id: "review" as const, label: "Revisão" },
   ];
+}
+
+export function previousPublicBookingStep(activeStep: PublicBookingStepId, steps: PublicBookingStep[]) {
+  const index = steps.findIndex((step) => step.id === activeStep);
+  return index > 0 ? steps[index - 1].id : null;
 }
 
 export function intentOptions(primary: PublicBookingGroup | undefined, complementary: PublicBookingGroup) {

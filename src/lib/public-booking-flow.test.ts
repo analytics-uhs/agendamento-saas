@@ -1,24 +1,57 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bookingCtaHelper, buildPublicReservationPayload, intentOptions, publicBookingSteps, shouldKeepComplementarySelection } from "./public-booking-flow";
+import { bookingCtaHelper, buildPublicReservationPayload, intentOptions, publicBookingSteps, previousPublicBookingStep, shouldKeepComplementarySelection } from "./public-booking-flow";
+import { readFileSync } from "node:fs";
 import type { PublicBookingGroup } from "@/types/public-booking";
 
 test("public booking progress adapts to zero, one, or two configured groups", () => {
-  assert.deepEqual(publicBookingSteps().map((step) => step.id), ["date", "time", "customer"]);
-  assert.deepEqual(publicBookingSteps("Escolha o espaço").map((step) => step.id), ["group_1", "date", "time", "customer"]);
-  assert.deepEqual(publicBookingSteps(undefined, "Escolha a atividade").map((step) => step.id), ["group_2", "date", "time", "customer"]);
-  assert.deepEqual(publicBookingSteps("Escolha o espaço", "Escolha a atividade").map((step) => step.id), ["group_1", "group_2", "date", "time", "customer"]);
+  assert.deepEqual(publicBookingSteps().map((step) => step.id), ["date", "time", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps("Escolha o espaço").map((step) => step.id), ["group_1", "date", "time", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps(undefined, "Escolha a atividade").map((step) => step.id), ["group_2", "date", "time", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps("Escolha o espaço", "Escolha a atividade").map((step) => step.id), ["group_1", "group_2", "date", "time", "customer", "review"]);
 });
 
 const primary: PublicBookingGroup = { position: 1, label: "Quadra", required: true, intentName: null, occupancyMode: null, options: [] };
+
+test("Voltar follows the computed sequence for every intent and optional group", () => {
+  for (const intent of ["primary", "combined", "complementary"] as const) {
+    for (const mode of ["day", "time_slot"] as const) {
+      for (const label of [undefined, "Principal"]) {
+        const steps=publicBookingSteps(label, undefined, intent,"Complemento",mode);
+        assert.equal(previousPublicBookingStep(steps[0].id,steps),null);
+        for (let index=1;index<steps.length;index++) assert.equal(previousPublicBookingStep(steps[index].id,steps),steps[index-1].id);
+        assert.equal(previousPublicBookingStep("review",steps),"customer");
+        assert.equal(previousPublicBookingStep("customer",steps),intent === "primary" ? "time" : "complementary");
+        if (intent!=="complementary" || mode==="time_slot") assert.equal(previousPublicBookingStep("time",steps),"date");
+        assert.equal(previousPublicBookingStep(steps[1].id,steps),"intent");
+      }
+    }
+  }
+  assert.equal(previousPublicBookingStep("date",publicBookingSteps()),null);
+  assert.equal(previousPublicBookingStep("intent",publicBookingSteps()),null);
+});
+
+test("BookingFlow summaries are passive and Back preserves selections rather than resetting", () => {
+  const source=readFileSync("src/components/booking/booking-flow.tsx","utf8");
+  const completed=source.slice(source.indexOf("function CompletedStep"),source.indexOf("function FlowProgress"));
+  assert.doesNotMatch(completed,/button|onEdit|onClick|Alterar|Editar|Trocar/);
+  const back=source.slice(source.indexOf("function goBack"),source.indexOf("function nextAfter"));
+  assert.match(back,/setActiveStep\(previousStep\)/);
+  assert.doesNotMatch(back,/resetSchedule|setBlocks|setTime|setGroup|setDate|setComplementary/);
+  assert.match(source,/previousStep \? <Button/);
+  assert.match(source,/onSelect=\{chooseDate\}/);
+  assert.match(source,/if \(optionId !== group1\).*resetSchedule\(\)/);
+  assert.match(source,/setDate\(selectedDate\); setTime\(null\); setBlocks\(1\)/);
+  assert.match(source,/activeStep !== "review"/);
+});
 const complementaryDay: PublicBookingGroup = { position: 3, label: "Escolha o apoio", required: false, intentName: "Churrasqueira", occupancyMode: "day", options: [] };
 
 test("negócio com complemento começa pela intenção e adapta os passos", () => {
   assert.deepEqual(publicBookingSteps("Quadra", "Esporte", null, "Churrasqueira", "day").map((step) => step.id), ["intent"]);
-  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "primary", "Churrasqueira", "day").map((step) => step.id), ["intent", "group_1", "group_2", "date", "time", "customer"]);
-  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "complementary", "Churrasqueira", "day").map((step) => step.id), ["intent", "date", "complementary", "customer"]);
-  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "complementary", "Churrasqueira", "time_slot").map((step) => step.id), ["intent", "date", "time", "complementary", "customer"]);
-  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "combined", "Churrasqueira", "day").map((step) => step.id), ["intent", "group_1", "group_2", "date", "time", "complementary", "customer"]);
+  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "primary", "Churrasqueira", "day").map((step) => step.id), ["intent", "group_1", "group_2", "date", "time", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "complementary", "Churrasqueira", "day").map((step) => step.id), ["intent", "date", "complementary", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "complementary", "Churrasqueira", "time_slot").map((step) => step.id), ["intent", "date", "time", "complementary", "customer", "review"]);
+  assert.deepEqual(publicBookingSteps("Quadra", "Esporte", "combined", "Churrasqueira", "day").map((step) => step.id), ["intent", "group_1", "group_2", "date", "time", "complementary", "customer", "review"]);
 });
 
 test("seletor usa nomes configurados e não terminologia técnica", () => {

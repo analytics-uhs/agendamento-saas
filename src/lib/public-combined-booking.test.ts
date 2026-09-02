@@ -27,7 +27,7 @@ test("fluxo público mantém acessibilidade básica e layouts mobile-first", () 
   assert.match(source, /focus-ring min-h-24/);
   assert.match(source, /grid gap-3 md:grid-cols-3/);
   assert.match(source, /aria-live="polite"/);
-  assert.match(source, /Continuar somente com/);
+  assert.match(source, /Use Voltar para revisar suas escolhas/);
 });
 
 test("confirmação contempla reserva do dia e componente complementar", () => {
