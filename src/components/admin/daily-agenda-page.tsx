@@ -2,7 +2,7 @@
 
 import { Ban, CalendarCheck2, Clock3, LoaderCircle, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
-import { cancelCompleteReservation, cancelComplementaryReservation, loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
+import { cancelCompleteReservation, cancelComplementaryReservation, loadAdminAvailability, loadDailyAdminCalendar } from "@/app/admin/agenda/actions";
 import { AppointmentDetails } from "@/components/admin/appointment-details";
 import { AppointmentFormModal, type AppointmentFormPrefill } from "@/components/admin/appointment-form-modal";
 import { PageHeader } from "@/components/ui/page-header";
@@ -22,17 +22,11 @@ import { ResourceBlockDetails } from "@/components/admin/resource-block-details"
 import { ComplementaryReservationDetails } from "@/components/admin/complementary-reservation-details";
 import { classes } from "@/lib/classes";
 import { appointmentStatusLabels } from "@/lib/appointments";
-import {
-  appointmentsForResource,
-  buildDailyCalendarRows,
-  calendarResources,
-  calendarSlotMinutes,
-  isPastCalendarSlot,
-  isResourceOccupied,
-  type DailyCalendarResource,
-} from "@/lib/daily-calendar";
+import { calendarResources, isPastCalendarSlot } from "@/lib/daily-calendar";
+import { DailyTimeline } from "@/components/admin/daily-timeline";
+import { nearestTimelineSlot } from "@/lib/daily-timeline";
+import { bookingGroupPosition } from "@/lib/booking-groups";
 import { formatDuration, formatLongDate, todayISO } from "@/lib/date";
-import { intervalEndMinutes, timeToMinutes } from "@/lib/time-of-day";
 import type {
   AdminAppointment,
   AdminComplementaryReservation,
@@ -42,9 +36,6 @@ import type {
   DailyCalendarWindow,
   ResourceBlock,
 } from "@/types/appointments";
-
-const resourceColumnWidth = 176;
-const timeColumnWidth = 72;
 
 export function DailyAgendaPage({
   initialDate,
@@ -101,12 +92,29 @@ export function DailyAgendaPage({
     cancelSeriesOccurrence,
     updateReminder,
   } = useAppointmentManagement(initialAppointments, selectedDate);
-  const rows = buildDailyCalendarRows(
-    windows,
-    calendarSlotMinutes(config),
-    appointments,
-    blocks,
-  );
+  const [resolvingTime, startResolvingTime] = useTransition();
+  const createRequest = useRef(0);
+  function createAtMinute(minute: number, group1OptionId: string | null) {
+    const requestedDate = selectedDate;
+    const calendarRequest = requestId.current;
+    const currentRequest = ++createRequest.current;
+    startResolvingTime(async () => {
+      try {
+        const result = await loadAdminAvailability({
+          date: requestedDate,
+          group1OptionId,
+          group2OptionId: config.groups.find((group) => group.position === bookingGroupPosition("secondary"))?.options[0]?.id ?? null,
+        });
+        if (currentRequest !== createRequest.current || calendarRequest !== requestId.current) return;
+        if (!result.ok) { setFeedback({ ok: false, message: result.message }); return; }
+        const startTime = nearestTimelineSlot(result.data.filter((slot) => !isPastCalendarSlot(requestedDate, slot.startTime)), minute);
+        if (!startTime) { setFeedback({ ok: false, message: "Não há horários disponíveis para esta opção nesta data." }); return; }
+        setFormPrefill({ date: requestedDate, startTime, group1OptionId });
+      } catch {
+        if (currentRequest === createRequest.current && calendarRequest === requestId.current) setFeedback({ ok: false, message: "Não foi possível carregar os horários. Tente novamente." });
+      }
+    });
+  }
   const selectedAppointment = appointments.find(
     (appointment) => appointment.id === selectedId,
   );
@@ -217,39 +225,19 @@ export function DailyAgendaPage({
         </EmptyState>
       ) : (
         <>
-          <DesktopDailyGrid
+          {resolvingTime ? <p role="status" className="mt-3 text-sm text-muted">Buscando o horário disponível mais próximo...</p> : null}
+          <DailyTimeline
             resources={resources}
-            rows={rows}
-            appointments={appointments}
-            blocks={blocks}
-            onSelect={setSelectedId}
-            onReminderSent={updateReminder}
-            onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
-            onSelectBlock={(block) => setSelectedBlock(block)}
-            canCreate={canCreate}
-            selectedDate={selectedDate}
-          />
-          <MobileDailyGrid
-            resources={resources}
-            resourceLabel={resourceLabel}
             selectedResourceId={mobileResourceId}
             onResourceChange={setMobileResourceId}
-            rows={rows}
+            windows={windows}
             appointments={appointments}
             blocks={blocks}
-            onSelect={setSelectedId}
-            onReminderSent={updateReminder}
-            onCreate={(time, group1OptionId) => setFormPrefill({ date: selectedDate, startTime: time, group1OptionId })}
-            onSelectBlock={(block) => setSelectedBlock(block)}
-            canCreate={canCreate}
-            selectedDate={selectedDate}
+            canCreate={canCreate && !resolvingTime}
+            onCreate={createAtMinute}
+            renderAppointment={(appointment, height) => <DailyAppointmentCard appointment={appointment} height={height} onSelect={setSelectedId} onReminderSent={updateReminder} />}
+            renderBlock={(block, height) => <DailyBlockCard block={block} height={height} onSelect={setSelectedBlock} />}
           />
-          {!rows.length ? (
-            <EmptyState size="lg" className="mt-4">
-              O estabelecimento não possui horário de funcionamento ativo
-              nesta data.
-            </EmptyState>
-          ) : null}
         </>
       )}
 
@@ -346,305 +334,77 @@ function TimeSlotReservations({ reservations, blocks, onSelectBlock, onSelectRes
   return <section className="mt-4 rounded-xl border bg-background p-4" aria-labelledby="time-slot-reservations-title"><div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-primary"/><h2 id="time-slot-reservations-title" className="text-sm font-semibold">Complementos por horário</h2></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{reservations.map((reservation)=><button type="button" onClick={() => onSelectReservation(reservation)} key={reservation.id} className="focus-ring flex items-center justify-between gap-3 rounded-xl border bg-surface/40 p-3 text-left hover:border-primary/50"><div><p className="text-sm font-semibold">{reservation.optionName}</p><p className="mt-0.5 text-xs text-muted">{reservation.customerName}</p><p className="mt-1 text-xs text-muted">{appointmentStatusLabels[reservation.status]}</p></div><span className="text-sm font-semibold tabular-nums">{reservation.startTime}–{reservation.endTime}</span></button>)}{blocks.map((block)=><button type="button" key={block.id} onClick={() => onSelectBlock(block)} className="focus-ring flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-left hover:border-primary/50"><div><p className="text-sm font-semibold">{block.option.name}</p><p className="mt-0.5 text-xs text-primary">Bloqueado{block.reason ? ` · ${block.reason}` : ""}</p></div><span className="text-sm font-semibold tabular-nums">{block.startTime}–{block.endTime}</span></button>)}</div></section>;
 }
 
-function DesktopDailyGrid({
-  resources,
-  rows,
-  appointments,
-  blocks,
-  onSelect,
-  onReminderSent,
-  onCreate,
-  onSelectBlock,
-  canCreate,
-  selectedDate,
-}: {
-  resources: DailyCalendarResource[];
-  rows: ReturnType<typeof buildDailyCalendarRows>;
-  appointments: AdminAppointment[];
-  blocks: CalendarBlock[];
-  onSelect: (id: string) => void;
-  onReminderSent: (appointmentId: string, sentAt: string) => void;
-  onCreate: (time: string, resourceId: string | null) => void;
-  onSelectBlock: (block: CalendarBlock) => void;
-  canCreate: boolean;
-  selectedDate: string;
-}) {
-  const gridStyle = {
-    gridTemplateColumns: `${timeColumnWidth}px repeat(${resources.length}, minmax(${resourceColumnWidth}px, 1fr))`,
-    minWidth: timeColumnWidth + resources.length * resourceColumnWidth,
-  };
-  if (!rows.length) return null;
-  return (
-    <div className="mt-4 hidden overflow-x-auto rounded-xl border bg-background md:block">
-      <div className="grid" style={gridStyle}>
-        <div className="sticky left-0 z-10 border-b border-r bg-background px-2 py-3 text-center text-xs font-semibold text-muted">
-          Horário
-        </div>
-        {resources.map((resource) => (
-          <div
-            key={resource.id ?? "business"}
-            className="border-b border-r bg-background px-3 py-3 text-center text-sm font-semibold last:border-r-0"
-          >
-            {resource.name}
-          </div>
-        ))}
-        {rows.map((row) => (
-          <DailyGridRow
-            key={row.time}
-            row={row}
-            resources={resources}
-            appointments={appointments}
-            blocks={blocks}
-            onSelect={onSelect}
-            onReminderSent={onReminderSent}
-            onCreate={onCreate}
-            onSelectBlock={onSelectBlock}
-            canCreate={canCreate && !isPastCalendarSlot(selectedDate, row.time)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DailyGridRow({
-  row,
-  resources,
-  appointments,
-  blocks,
-  onSelect,
-  onReminderSent,
-  onCreate,
-  onSelectBlock,
-  canCreate,
-}: {
-  row: ReturnType<typeof buildDailyCalendarRows>[number];
-  resources: DailyCalendarResource[];
-  appointments: AdminAppointment[];
-  blocks: CalendarBlock[];
-  onSelect: (id: string) => void;
-  onReminderSent: (appointmentId: string, sentAt: string) => void;
-  onCreate: (time: string, resourceId: string | null) => void;
-  onSelectBlock: (block: CalendarBlock) => void;
-  canCreate: boolean;
-}) {
-  return (
-    <>
-      <div className="sticky left-0 z-10 min-h-20 border-b border-r bg-background px-2 py-3 text-center text-xs font-semibold tabular-nums text-muted">
-        {row.time}
-      </div>
-      {resources.map((resource) => {
-        const slotAppointments = appointmentsForResource(appointments, resource.id, row.time);
-        const slotBlocks = blocksForResource(blocks, resource.id, row.time);
-        return <div
-          key={`${row.time}-${resource.id ?? "business"}`}
-          className={classes("relative min-h-20 border-b border-r p-1.5 last:border-r-0", !row.open && "bg-muted/10")}
-        >
-          <div className="space-y-1.5">
-            {slotBlocks.map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
-            {slotAppointments.map(
-              (appointment) => (
-                <DailyAppointmentCard
-                  key={appointment.id}
-                  appointment={appointment}
-                  onSelect={onSelect}
-                  onReminderSent={onReminderSent}
-                />
-              ),
-            )}
-          </div>
-          {row.open && canCreate && !isResourceOccupied(appointments, resource.id, row.time) && !isBlockOccupied(blocks, resource.id, row.time) ? <button type="button" aria-label={`Novo agendamento às ${row.time} para ${resource.name}`} onClick={() => onCreate(row.time, resource.id)} className="focus-ring absolute inset-1.5 rounded-lg opacity-0 transition-opacity hover:bg-primary/5 hover:opacity-100 focus:opacity-100"><Plus className="mx-auto h-4 w-4 text-primary" /></button> : null}
-          {!row.open && !slotAppointments.length && !slotBlocks.length ? <span className="pointer-events-none absolute inset-0 grid place-items-center text-[10px] font-medium text-muted/70">Fora do funcionamento</span> : null}
-        </div>
-      })}
-    </>
-  );
-}
-
-function MobileDailyGrid({
-  resources,
-  resourceLabel,
-  selectedResourceId,
-  onResourceChange,
-  rows,
-  appointments,
-  blocks,
-  onSelect,
-  onReminderSent,
-  onCreate,
-  onSelectBlock,
-  canCreate,
-  selectedDate,
-}: {
-  resources: DailyCalendarResource[];
-  resourceLabel: string | null;
-  selectedResourceId: string | null;
-  onResourceChange: (id: string | null) => void;
-  rows: ReturnType<typeof buildDailyCalendarRows>;
-  appointments: AdminAppointment[];
-  blocks: CalendarBlock[];
-  onSelect: (id: string) => void;
-  onReminderSent: (appointmentId: string, sentAt: string) => void;
-  onCreate: (time: string, resourceId: string | null) => void;
-  onSelectBlock: (block: CalendarBlock) => void;
-  canCreate: boolean;
-  selectedDate: string;
-}) {
-  if (!rows.length) return null;
-  return (
-    <div className="mt-4 md:hidden">
-      {resources.length > 1 ? (
-        <div>
-          <p className="mb-2 text-xs font-medium text-muted">
-            {resourceLabel ?? "Agenda"}
-          </p>
-          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
-            {resources.map((resource) => (
-              <button
-                key={resource.id ?? "business"}
-                type="button"
-                onClick={() => onResourceChange(resource.id)}
-                className={classes(
-                  "focus-ring shrink-0 rounded-full border bg-card px-4 py-2 text-sm font-semibold",
-                  selectedResourceId === resource.id &&
-                    "border-primary bg-primary text-white",
-                )}
-              >
-                {resource.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-      <div className="mt-2 overflow-hidden rounded-xl border bg-background">
-        <div className="border-b px-4 py-3 text-sm font-semibold">
-          {resources.find((resource) => resource.id === selectedResourceId)
-            ?.name ?? resources[0]?.name}
-        </div>
-        {rows.map((row) => {
-          const slotAppointments = appointmentsForResource(appointments, selectedResourceId, row.time);
-          const slotBlocks = blocksForResource(blocks, selectedResourceId, row.time);
-          const slotCanCreate = row.open && canCreate && !isPastCalendarSlot(selectedDate, row.time) && !isResourceOccupied(appointments, selectedResourceId, row.time) && !isBlockOccupied(blocks, selectedResourceId, row.time);
-          return (
-              <div
-                key={row.time}
-                className={classes("grid min-h-16 grid-cols-[58px_minmax(0,1fr)] border-b last:border-b-0", !row.open && "bg-muted/10")}
-              >
-                <div className="border-r px-2 py-3 text-center text-xs font-semibold tabular-nums text-muted">
-                  {row.time}
-                </div>
-                <div className="relative space-y-2 p-2">
-                  {slotAppointments.map((appointment) => (
-                    <DailyAppointmentCard
-                      key={appointment.id}
-                      appointment={appointment}
-                      onSelect={onSelect}
-                      onReminderSent={onReminderSent}
-                    />
-                  ))}
-                  {slotBlocks.map((block) => <DailyBlockCard key={block.id} block={block} onSelect={onSelectBlock} />)}
-                  {!row.open && !slotAppointments.length && !slotBlocks.length ? <span className="block py-2 text-center text-xs font-medium text-muted">Fora do funcionamento</span> : null}
-                  {slotCanCreate ? <button type="button" onClick={() => onCreate(row.time, selectedResourceId)} className="focus-ring flex min-h-10 w-full items-center justify-center gap-1 rounded-lg border border-dashed text-xs font-medium text-muted hover:border-primary hover:text-primary"><Plus className="h-3.5 w-3.5" />Novo</button> : null}
-                </div>
-              </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function DailyAppointmentCard({
   appointment,
+  height,
   onSelect,
   onReminderSent,
 }: {
   appointment: AdminAppointment;
+  height: number;
   onSelect: (id: string) => void;
   onReminderSent: (appointmentId: string, sentAt: string) => void;
 }) {
   return (
     <article
       className={classes(
-        "rounded-lg border border-primary/25 bg-primary/5 p-2",
+        "relative flex h-full flex-col overflow-hidden rounded-lg border border-primary/25 bg-card px-2 py-1 hover:border-primary",
         appointment.status === "cancelled" && "opacity-55",
       )}
     >
       <button
         type="button"
         onClick={() => onSelect(appointment.id)}
-        className="focus-ring block w-full rounded text-left"
-        aria-label={`Abrir agendamento de ${appointment.customerName} às ${appointment.startTime}`}
-      >
+        className="focus-ring absolute inset-0 h-full w-full rounded-lg"
+        aria-label={`Abrir agendamento de ${appointment.customerName} às ${appointment.startTime}, ${formatDuration(appointment.durationMinutes)}, ${appointmentStatusLabels[appointment.status]}`}
+      />
+      <div className="pointer-events-none relative flex min-h-0 flex-1 flex-col items-start overflow-hidden text-left">
         <p className="truncate text-xs font-semibold">
           {appointment.startTime} · {appointment.customerName}
         </p>
-        {appointment.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera · até {appointment.endTime}</p> : null}
-        <p className="mt-0.5 truncate text-[11px] text-muted">
+        {height >= 80 && appointment.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera · até {appointment.endTime}</p> : null}
+        <p className={classes("mt-0.5 truncate text-[11px] text-muted", height < 64 && "hidden")}>
           {[appointment.group2?.name, formatDuration(appointment.durationMinutes)]
             .filter(Boolean)
             .join(" · ")}
         </p>
-        {appointment.complementary ? <p className="mt-1 truncate rounded-md bg-accent/15 px-1.5 py-1 text-xs font-medium">{appointment.complementary.optionName} · {appointment.complementary.occupancyMode === "day" ? "Reserva do dia" : `${appointment.complementary.startTime}–${appointment.complementary.endTime}`}</p> : null}
-      </button>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        <AppointmentWhatsappReminder
+        {height >= 144 && appointment.complementary ? <p className="mt-1 truncate rounded-md bg-accent/15 px-1.5 py-1 text-xs font-medium">{appointment.complementary.optionName} · {appointment.complementary.occupancyMode === "day" ? "Reserva do dia" : `${appointment.complementary.startTime}–${appointment.complementary.endTime}`}</p> : null}
+      </div>
+      {height >= 80 ? <div className="pointer-events-none relative flex shrink-0 items-center gap-1 overflow-hidden">
+        <div className="pointer-events-auto"><AppointmentWhatsappReminder
           appointment={appointment}
           onReminderSent={(sentAt) =>
             onReminderSent(appointment.id, sentAt)
           }
-        />
+        /></div>
         {appointment.series ? <RecurringBadge /> : null}
         <StatusBadge status={appointment.status} />
-      </div>
+      </div> : height >= 44 ? <div className="pointer-events-none relative self-start"><StatusBadge status={appointment.status} /></div> : null}
     </article>
-  );
-}
-
-function blocksForResource(
-  blocks: CalendarBlock[],
-  resourceId: string | null,
-  time: string,
-) {
-  return blocks.filter(
-    (block) =>
-      (resourceId === null || block.group1?.id === resourceId) &&
-      (block.calendarStartTime ?? block.startTime) === time,
-  );
-}
-
-function isBlockOccupied(
-  blocks: CalendarBlock[],
-  resourceId: string | null,
-  time: string,
-) {
-  return blocks.some(
-    (block) =>
-      (resourceId === null || block.group1?.id === resourceId) &&
-      timeToMinutes(block.calendarStartTime ?? block.startTime) <= timeToMinutes(time) &&
-      timeToMinutes(time) < intervalEndMinutes(block.calendarStartTime ?? block.startTime, block.calendarEndTime ?? block.endTime),
   );
 }
 
 function DailyBlockCard({
   block,
+  height,
   onSelect,
 }: {
   block: CalendarBlock;
+  height: number;
   onSelect: (block: CalendarBlock) => void;
 }) {
   return (
     <button
       type="button"
       onClick={() => onSelect(block)}
-      className="focus-ring block w-full rounded-lg border border-dashed border-muted/60 bg-surface px-2 py-2 text-left"
+      className="focus-ring flex h-full w-full flex-col items-start overflow-hidden rounded-lg border border-dashed border-muted/60 bg-surface px-2 py-1 text-left hover:border-primary"
       aria-label={`Abrir bloqueio das ${block.startTime} às ${block.endTime}`}
     >
       <p className="flex items-center gap-1.5 truncate text-xs font-semibold">
         <Ban className="h-3.5 w-3.5 shrink-0 text-muted" />
         Bloqueado · {block.startTime}–{block.endTime}
       </p>
-      {block.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera</p> : null}
+      {height >= 80 && block.calendarStartTime ? <p className="mt-1 text-xs text-muted">Iniciado na véspera</p> : null}
       <p className="mt-0.5 truncate text-[11px] text-muted">
         {block.reason || "Indisponível"}{block.series ? " · Recorrente" : ""}
       </p>
