@@ -1,5 +1,5 @@
 import type { DailyCalendarWindow } from "@/types/appointments";
-import { endTimeToMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
+import { intervalEndMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export function calendarBlockSlots(
   windows: DailyCalendarWindow[],
@@ -9,10 +9,10 @@ export function calendarBlockSlots(
   return windows.flatMap((window) => {
     const result: string[] = [];
     for (
-      let minute = timeToMinutes(window.startTime);
-      minute < endTimeToMinutes(window.endTime);
+      let minute = window.anchorMinutes ?? timeToMinutes(window.startTime);
+      minute < Math.min(1440, intervalEndMinutes(window.startTime, window.endTime));
       minute += safeStep
-    ) result.push(minutesToTime(minute));
+    ) if (minute >= 0) result.push(minutesToTime(minute));
     return result;
   });
 }

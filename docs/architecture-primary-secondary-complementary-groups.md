@@ -304,6 +304,8 @@ Para `day`, o intervalo técnico seria:
 
 Isso não representa uma reserva de `00:00–23:59`. É apenas a representação matemática fechada-aberta de uma data completa. A entidade de domínio e a UI continuam sem horário.
 
+Para `time_slot`, a data continua identificando o início real. Um fim anterior ao início pertence ao dia seguinte (por exemplo, segunda `23:15–00:15`). `private.complementary_period` usa a mesma aritmética civil de `private.booking_period`; allocations e bloqueios detectam conflitos com intervalos iniciados na data seguinte. Isso não estende um componente `day` nem obriga um componente complementar a ter o mesmo intervalo do principal. Ver detalhes em `docs/database.md`, “Intervalos que atravessam a meia-noite”.
+
 ### 7.2 Exclusion constraint
 
 ```text

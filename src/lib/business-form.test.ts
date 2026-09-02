@@ -137,16 +137,16 @@ test("sugere novo período sem sobrepor os existentes", () => {
   assert.deepEqual(nextBusinessHourWindow([]), { startTime: "08:00", endTime: "18:00" });
 });
 
-test("valida funcionamento terminando à meia-noite sem permitir madrugada", () => {
+test("valida meia-noite e madrugada sem aceitar duração zero", () => {
   const hours = createEmptyBusinessForm().hours;
   hours[1].windows = [{ startTime: "17:00", endTime: "00:00" }];
   assert.equal(validateBusinessHours(hours), null);
   hours[1].windows = [{ startTime: "00:00", endTime: "06:00" }];
   assert.equal(validateBusinessHours(hours), null);
   hours[1].windows = [{ startTime: "17:00", endTime: "17:00" }];
-  assert.equal(validateBusinessHours(hours), "O horário final deve ser posterior ao inicial.");
+  assert.equal(validateBusinessHours(hours), "Informe horários válidos e diferentes para início e fim.");
   hours[1].windows = [{ startTime: "22:00", endTime: "02:00" }];
-  assert.equal(validateBusinessHours(hours), "O horário final deve ser posterior ao inicial.");
+  assert.equal(validateBusinessHours(hours), null);
 });
 
 test("sugere o último período do dia como 23:00 até 00:00", () => {

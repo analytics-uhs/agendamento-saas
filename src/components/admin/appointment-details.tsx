@@ -1,5 +1,6 @@
 "use client";
 
+import { formatBookingTimeRange } from "@/lib/time-of-day";
 import { Ban, CheckCircle2, Pencil, Repeat2, RotateCcw, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appointmentDetailActions } from "@/lib/appointment-detail-actions";
@@ -57,7 +58,7 @@ export function AppointmentDetails({
           <dt className="text-xs text-muted">Data e horário</dt>
           <dd className="font-medium capitalize">
             {formatLongDate(appointment.appointmentDate)} ·{" "}
-            {appointment.startTime}–{appointment.endTime}
+            {formatBookingTimeRange(appointment.startTime, appointment.endTime)}
           </dd>
         </div>
         <div>

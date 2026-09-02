@@ -79,12 +79,11 @@ test("meia-noite do banco aparece como 00:00 e é válida no formulário", () =>
   assert.equal(validateOptionSchedule("custom", draft), null);
 });
 
-test("validação rejeita overlap, duplicata, formato inválido e janela invertida", () => {
+test("validação rejeita overlap, duplicata, formato inválido e duração zero", () => {
   for (const windows of [
     [{ startTime: "08:15", endTime: "12:15" }, { startTime: "11:15", endTime: "14:15" }],
     [{ startTime: "08:15", endTime: "12:15" }, { startTime: "08:15", endTime: "12:15" }],
     [{ startTime: "17:00", endTime: "17:00" }],
-    [{ startTime: "22:00", endTime: "02:00" }],
     [{ startTime: "99:00", endTime: "23:00" }],
   ]) {
     const draft = days(); draft[1].windows = windows;

@@ -1,14 +1,14 @@
 "use server";
 
+import { listBlocksForDay } from "@/lib/repositories/daily-calendar";
 import { revalidatePath } from "next/cache";
 import { formatNumericDate } from "@/lib/date";
-import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
+import { isValidBookingTimeRange } from "@/lib/time-of-day";
 import { getBusinessHoursForDate } from "@/lib/repositories/appointments";
 import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 import {
   createCalendarBlocks,
   deleteCalendarBlock,
-  listCalendarBlocks,
   updateCalendarBlock,
 } from "@/lib/repositories/calendar-blocks";
 import { cancelResourceBlock, createResourceBlocks, listResourceBlocks } from "@/lib/repositories/resource-blocks";
@@ -49,7 +49,7 @@ function validInput(input: CalendarBlockInput) {
     datePattern.test(input.date) &&
     timePattern.test(input.startTime) &&
     timePattern.test(input.endTime) &&
-    input.startTime < input.endTime &&
+    isValidBookingTimeRange(input.startTime, input.endTime) &&
     input.group1OptionIds.every((id) => uuid.test(id)) &&
     input.reason.trim().length <= 160 &&
     (!input.recurring || input.repeatCount === null ||
@@ -82,7 +82,7 @@ export async function saveCalendarBlock(
   if (error) return { ok: false, conflict: error.code === "23P01", message: errorMessage(error.message) };
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: input.recurring ? "Bloqueio recorrente criado." : "Bloqueio criado.", data: await listCalendarBlocks(business.id, input.date) };
+  return { ok: true, message: input.recurring ? "Bloqueio recorrente criado." : "Bloqueio criado.", data: await listBlocksForDay(business.id, input.date) };
 }
 
 export async function editCalendarBlock(
@@ -96,7 +96,7 @@ export async function editCalendarBlock(
   if (error) return { ok: false, conflict: error.code === "23P01", message: errorMessage(error.message) };
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: "Bloqueio atualizado somente nesta ocorrência.", data: await listCalendarBlocks(business.id, input.date) };
+  return { ok: true, message: "Bloqueio atualizado somente nesta ocorrência.", data: await listBlocksForDay(business.id, input.date) };
 }
 
 export async function removeCalendarBlock(
@@ -111,7 +111,7 @@ export async function removeCalendarBlock(
   if (error) return { ok: false, message: errorMessage(error.message) };
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
-  return { ok: true, message: scope === "future" ? "Este e os próximos bloqueios foram removidos." : "Bloqueio removido.", data: await listCalendarBlocks(business.id, date) };
+  return { ok: true, message: scope === "future" ? "Este e os próximos bloqueios foram removidos." : "Bloqueio removido.", data: await listBlocksForDay(business.id, date) };
 }
 
 function resourceBlockError(message: string) {
@@ -122,7 +122,7 @@ function resourceBlockError(message: string) {
 }
 
 export async function saveResourceBlock(input: ResourceBlockInput): Promise<AppointmentActionResult<ResourceBlock[]>> {
-  const timesValid = input.startTime === null && input.endTime === null || Boolean(input.startTime && input.endTime && timePattern.test(input.startTime) && timePattern.test(input.endTime) && timeToMinutes(input.startTime) < endTimeToMinutes(input.endTime));
+  const timesValid = input.startTime === null && input.endTime === null || Boolean(input.startTime && input.endTime && isValidBookingTimeRange(input.startTime, input.endTime));
   if (!datePattern.test(input.date) || !input.optionIds.length || !input.optionIds.every((id) => uuid.test(id)) || !timesValid || input.reason.trim().length > 160 || (input.recurring && input.repeatCount !== null && (!Number.isInteger(input.repeatCount) || input.repeatCount < 2))) return { ok: false, message: "Revise os dados do bloqueio." };
   const business = await requireCurrentBusiness();
   const error = await createResourceBlocks({ ...input, reason: input.reason.trim() });

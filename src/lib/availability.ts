@@ -1,6 +1,6 @@
 import type { AppointmentStatus, DurationMode } from "@/types/database";
 import type { BookingSlot } from "@/types/public-booking";
-import { endTimeToMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
+import { intervalEndMinutes, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 
 export type BusyInterval = { startTime: string; endTime: string; status: AppointmentStatus };
 export type OpeningWindow = { active: boolean; startTime: string; endTime: string };
@@ -27,14 +27,14 @@ export function generateAvailability(input: AvailabilityInput): BookingSlot[] {
   const now = input.date === input.today && input.currentTime ? timeToMinutes(input.currentTime) : null;
   const busy = input.appointments
     .filter((appointment) => appointment.status !== "cancelled")
-    .map((appointment) => ({ start: timeToMinutes(appointment.startTime), end: endTimeToMinutes(appointment.endTime) }));
+    .map((appointment) => ({ start: timeToMinutes(appointment.startTime), end: intervalEndMinutes(appointment.startTime, appointment.endTime) }));
   const slots: BookingSlot[] = [];
 
   for (const businessHour of input.businessHours.filter((hour) => hour.active)) {
     const opening = timeToMinutes(businessHour.startTime);
-    const closing = endTimeToMinutes(businessHour.endTime);
+    const closing = intervalEndMinutes(businessHour.startTime, businessHour.endTime);
     const starts: number[] = [];
-    for (let start = opening; start + duration <= closing; start += duration) starts.push(start);
+    for (let start = opening; start < 1440 && start + duration <= closing; start += duration) starts.push(start);
     if (businessHour.endTime === "00:00" && closing - duration >= opening && !starts.includes(closing - duration))
       starts.push(closing - duration);
     for (const start of starts.sort((left, right) => left - right)) {

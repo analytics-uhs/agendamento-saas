@@ -1,7 +1,7 @@
 import type { AppointmentSource, AppointmentStatus, DurationMode } from "@/types/database";
 import type { DailyCalendarWindow, ManualAppointmentInput } from "@/types/appointments";
 import { parseISO } from "@/lib/date";
-import { endTimeToMinutes, timeToMinutes } from "@/lib/time-of-day";
+import { civilDayWindows, timeToMinutes } from "@/lib/time-of-day";
 
 export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
   scheduled: "Agendado",
@@ -69,10 +69,8 @@ export function isWithinBusinessHours(input: {
   const weekday = parseISO(input.date).getDay();
   const start = timeToMinutes(input.startTime);
   const end = start + input.durationMinutes;
-  return (input.businessHours ?? []).some(
+  return civilDayWindows(input.businessHours ?? [], weekday).some(
     (window) =>
-      window.weekday === weekday &&
-      start >= timeToMinutes(window.startTime) &&
-      end <= endTimeToMinutes(window.endTime),
+      start >= window.start && end <= window.end,
   );
 }
