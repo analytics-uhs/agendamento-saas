@@ -3,7 +3,7 @@ import type { VisualThemePreference } from "@/types/business";
 import type { BookingGroupPosition } from "@/lib/booking-groups";
 import type { Palette } from "@/types/scheduling";
 
-export type PublicBookingOption = { id: string; name: string; durationMinutes: number | null };
+export type PublicBookingOption = { id: string; name: string; durationMinutes: number | null; availableWeekdays?: number[] };
 export type PublicBookingGroup = {
   position: BookingGroupPosition;
   label: string;

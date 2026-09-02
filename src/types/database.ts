@@ -7,6 +7,7 @@ export type AppointmentStatus = "scheduled" | "completed" | "cancelled" | "no_sh
 export type AppointmentSource = "public" | "admin";
 export type AdminNotificationType = "new_public_appointment";
 export type BookingGroupOccupancyMode = "time_slot" | "day";
+export type BookingOptionScheduleMode = "business" | "custom";
 
 type Timestamps = { created_at: string; updated_at: string };
 
@@ -38,10 +39,16 @@ export interface Database {
         Relationships: [{ foreignKeyName: "booking_groups_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       booking_options: {
-        Row: { id: string; business_id: string; group_id: string; name: string; duration_minutes: number | null; active: boolean; sort_order: number } & Timestamps;
-        Insert: { id?: string; business_id: string; group_id: string; name: string; duration_minutes?: number | null; active?: boolean; sort_order?: number; created_at?: string; updated_at?: string };
-        Update: { group_id?: string; name?: string; duration_minutes?: number | null; active?: boolean; sort_order?: number; updated_at?: string };
+        Row: { id: string; business_id: string; group_id: string; name: string; duration_minutes: number | null; active: boolean; sort_order: number; schedule_mode: BookingOptionScheduleMode } & Timestamps;
+        Insert: { id?: string; business_id: string; group_id: string; name: string; duration_minutes?: number | null; active?: boolean; sort_order?: number; schedule_mode?: BookingOptionScheduleMode; created_at?: string; updated_at?: string };
+        Update: { group_id?: string; name?: string; duration_minutes?: number | null; active?: boolean; sort_order?: number; schedule_mode?: BookingOptionScheduleMode; updated_at?: string };
         Relationships: [{ foreignKeyName: "booking_options_group_tenant_fk"; columns: ["group_id", "business_id"]; isOneToOne: false; referencedRelation: "booking_groups"; referencedColumns: ["id", "business_id"] }];
+      };
+      booking_option_hours: {
+        Row: { id: string; business_id: string; option_id: string; weekday: number; active: boolean; start_time: string; end_time: string } & Timestamps;
+        Insert: { id?: string; business_id: string; option_id: string; weekday: number; active?: boolean; start_time: string; end_time: string; created_at?: string; updated_at?: string };
+        Update: { weekday?: number; active?: boolean; start_time?: string; end_time?: string; updated_at?: string };
+        Relationships: [{ foreignKeyName: "booking_option_hours_option_tenant_fk"; columns: ["option_id", "business_id"]; isOneToOne: false; referencedRelation: "booking_options"; referencedColumns: ["id", "business_id"] }];
       };
       business_hours: {
         Row: { id: string; business_id: string; weekday: number; active: boolean; start_time: string; end_time: string } & Timestamps;
@@ -158,6 +165,7 @@ export interface Database {
       complete_admin_push_notification: { Args: { p_notification_id: string; p_claim_token: string; p_outcome: string }; Returns: string };
       release_admin_push_notification: { Args: { p_notification_id: string; p_claim_token: string }; Returns: boolean };
       replace_business_hours: { Args: { p_hours: Json }; Returns: boolean };
+      set_admin_booking_option_schedule: { Args: { p_option_id: string; p_schedule_mode: BookingOptionScheduleMode; p_hours?: Json | null }; Returns: boolean };
       create_recurring_appointment_series: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_starts_on: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string; p_repeat_count?: number | null }; Returns: Json };
       materialize_recurring_appointments: { Args: { p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
       cancel_recurring_appointment: { Args: { p_appointment_id: string; p_scope: string }; Returns: Json };
@@ -176,6 +184,7 @@ export interface Database {
       appointment_status: AppointmentStatus;
       appointment_source: AppointmentSource;
       booking_group_occupancy_mode: BookingGroupOccupancyMode;
+      booking_option_schedule_mode: BookingOptionScheduleMode;
     };
     CompositeTypes: Record<string, never>;
   };
