@@ -1,0 +1,18 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+create temporary table admin_multiple_results (result text);
+insert into admin_multiple_results select plan(3);
+insert into auth.users(id,email) values ('ab510000-0000-4000-8000-000000000001','multiple-ui@example.test');
+insert into public.businesses(id,name,slug) values ('ab520000-0000-4000-8000-000000000001','Multiple UI Test','multiple-ui-test');
+insert into public.business_members(business_id,user_id,role) values ('ab520000-0000-4000-8000-000000000001','ab510000-0000-4000-8000-000000000001','owner');
+insert into public.business_settings(business_id,duration_mode,fixed_duration_minutes,allow_multiple_blocks) values ('ab520000-0000-4000-8000-000000000001','fixed_multiple',60,true);
+grant insert, select on admin_multiple_results to authenticated;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ab510000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+insert into admin_multiple_results select lives_ok($$select public.create_admin_appointment(null,null,current_date+30,'18:00',3,'João','53999999999')$$,'three selected blocks use one Admin RPC outside public hours');
+insert into admin_multiple_results select is((select count(*)::integer from public.appointments where business_id='ab520000-0000-4000-8000-000000000001'),1,'exactly one appointment is created');
+insert into admin_multiple_results select is((select start_time::text || '|' || end_time::text || '|' || duration_minutes::text from public.appointments where business_id='ab520000-0000-4000-8000-000000000001'),'18:00:00|21:00:00|180','one appointment spans 18:00 to 21:00');
+reset role;
+insert into admin_multiple_results select * from finish();
+select result from admin_multiple_results;
+rollback;
