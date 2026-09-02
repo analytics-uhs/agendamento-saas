@@ -5,5 +5,6 @@ import { requireCurrentBusiness } from "@/lib/repositories/businesses";
 export const metadata: Metadata = { title: "Horários" };
 export default async function HoursPage() {
   const business = await requireCurrentBusiness();
-  return <BusinessHours initialHours={(await getBusinessConfiguration(business.id)).hours} />;
+  const config = await getBusinessConfiguration(business.id);
+  return <BusinessHours initialHours={config.hours} initialNotice={config.minimumBookingNoticeMinutes ?? 60} />;
 }

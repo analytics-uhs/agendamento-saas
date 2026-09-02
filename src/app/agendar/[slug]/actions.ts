@@ -15,6 +15,14 @@ function object(value: Json | undefined): Record<string, Json | undefined> | nul
 function validOption(value: string | null) { return value === null || uuid.test(value); }
 function time(value: Json | undefined) { return typeof value === "string" ? value.slice(0, 5) : null; }
 
+export async function getComplementaryTimeSlots(input: { slug: string; date: string }): Promise<PublicActionResult<BookingSlot[]>> {
+  if (!slugPattern.test(input.slug) || !datePattern.test(input.date)) return { ok: false, message: "Data inválida." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_public_complementary_time_slots", { p_slug: input.slug, p_date: input.date });
+  if (error) return publicError(error.message, error.code);
+  return { ok: true, data: parseSlots(data) };
+}
+
 function parseSlots(value: Json): BookingSlot[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((raw) => {
@@ -60,6 +68,7 @@ function parseReservationConfirmation(value: Json): BookingConfirmation | null {
 }
 
 function publicError(message: string, code?: string): PublicActionResult<never> {
+  if (message.includes("booking_minimum_notice")) return { ok: false, conflict: true, message: "Esse horário está próximo demais para agendar pelo link. Escolha um horário mais tarde." };
   if (message.includes("reservation_complementary_conflict")) return { ok: false, conflict: true, message: "Esse recurso acabou de ser reservado. Escolha outra opção." };
   if (message.includes("reservation_primary_conflict") || code === "23P01" || message.includes("booking_conflict")) return { ok: false, conflict: true, message: "O horário acabou de ser reservado. Escolha outro horário." };
   if (message.includes("reservation_invalid_option") || message.includes("reservation_invalid_group") || message.includes("booking_invalid_group")) return { ok: false, staleSelection: true, message: "A opção selecionada não está mais disponível. Faça uma nova escolha." };
