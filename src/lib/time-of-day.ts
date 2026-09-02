@@ -27,7 +27,7 @@ export function endsNextDay(startTime: string, endTime: string) {
 }
 
 export function formatBookingTimeRange(startTime: string, endTime: string) {
-  return `${startTime}–${displayEndTime(endTime)}${endsNextDay(startTime, endTime) ? " (dia seguinte)" : ""}`;
+  return `${startTime}–${displayEndTime(endTime)}`;
 }
 
 /** Original anchors, including negative minutes from yesterday's spill. */
