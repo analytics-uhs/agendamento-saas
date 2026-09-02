@@ -33,6 +33,32 @@ Um usuário autenticado lê e altera somente o próprio profile. Membros leem o 
 
 `public.create_business_with_owner` é a primitiva atômica de onboarding: cria negócio, owner, dois grupos, sete dias de horários e settings padrão. Inserção direta em `businesses` não é concedida ao cliente autenticado.
 
+## Antecedência mínima pública
+
+`business_settings.minimum_booking_notice_minutes` é inteiro não negativo,
+`NOT NULL DEFAULT 60`. Negócios existentes e novos adotam uma hora; zero mantém
+os filtros temporais legados. Em **Admin → Horários**, o campo “Antecedência mínima”
+é salvo por Server Action com tenant derivado da sessão e RLS existente.
+
+`private.public_booking_notice_is_valid` compara a data/hora inicial em
+`America/Sao_Paulo` com o relógio confiável `statement_timestamp()` mais a
+antecedência. O limite é inclusivo, preserva segundos, minutos quebrados e troca
+de dia. O relógio privado não aceita parâmetro/GUC do cliente; pgTAP o substitui
+somente em transação privilegiada com rollback.
+
+O filtro atua na disponibilidade principal pública e é revalidado em
+`create_public_appointment`, inclusive quando chamada por `create_public_reservation`.
+Em `fixed_multiple`, só o primeiro bloco define a antecedência; duração por
+Secundário não muda a regra. O predicado público complementar aplica a mesma
+regra a `time_slot`, nunca a `day`. `get_public_complementary_time_slots` retorna
+somente início/duração/max_blocks de intervalos com opção livre, reutilizando a
+disponibilidade complementar existente, sem publicar dados administrativos.
+
+Admin usa o caminho privado com `p_enforce_hours=false` e suas RPCs de criação
+próprias: não recebe antecedência pública. Conflitos, bloqueios, allocations,
+recorrência e permissões permanecem inalterados. Não se adicionou configuração
+ao payload de metadata público nem regra de relógio no browser.
+
 ## Super Admin
 
 Super Admin não é uma coluna editável pelo cliente. A allow-list `private.platform_admins` fica fora dos schemas expostos pela Data API, sem grants para `anon` ou `authenticated` e com RLS habilitado. Somente operações privilegiadas de plataforma (SQL administrativo ou backend confiável futuro) podem provisioná-la. As policies consultam a allow-list pela função privada `is_platform_admin()`.

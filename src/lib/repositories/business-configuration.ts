@@ -10,7 +10,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     supabase.from("booking_groups").select("id, position, label, intent_name, occupancy_mode, active, required").eq("business_id", businessId).in("position", [1, 2, 3]).order("position"),
     supabase.from("booking_options").select("id, group_id, name, duration_minutes, sort_order").eq("business_id", businessId).order("sort_order"),
     supabase.from("business_hours").select("id, weekday, active, start_time, end_time").eq("business_id", businessId).order("weekday").order("start_time"),
-    supabase.from("business_settings").select("duration_mode, fixed_duration_minutes, palette, theme_preference").eq("business_id", businessId).single(),
+    supabase.from("business_settings").select("duration_mode, fixed_duration_minutes, minimum_booking_notice_minutes, palette, theme_preference").eq("business_id", businessId).single(),
   ]);
 
   const error = businessResult.error ?? groupsResult.error ?? optionsResult.error ?? hoursResult.error ?? settingsResult.error;
@@ -93,6 +93,7 @@ export async function getBusinessConfiguration(businessId: string): Promise<Busi
     hours,
     durationMode: settingsResult.data.duration_mode,
     fixedDurationMinutes: settingsResult.data.fixed_duration_minutes,
+    minimumBookingNoticeMinutes: settingsResult.data.minimum_booking_notice_minutes,
     paletteId,
     themePreference: settingsResult.data.theme_preference === "dark" ? "dark" : "light",
   };

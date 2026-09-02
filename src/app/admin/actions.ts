@@ -5,6 +5,7 @@ import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { getBusinessConfiguration } from "@/lib/repositories/business-configuration";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
+import { validBookingNotice } from "@/lib/booking-notice";
 import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
 import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessGroups, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
@@ -116,6 +117,17 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin/configuracao");
   return { ok: true, message: "Configuração da agenda salva.", data: (await getBusinessConfiguration(current.business.id)).groups };
+}
+
+export async function saveBookingNotice(minutes: number): Promise<ActionResult> {
+  const current = await context();
+  if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
+  if (!validBookingNotice(minutes)) return { ok: false, message: "Selecione uma antecedência válida." };
+  const { error } = await current.supabase.from("business_settings")
+    .update({ minimum_booking_notice_minutes: minutes }).eq("business_id", current.business.id);
+  if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
+  revalidatePath("/admin/horarios");
+  return { ok: true, message: "Antecedência mínima salva." };
 }
 
 export async function saveHours(hours: BusinessHourForm[]): Promise<ActionResult> {

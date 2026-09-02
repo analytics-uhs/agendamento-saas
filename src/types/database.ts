@@ -57,9 +57,9 @@ export interface Database {
         Relationships: [{ foreignKeyName: "business_hours_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       business_settings: {
-        Row: { business_id: string; duration_mode: DurationMode; fixed_duration_minutes: number; allow_multiple_blocks: boolean; palette: Json; theme_preference: ThemePreference } & Timestamps;
-        Insert: { business_id: string; duration_mode?: DurationMode; fixed_duration_minutes?: number; allow_multiple_blocks?: boolean; palette?: Json; theme_preference?: ThemePreference; created_at?: string; updated_at?: string };
-        Update: { duration_mode?: DurationMode; fixed_duration_minutes?: number; allow_multiple_blocks?: boolean; palette?: Json; theme_preference?: ThemePreference; updated_at?: string };
+        Row: { business_id: string; duration_mode: DurationMode; fixed_duration_minutes: number; minimum_booking_notice_minutes: number; allow_multiple_blocks: boolean; palette: Json; theme_preference: ThemePreference } & Timestamps;
+        Insert: { business_id: string; duration_mode?: DurationMode; fixed_duration_minutes?: number; minimum_booking_notice_minutes?: number; allow_multiple_blocks?: boolean; palette?: Json; theme_preference?: ThemePreference; created_at?: string; updated_at?: string };
+        Update: { duration_mode?: DurationMode; fixed_duration_minutes?: number; minimum_booking_notice_minutes?: number; allow_multiple_blocks?: boolean; palette?: Json; theme_preference?: ThemePreference; updated_at?: string };
         Relationships: [{ foreignKeyName: "business_settings_business_id_fkey"; columns: ["business_id"]; isOneToOne: true; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       appointments: {
@@ -143,6 +143,7 @@ export interface Database {
       cancel_admin_reservation: { Args: { p_reservation_id: string }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       get_booking_availability: { Args: { p_slug: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
+      get_public_complementary_time_slots: { Args: { p_slug: string; p_date: string }; Returns: Json };
       get_admin_booking_availability: { Args: { p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_admin_appointment_edit_availability: { Args: { p_appointment_id: string; p_date: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null }; Returns: Json };
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json };

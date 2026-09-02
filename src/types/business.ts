@@ -20,6 +20,7 @@ export type BusinessForm = {
   hours: BusinessHourForm[];
   durationMode: DurationMode;
   fixedDurationMinutes: number;
+  minimumBookingNoticeMinutes?: number;
   paletteId: string;
   themePreference: VisualThemePreference;
 };
