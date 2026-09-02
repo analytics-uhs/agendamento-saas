@@ -5,15 +5,17 @@ import { Input, Label, Select } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 import { classes } from "@/lib/classes";
 import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
-import type { BusinessGroupForm } from "@/types/business";
+import type { ReactNode } from "react";
+import type { BusinessGroupForm, BusinessOptionForm } from "@/types/business";
 
 type BookingGroupEditorProps = {
   group: BusinessGroupForm;
   showDuration?: boolean;
   onChange: (group: BusinessGroupForm) => void;
+  renderOptionSchedule?: (option: BusinessOptionForm) => ReactNode;
 };
 
-export function BookingGroupEditor({ group, showDuration = false, onChange }: BookingGroupEditorProps) {
+export function BookingGroupEditor({ group, showDuration = false, onChange, renderOptionSchedule }: BookingGroupEditorProps) {
   const groupName = bookingGroupProductName(group.position);
   const complementary = group.position === bookingGroupPosition("complementary");
   const patch = (values: Partial<BusinessGroupForm>) => onChange({ ...group, ...values });
@@ -135,6 +137,7 @@ export function BookingGroupEditor({ group, showDuration = false, onChange }: Bo
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
+                {group.position === bookingGroupPosition("primary") ? renderOptionSchedule?.(option) : null}
               </div>
             ))}
             <Button variant="outline" size="sm" onClick={() => patch({ options: [...group.options, { name: "", durationMinutes: showDuration ? 30 : null }] })}>

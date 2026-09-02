@@ -109,8 +109,24 @@ informado como `00:00` reutiliza a representação canônica `24:00`. A RPC
 `set_admin_booking_option_schedule` troca o modo e substitui todas as janelas
 custom de forma transacional para owner/admin. Ao retornar a `business`, preserva
 as janelas custom armazenadas, mas as ignora, permitindo reativação posterior sem
-redigitação. A futura UI enviará as sete entradas diárias explicitamente; não há
+redigitação. A UI envia as sete entradas diárias explicitamente; não há
 cópia mágica de `business_hours` no banco.
+
+No Admin, em Configuração da agenda, cada opção salva do Grupo principal possui
+um editor expansível de **Horário de disponibilidade**. O modo herdado não exibe
+edição semanal; o modo personalizado reutiliza o editor de múltiplos períodos,
+com campos empilhados no mobile e validação de sobreposição/meia-noite.
+Na primeira personalização sem janelas armazenadas, os horários gerais são
+copiados somente para o rascunho visual. Um custom vazio permanece fechado.
+Alternar modos ou recolher o editor mantém o rascunho local; sair da página sem
+salvar não o persiste. Ao salvar business, a RPC recebe somente modo e opção,
+preservando janelas custom armazenadas. Novas opções precisam primeiro ser salvas
+na configuração para obter seu ID, sem reload manual.
+
+`loadOptionSchedule`/`saveOptionSchedule` usam o repository `option-schedules`,
+resolvem o negócio pela sessão e restringem a opção ao Grupo principal desse
+tenant. O browser não lê tabelas diretamente. O único write de horário passa por
+`set_admin_booking_option_schedule`; não há lógica de disponibilidade no editor.
 
 Essas janelas limitam a disponibilidade e a criação públicas. A criação Admin
 continua permitida fora delas, respeitando conflitos, bloqueios, tenant e
