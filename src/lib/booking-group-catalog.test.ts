@@ -14,8 +14,8 @@ test("mapeia e ordena o catálogo complementar sem ativar o fluxo público", () 
     { id: "group-1", business_id: "business", position: 1, label: "Escolha principal", intent_name: null, occupancy_mode: null, active: true, required: true, sort_order: 1, ...timestamps },
   ];
   const options: OptionRow[] = [
-    { id: "option-2", business_id: "business", group_id: "group-3", name: "Espaço 2", duration_minutes: null, active: true, sort_order: 2, ...timestamps },
-    { id: "option-1", business_id: "business", group_id: "group-3", name: "Espaço 1", duration_minutes: null, active: true, sort_order: 1, ...timestamps },
+    { id: "option-2", business_id: "business", group_id: "group-3", name: "Espaço 2", duration_minutes: null, active: true, sort_order: 2, schedule_mode: "business", ...timestamps },
+    { id: "option-1", business_id: "business", group_id: "group-3", name: "Espaço 1", duration_minutes: null, active: true, sort_order: 1, schedule_mode: "business", ...timestamps },
   ];
 
   const result = mapBookingGroupCatalog(groups, options);

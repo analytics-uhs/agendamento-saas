@@ -49,7 +49,7 @@ export async function getBookingGroupCatalog(
       .order("position"),
     supabase
       .from("booking_options")
-      .select("id, business_id, group_id, name, duration_minutes, active, sort_order, created_at, updated_at")
+      .select("id, business_id, group_id, name, duration_minutes, active, sort_order, schedule_mode, created_at, updated_at")
       .eq("business_id", businessId)
       .order("sort_order"),
   ]);

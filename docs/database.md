@@ -96,6 +96,27 @@ Um dia pode conter várias linhas em `business_hours`. O motor gera candidatos s
 
 A constraint `business_hours_no_overlapping_windows` usa intervalos `[início, fim)`: duplicatas e sobreposições no mesmo negócio/dia são rejeitadas, mas `08:00–11:00` seguido de `11:00–14:00` é válido. A RPC autenticada `replace_business_hours` troca atomicamente todas as janelas do negócio resolvido pela membership, sem ampliar os grants diretos ou permitir a escolha de outro `business_id`.
 
+`business_hours` também permanece o horário padrão das opções do Grupo principal.
+Cada `booking_option` possui um `schedule_mode` explícito: `business` (padrão
+retrocompatível) usa exclusivamente o horário geral; `custom` usa exclusivamente
+as múltiplas janelas normalizadas de `booking_option_hours`. O custom substitui,
+não intersecta nem faz fallback para o horário geral. Ausência de janelas em um
+dia significa recurso fechado, inclusive quando o negócio está aberto.
+
+Cada janela efetiva ancora sua própria grade: `18:15–23:15` com 60 minutos gera
+`18:15`, `19:15`, …, `22:15`; intervalos separados nunca são atravessados. O fim
+informado como `00:00` reutiliza a representação canônica `24:00`. A RPC
+`set_admin_booking_option_schedule` troca o modo e substitui todas as janelas
+custom de forma transacional para owner/admin. Ao retornar a `business`, preserva
+as janelas custom armazenadas, mas as ignora, permitindo reativação posterior sem
+redigitação. A futura UI enviará as sete entradas diárias explicitamente; não há
+cópia mágica de `business_hours` no banco.
+
+Essas janelas limitam a disponibilidade e a criação públicas. A criação Admin
+continua permitida fora delas, respeitando conflitos, bloqueios, tenant e
+constraints. A disponibilidade Admin permanece diária e usa o início das janelas
+efetivas apenas como âncoras adicionais para expor horários `:15`/`:30`.
+
 - `fixed`: exatamente um bloco de `fixed_duration_minutes`;
 - `fixed_multiple`: a RPC informa quantos blocos livres e consecutivos cabem em cada início;
 - `group_2`: usa `duration_minutes` da opção ativa do Grupo secundário e aceita exatamente um bloco.

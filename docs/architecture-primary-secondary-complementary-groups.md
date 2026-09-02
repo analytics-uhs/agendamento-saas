@@ -66,6 +66,12 @@ Os únicos modos de duração permanecem:
 
 Não deve ser criado um modo baseado no Grupo principal.
 
+As opções do Grupo principal podem especializar apenas sua grade pública por um
+modo explícito: `business` herda `business_hours`; `custom` substitui esse padrão
+pelas janelas de `booking_option_hours`. A resolução pertence ao motor e preserva
+a âncora real de cada janela, sem alterar duração ou concorrência. Essa capacidade
+não se aplica ao Grupo secundário nem ao Grupo complementar nesta etapa.
+
 ### 1.3 Campo `required`
 
 `booking_groups.required` é persistido e publicado, mas não controla efetivamente a opcionalidade do motor atual. Na prática:

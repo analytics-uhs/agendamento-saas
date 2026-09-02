@@ -152,7 +152,7 @@ select is((
     'midnight-business', pg_temp.next_monday() + 14, null,
     'd3000000-0000-4000-8000-000000000002'
   )) slot where slot ->> 'start_time' = '22:00'
-), 1, 'group_2 duration of 120 minutes is available at 22:00');
+), 0, 'group_2 does not invent an off-grid 22:00 slot outside the 17:00 two-hour cadence');
 
 select is((
   select count(*)::integer

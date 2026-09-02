@@ -23,7 +23,8 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
     const options = Array.isArray(group.options) ? group.options.flatMap((rawOption) => {
       const option = object(rawOption);
       return option && typeof option.id === "string" && typeof option.name === "string"
-        ? [{ id: option.id, name: option.name, durationMinutes: typeof option.duration_minutes === "number" ? option.duration_minutes : null }]
+        ? [{ id: option.id, name: option.name, durationMinutes: typeof option.duration_minutes === "number" ? option.duration_minutes : null,
+            ...(Array.isArray(option.available_weekdays) ? { availableWeekdays: option.available_weekdays.filter((weekday): weekday is number => typeof weekday === "number" && weekday >= 0 && weekday <= 6) } : {}) }]
         : [];
     }) : [];
     const complementary = position === 3;
