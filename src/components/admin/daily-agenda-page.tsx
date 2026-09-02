@@ -349,7 +349,7 @@ function DailyAppointmentCard({
     <article
       className={classes(
         "relative flex h-full flex-col overflow-hidden rounded-lg border border-primary/25 bg-card px-2 hover:border-primary",
-        height < 64 ? "py-0.5" : "py-1",
+        height < 64 ? "py-0" : "py-1",
         appointment.status === "cancelled" && "opacity-55",
       )}
     >
