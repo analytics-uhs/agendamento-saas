@@ -80,14 +80,14 @@ $$, '22023', 'business_hours_invalid_window', 'equal start and end remain invali
 select throws_ok($$
   select public.replace_business_hours('[
     {"weekday":0,"active":false,"windows":[]},
-    {"weekday":1,"active":true,"windows":[{"start_time":"22:00","end_time":"02:00"}]},
+    {"weekday":1,"active":true,"windows":[{"start_time":"24:00","end_time":"02:00"}]},
     {"weekday":2,"active":false,"windows":[]},
     {"weekday":3,"active":false,"windows":[]},
     {"weekday":4,"active":false,"windows":[]},
     {"weekday":5,"active":false,"windows":[]},
     {"weekday":6,"active":false,"windows":[]}
   ]'::jsonb)
-$$, '22023', 'business_hours_invalid_window', 'arbitrary overnight windows remain invalid');
+$$, '22023', 'business_hours_invalid_window', '24:00 is never an actual start time');
 
 select is((
   select count(*)::integer
