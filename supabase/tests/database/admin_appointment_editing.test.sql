@@ -19,8 +19,13 @@ insert into public.business_hours (business_id, weekday, active, start_time, end
 select '71100000-0000-4000-8000-000000000001', weekday, true, '08:00', '18:00' from generate_series(0, 6) weekdays(weekday);
 insert into public.appointment_series (id, business_id, customer_name, customer_whatsapp, weekday, start_time, duration_minutes, blocks, starts_on, active, created_by)
 values ('71200000-0000-4000-8000-000000000001', '71100000-0000-4000-8000-000000000001', 'Recurring', '5553999999999', extract(dow from current_date + 30), '09:00', 30, 1, current_date + 30, true, '71000000-0000-4000-8000-000000000001');
+-- Synthetic recurring fixture follows the same authorized series context as materialization.
+select set_config('request.jwt.claims', '{"sub":"71000000-0000-4000-8000-000000000001","role":"authenticated"}', true);
+select set_config('app.appointment_series_id', '71200000-0000-4000-8000-000000000001', true);
 insert into public.appointments (id, business_id, customer_name, customer_whatsapp, appointment_date, start_time, end_time, duration_minutes, status, series_id) values
-  ('71300000-0000-4000-8000-000000000001', '71100000-0000-4000-8000-000000000001', 'Recurring', '5553999999999', current_date + 30, '09:00', '09:30', 30, 'scheduled', '71200000-0000-4000-8000-000000000001'),
+  ('71300000-0000-4000-8000-000000000001', '71100000-0000-4000-8000-000000000001', 'Recurring', '5553999999999', current_date + 30, '09:00', '09:30', 30, 'scheduled', '71200000-0000-4000-8000-000000000001');
+select set_config('app.appointment_series_id', '', true);
+insert into public.appointments (id, business_id, customer_name, customer_whatsapp, appointment_date, start_time, end_time, duration_minutes, status, series_id) values
   ('71300000-0000-4000-8000-000000000002', '71100000-0000-4000-8000-000000000001', 'Occupied', '5553999999998', current_date + 30, '11:00', '11:30', 30, 'scheduled', null);
 
 create function pg_temp.reject_temporary_cancellation()

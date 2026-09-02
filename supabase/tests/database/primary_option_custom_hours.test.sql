@@ -90,7 +90,7 @@ set local role authenticated; select set_config('request.jwt.claims','{"sub":"fa
 select lives_ok($$select public.set_admin_booking_option_schedule('fa300000-0000-4000-8000-000000000002','custom','[
  {"weekday":0,"windows":[]},{"weekday":1,"windows":[{"start_time":"18:15","end_time":"00:00"}]},{"weekday":2,"windows":[]},
  {"weekday":3,"windows":[]},{"weekday":4,"windows":[]},{"weekday":5,"windows":[]},{"weekday":6,"windows":[]}]')$$,'custom midnight window is accepted');
-select lives_ok(format($$select public.create_admin_appointment('fa300000-0000-4000-8000-000000000002',null,%L,'09:30',1,'Admin Outside Custom','5553999990008')$$,pg_temp.next_monday()+7),'Admin remains allowed outside a custom schedule');
+select lives_ok(format($$select public.create_admin_appointment('fa300000-0000-4000-8000-000000000002',null,%L,'09:15',1,'Admin Outside Custom','5553999990008')$$,pg_temp.next_monday()+7),'Admin remains allowed outside a custom schedule');
 reset role;
 select is((select count(*)::integer from jsonb_array_elements(public.get_booking_availability('custom-hours',pg_temp.next_monday(),'fa300000-0000-4000-8000-000000000002',null)) slot where slot->>'start_time'='23:15'),0,'60-minute slot never crosses midnight');
 select is((select count(*)::integer from jsonb_array_elements(public.get_booking_availability('custom-hours',pg_temp.next_monday(),'fa300000-0000-4000-8000-000000000002',null)) slot where slot->>'start_time'='22:15'),1,'custom midnight semantics preserve the anchored final fitting slot');

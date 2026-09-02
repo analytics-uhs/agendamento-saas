@@ -114,8 +114,14 @@ cópia mágica de `business_hours` no banco.
 
 Essas janelas limitam a disponibilidade e a criação públicas. A criação Admin
 continua permitida fora delas, respeitando conflitos, bloqueios, tenant e
-constraints. A disponibilidade Admin permanece diária e usa o início das janelas
-efetivas apenas como âncoras adicionais para expor horários `:15`/`:30`.
+constraints. Para opções `custom`, a disponibilidade Admin estende a cadência das
+janelas efetivas por todo o dia, sem acrescentar uma grade paralela de horas cheias.
+Com duração de 60 minutos e janela 18:15–23:15, oferece 00:15, 01:15, …, 22:15;
+23:15 não cabe antes da meia-noite. Janelas com a mesma cadência não duplicam slots;
+cadências distintas explicitamente configuradas são preservadas. Dias custom sem
+janelas usam a grade diária iniciada à meia-noite. Opções `business` mantêm o
+comportamento legado. Na edição, o início já salvo também é preservado, mesmo fora
+da cadência atual, sujeito às mesmas verificações de conflito.
 
 - `fixed`: exatamente um bloco de `fixed_duration_minutes`;
 - `fixed_multiple`: a RPC informa quantos blocos livres e consecutivos cabem em cada início;
