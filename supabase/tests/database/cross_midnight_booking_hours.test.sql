@@ -51,6 +51,17 @@ select set_config('request.jwt.claims','{"sub":"fb000000-0000-4000-8000-00000000
 select lives_ok($$select public.set_admin_booking_option_schedule('fb300000-0000-4000-8000-000000000002','custom','[
  {"weekday":0,"windows":[]},{"weekday":1,"windows":[{"start_time":"23:15","end_time":"00:15"}]},
  {"weekday":2,"windows":[]},{"weekday":3,"windows":[]},{"weekday":4,"windows":[]},{"weekday":5,"windows":[]},{"weekday":6,"windows":[]}]')$$,'custom configuration accepts overnight');
+reset role;
+update public.booking_option_hours set start_time='18:15',end_time='00:15' where option_id='fb300000-0000-4000-8000-000000000002';
+set local role anon;
+select results_eq($$select slot->>'start_time' from jsonb_array_elements(public.get_booking_availability('overnight-hours',pg_temp.next_monday(),'fb300000-0000-4000-8000-000000000002',null)) slot$$,array['18:15','19:15','20:15','21:15','22:15','23:15'],'custom 18:15 to 00:15 includes exactly six public slots');
+reset role;
+update public.booking_option_hours set end_time='24:00' where option_id='fb300000-0000-4000-8000-000000000002';
+set local role anon;
+select results_eq($$select slot->>'start_time' from jsonb_array_elements(public.get_booking_availability('overnight-hours',pg_temp.next_monday(),'fb300000-0000-4000-8000-000000000002',null)) slot$$,array['18:15','19:15','20:15','21:15','22:15'],'custom 18:15 to midnight excludes 23:15');
+reset role;
+update public.booking_option_hours set start_time='23:15',end_time='00:15' where option_id='fb300000-0000-4000-8000-000000000002';
+set local role authenticated;
 select lives_ok(format($$select public.create_public_appointment('overnight-hours','fb300000-0000-4000-8000-000000000002',null,%L,'23:15',1,'Other Primary','5553999991111')$$,pg_temp.next_monday()),'different resources coexist overnight');
 select lives_ok(format($$select public.create_admin_appointment('fb300000-0000-4000-8000-000000000002',null,%L,'22:15',1,'Admin Outside','5553999991111')$$,pg_temp.next_monday()),'Admin keeps outside-hours creation');
 select lives_ok(format($$select public.create_calendar_blocks(array['fb300000-0000-4000-8000-000000000001'::uuid],%L,'23:30','00:30','Overnight block')$$,pg_temp.next_monday()+7),'calendar block can cross midnight');

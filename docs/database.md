@@ -291,11 +291,21 @@ Ao concluir, `public.complete_business_onboarding(jsonb)` valida que este é o p
 
 O slug é derivado automaticamente do nome completo e exibido apenas como preview. Em conflito, a Server Action tenta sufixos numéricos simples (`nome-2`, `nome-3` etc.); a constraint única do banco continua sendo a garantia final e nenhum campo editável de slug é exigido no onboarding.
 
-As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Em Horários, ativar um dia, adicionar/remover períodos e copiar a segunda-feira operam sobre a lista completa de janelas; remover a última janela fecha o dia. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
+As telas Meu negócio, Configuração da agenda, Horários e Aparência carregam dados em Server Components e salvam por Server Actions autenticadas. Em Horários, ativar um dia, adicionar/remover períodos e repetir um dia nos destinos selecionados operam sobre a lista completa de janelas; remover a última janela fecha o dia. Cada mutation resolve o negócio pela sessão; o browser não escolhe livremente um `business_id`, e RLS permanece a barreira final de autorização.
 
 `business_settings.theme_preference` conserva o enum legado no schema por compatibilidade, mas a aplicação oferece somente `light` e `dark`. A migration converte registros `system` para `light`, altera o default e as leituras defensivas também normalizam qualquer valor legado para claro. O seletor é exclusivamente por ícone.
 
 ## Intervalos que atravessam a meia-noite
+
+### Edição e seleção de horários
+
+O editor semanal compartilhado de Horários e das opções do Grupo principal permite repetir qualquer dia em destinos escolhidos. Copia todas as janelas por valor; copiar um dia fechado envia destinos sem janelas. Sobrescrever horários diferentes exige confirmação explícita e a persistência continua dependendo de “Salvar horários”, pelas RPCs existentes.
+
+A página pública organiza os slots do principal em linhas de 44px, agrupadas por hora. O componente apenas apresenta os slots recebidos, sem gerar disponibilidade ou alterar duração/blocos consecutivos. O visual do fluxo exclusivamente complementar permanece inalterado.
+
+Regressão explícita: com duração 60, custom `18:15–00:15` retorna `18:15` até `23:15`; custom `18:15–00:00` retorna apenas até `22:15`. O suporte do motor pertence à migration abaixo, já aplicada na PR #50; a evolução da interface não exige nova migration.
+
+### Representação temporal
 
 A migration `20260901020000_cross_midnight_booking_hours.sql` mantém as colunas de data e horário existentes. A data é sempre a **data civil do início**; `end_time < start_time` significa término no dia seguinte. Horários iguais continuam inválidos. O fechamento `00:00` continua sendo normalizado para `24:00` quando apropriado: `23:15–00:00` encerra na fronteira do dia, enquanto `23:15–00:15` ocupa também os primeiros quinze minutos do dia seguinte. Não há conversão desses horários locais para UTC.
 

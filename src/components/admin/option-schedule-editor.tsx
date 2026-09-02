@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { BusinessHourDay } from "@/components/business-hour-day";
+import { BusinessHoursEditor } from "@/components/business-hours-editor";
 import { Button } from "@/components/ui/button";
 import { validateOptionSchedule, type OptionSchedule } from "@/lib/option-schedule-form";
 import type { ActionResult, BusinessHourForm } from "@/types/business";
@@ -52,12 +52,10 @@ export function OptionScheduleEditor({ initial, onSave }: {
       {mode === "business" ? <p className="text-sm text-muted">Usa os mesmos horários definidos para o estabelecimento.</p> : <>
         <p className="text-sm text-muted">Defina os períodos de {initial.name}. Dias fechados não usam o horário do estabelecimento.</p>
         <p className="text-xs text-muted">Use 00:00 no fim de um período para encerrar à meia-noite.</p>
-        <div className="divide-y rounded-xl border">
-          {hours.map((hour) => <BusinessHourDay key={hour.weekday} hour={hour} stackedInputs onChange={(updated) => {
-            setHours((current) => current.map((day) => day.weekday === updated.weekday ? updated : day));
+        <BusinessHoursEditor hours={hours} stackedInputs onChange={(updated) => {
+            setHours(updated);
             setDirty(true); setResult(null);
-          }} />)}
-        </div>
+          }} />
       </>}
     </fieldset>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
