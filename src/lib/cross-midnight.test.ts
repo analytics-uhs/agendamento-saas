@@ -4,7 +4,7 @@ import { civilDayWindows, intervalEndMinutes, isValidBookingTimeRange } from "./
 import { createEmptyBusinessForm, validateBusinessHours } from "./business-form";
 import { selectFixedMultipleSlot } from "./fixed-multiple-selection";
 import { calendarDaySlice } from "./calendar-day";
-import { buildDailyCalendarRows, isResourceOccupied } from "./daily-calendar";
+import { dailyTimelineRange, timelineInterval } from "./daily-timeline";
 import type { AdminAppointment } from "@/types/appointments";
 
 test("overnight ranges retain midnight and minute anchors without UTC conversion", () => {
@@ -41,8 +41,7 @@ test("daily calendar clips occupancy without changing the real start date", () =
   assert.deepEqual(slice, { calendarStartTime: "00:00", calendarEndTime: "00:15" });
   assert.equal(calendarDaySlice("2030-01-07", "23:15", "00:00", "2030-01-08"), null);
   const appointment = { appointmentDate: "2030-01-07", startTime: "23:15", endTime: "00:15", status: "scheduled", group1: null, ...slice } as AdminAppointment;
-  assert.equal(isResourceOccupied([appointment], null, "00:00"), true);
-  assert.equal(isResourceOccupied([appointment], null, "00:15"), false);
-  assert.equal(buildDailyCalendarRows([], 15, [appointment])[0].time, "00:00");
+  assert.deepEqual(timelineInterval(appointment), { start: 0, end: 15 });
+  assert.equal(dailyTimelineRange([], [appointment], []).start, 0);
   assert.equal(appointment.appointmentDate, "2030-01-07");
 });
