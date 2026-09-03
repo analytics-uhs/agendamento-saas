@@ -1,0 +1,24 @@
+import { CalendarDays, Clock3, Home, Palette, Settings2, ShieldCheck, Store, type LucideIcon } from "lucide-react";
+import { filterModuleNavigation, type BusinessModule, type BusinessModules } from "./business-modules";
+
+type AdminNavigationItem = {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+  exact?: boolean;
+  requiredModule?: BusinessModule;
+};
+
+export const adminNavigationItems: readonly AdminNavigationItem[] = [
+  { href: "/admin", label: "Início", Icon: Home, exact: true, requiredModule: "scheduling" },
+  { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays, requiredModule: "scheduling" },
+  { href: "/admin/configuracao", label: "Configuração", Icon: Settings2, requiredModule: "scheduling" },
+  { href: "/admin/horarios", label: "Horários", Icon: Clock3, requiredModule: "scheduling" },
+  { href: "/admin/aparencia", label: "Aparência", Icon: Palette },
+  { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
+];
+
+export function getAdminNavigation(modules: BusinessModules, platformAdmin: boolean): AdminNavigationItem[] {
+  const items = filterModuleNavigation(adminNavigationItems, modules);
+  return platformAdmin ? [...items, { href: "/super-admin", label: "Super Admin", Icon: ShieldCheck, exact: false }] : items;
+}

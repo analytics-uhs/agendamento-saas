@@ -5,7 +5,7 @@ create temp table onboarding_tap_results (result text);
 create temp table onboarding_test_payload (payload jsonb);
 grant insert, select on onboarding_tap_results to authenticated;
 grant select on onboarding_test_payload to authenticated;
-insert into onboarding_tap_results select plan(10);
+insert into onboarding_tap_results select plan(11);
 
 insert into onboarding_test_payload (payload)
 values ('{
@@ -84,6 +84,12 @@ insert into onboarding_tap_results select throws_ok(
   '23505',
   'user already has a business',
   'onboarding cannot create a second first business'
+);
+
+insert into onboarding_tap_results select results_eq(
+  'select module, enabled from public.business_modules order by module',
+  $$values ('fiscal'::text,false),('management'::text,false),('scheduling'::text,true)$$,
+  'legacy onboarding includes default modules in its transaction'
 );
 
 reset role;

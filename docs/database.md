@@ -23,6 +23,12 @@ Foreign keys compostas impedem que opções de outra empresa sejam referenciadas
 
 ## Multiempresa e RLS
 
+`business_modules` registra `scheduling`, `management` e `fiscal` por negócio.
+O backfill e o trigger de novos negócios inicializam Agenda ativa e Gestão/Fiscal
+inativos. Membros têm somente leitura via RLS, sem ativação pelo cliente.
+Detalhes de defaults, atomicidade, navegação e guard server-side em
+[Módulos por negócio](architecture-business-modules.md).
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;

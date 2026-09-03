@@ -5,7 +5,7 @@ create temp table complementary_onboarding_tap_results (result text);
 create temp table complementary_onboarding_payloads (key text primary key, payload jsonb not null);
 grant insert, select on complementary_onboarding_tap_results to authenticated;
 grant select on complementary_onboarding_payloads to authenticated;
-insert into complementary_onboarding_tap_results select plan(15);
+insert into complementary_onboarding_tap_results select plan(17);
 
 insert into complementary_onboarding_payloads (key, payload)
 values ('base', '{
@@ -189,6 +189,7 @@ insert into complementary_onboarding_tap_results select results_eq(
 );
 reset role;
 
+create temp table modules_before_failed_onboarding as select count(*) as count from public.business_modules;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"e1000000-0000-4000-8000-000000000006","role":"authenticated"}', true);
 insert into complementary_onboarding_tap_results select throws_ok(
@@ -211,6 +212,17 @@ insert into complementary_onboarding_tap_results select results_eq(
   'a failed complementary onboarding leaves no founder claim'
 );
 
+insert into complementary_onboarding_tap_results select is(
+  (select count(*) from public.business_modules),
+  (select count from modules_before_failed_onboarding),
+  'late onboarding failure rolls back module inserts too'
+);
+insert into complementary_onboarding_tap_results select is(
+  (select count(*) from public.business_modules m join public.businesses b on b.id=m.business_id
+    where b.slug in ('complementary-legacy','complementary-day','complementary-time-slot')
+      and m.enabled=(m.module='scheduling')),
+  9::bigint, 'all three successful onboarding variants get exactly the module defaults'
+);
 insert into complementary_onboarding_tap_results select * from finish();
 select result from complementary_onboarding_tap_results;
 rollback;
