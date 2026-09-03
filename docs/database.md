@@ -36,6 +36,13 @@ do negócio. Preços usam `numeric`, e `minimum_stock` é configuração — nã
 Não existe coluna de estoque atual: o saldo futuro será derivado de movimentos.
 Veja [Catálogo de produtos](architecture-product-catalog.md).
 
+O saldo operacional é derivado exclusivamente do ledger imutável
+`stock_movements`; não existe saldo armazenado em `products`. Entradas, saídas,
+ajustes, perdas e estornos são deltas assinados, e a view
+`product_stock_balances` soma o histórico incluindo produtos sem movimentos com
+saldo zero. Estorno cria movimento compensatório e nunca edita/apaga o original.
+Detalhes em [Motor de estoque](architecture-stock-ledger.md).
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;
