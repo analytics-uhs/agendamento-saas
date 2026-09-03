@@ -1,3 +1,4 @@
+import type { PublicBookingStartOrder } from "@/lib/public-booking-start-order";
 import type { BookingGroupOccupancyMode, DurationMode } from "@/types/database";
 import type { VisualThemePreference } from "@/types/business";
 import type { BookingGroupPosition } from "@/lib/booking-groups";
@@ -18,6 +19,7 @@ export type PublicBookingData = {
   groups: PublicBookingGroup[];
   hours: PublicBusinessHour[];
   settings: {
+    publicBookingStartOrder?: PublicBookingStartOrder;
     durationMode: DurationMode;
     fixedDurationMinutes: number;
     allowMultipleBlocks: boolean;

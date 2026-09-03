@@ -40,9 +40,42 @@ test("BookingFlow summaries are passive and Back preserves selections rather tha
   assert.doesNotMatch(back,/resetSchedule|setBlocks|setTime|setGroup|setDate|setComplementary/);
   assert.match(source,/previousStep \? <Button/);
   assert.match(source,/onSelect=\{chooseDate\}/);
-  assert.match(source,/if \(optionId !== group1\).*resetSchedule\(\)/);
+  assert.match(source,/const changed = optionId !== group1/);
+  assert.match(source,/resetSchedule\(true\)/);
   assert.match(source,/setDate\(selectedDate\); setTime\(null\); setBlocks\(1\)/);
   assert.match(source,/activeStep !== "review"/);
+});
+
+test("start order reorders only date and active primary groups, including previous/progress", () => {
+  const ids = (...args: Parameters<typeof publicBookingSteps>) => publicBookingSteps(...args).map((step) => step.id);
+  assert.deepEqual(ids("Principal"), ["group_1", "date", "time", "customer", "review"]);
+  assert.deepEqual(ids("Principal", undefined, "primary", undefined, null, "date_first"), ["date", "group_1", "time", "customer", "review"]);
+  assert.deepEqual(ids("Principal", "Secundário", "primary", undefined, null, "date_first"), ["date", "group_1", "group_2", "time", "customer", "review"]);
+  assert.deepEqual(ids(undefined, "Secundário", "primary", undefined, null, "date_first"), ["date", "group_2", "time", "customer", "review"]);
+  assert.deepEqual(ids(undefined, undefined, "primary", undefined, null, "date_first"), ["date", "time", "customer", "review"]);
+  for (const order of ["service_first", "date_first"] as const) {
+    for (const mode of ["day", "time_slot"] as const) {
+      assert.deepEqual(ids("Principal", "Secundário", null, "Complemento", mode, order), ["intent"]);
+      assert.deepEqual(ids("Principal", "Secundário", "complementary", "Complemento", mode, order), ["intent", "date", ...(mode === "time_slot" ? ["time"] : []), "complementary", "customer", "review"]);
+      const combined = publicBookingSteps("Principal", "Secundário", "combined", "Complemento", mode, order);
+      assert.deepEqual(combined.map((step) => step.id), ["intent", ...(order === "date_first" ? ["date", "group_1", "group_2"] : ["group_1", "group_2", "date"]), "time", "complementary", "customer", "review"]);
+      for (let index = 1; index < combined.length; index++) assert.equal(previousPublicBookingStep(combined[index].id, combined), combined[index - 1].id);
+    }
+  }
+});
+
+test("date-first integration delays availability and preserves independent choices", () => {
+  const source = readFileSync("src/components/booking/booking-flow.tsx", "utf8");
+  assert.match(source, /publicBookingSteps\([^\n]+startOrder\)/);
+  assert.match(source, /if \(includesPrimary && \(\(groupOne && !primaryId\) \|\| \(groupTwo && !secondaryId\)\)\) return/);
+  assert.match(source, /group1OptionId: primaryId, group2OptionId: secondaryId/);
+  assert.match(source, /advanceSelection\("group_1", optionId/);
+  assert.match(source, /advanceSelection\("group_2", group1, optionId/);
+  assert.match(source, /if \(!keepDate\) setDate\(null\)/);
+  const dateHandler = source.slice(source.indexOf("function chooseDate"), source.indexOf("const canContinue"));
+  assert.doesNotMatch(dateHandler, /setGroup1|setGroup2/);
+  assert.match(source, /option.availableWeekdays \?\? businessWeekdays/);
+  assert.match(source, /selectFixedMultipleSlot\(slots, time, blocks, slot.startTime\)/);
 });
 const complementaryDay: PublicBookingGroup = { position: 3, label: "Escolha o apoio", required: false, intentName: "Churrasqueira", occupancyMode: "day", options: [] };
 

@@ -1,3 +1,4 @@
+import type { PublicBookingStartOrder } from "@/lib/public-booking-start-order";
 import type { BookingGroupPosition } from "@/lib/booking-groups";
 import type { BookingGroupOccupancyMode, DurationMode, ThemePreference } from "@/types/database";
 
@@ -21,6 +22,7 @@ export type BusinessForm = {
   durationMode: DurationMode;
   fixedDurationMinutes: number;
   minimumBookingNoticeMinutes?: number;
+  publicBookingStartOrder?: PublicBookingStartOrder;
   paletteId: string;
   themePreference: VisualThemePreference;
 };
