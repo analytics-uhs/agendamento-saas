@@ -55,7 +55,7 @@ insert into start_order_results select is(public.get_public_booking_page('test-s
  'service_first','public metadata exposes default order');
 insert into start_order_results select results_eq(
  $$select array_agg(key order by key) from jsonb_object_keys(public.get_public_booking_page('test-start-order-a')->'settings') key$$,
- $$values(array['allow_multiple_blocks','duration_mode','fixed_duration_minutes','palette','public_booking_start_order','theme_preference']::text[])$$,
+ $$select array['allow_multiple_blocks','duration_mode','fixed_duration_minutes','palette','public_booking_start_order','theme_preference']::text[]$$,
  'curated metadata adds only navigation setting');
 reset role;
 insert into start_order_results select * from finish();
