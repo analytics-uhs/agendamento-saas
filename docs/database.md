@@ -29,6 +29,13 @@ inativos. Membros têm somente leitura via RLS, sem ativação pelo cliente.
 Detalhes de defaults, atomicidade, navegação e guard server-side em
 [Módulos por negócio](architecture-business-modules.md).
 
+O módulo Gestão inicia seu modelo com `product_categories` e `products`, ambos
+protegidos simultaneamente por membership administrativa, módulo ativo e RLS.
+A FK composta impede categoria de outro tenant; SKU/barcode são únicos dentro
+do negócio. Preços usam `numeric`, e `minimum_stock` é configuração — não saldo.
+Não existe coluna de estoque atual: o saldo futuro será derivado de movimentos.
+Veja [Catálogo de produtos](architecture-product-catalog.md).
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;
