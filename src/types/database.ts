@@ -1,6 +1,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 import type { BusinessModule } from "@/lib/business-modules";
+import type { ProductUnit } from "@/lib/product-catalog";
 
 export type BusinessRole = "owner" | "admin";
 export type DurationMode = "fixed" | "fixed_multiple" | "group_2";
@@ -27,6 +28,18 @@ export interface Database {
         Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; created_at?: string; updated_at?: string };
         Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; updated_at?: string };
         Relationships: [];
+      };
+      product_categories: {
+        Row: { id: string; business_id: string; name: string; active: boolean } & Timestamps;
+        Insert: { id?: string; business_id: string; name: string; active?: boolean };
+        Update: { name?: string; active?: boolean };
+        Relationships: [{ foreignKeyName: "product_categories_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
+      };
+      products: {
+        Row: { id: string; business_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; cost_price: number | null; sale_price: number; minimum_stock: number; active: boolean } & Timestamps;
+        Insert: { id?: string; business_id: string; category_id?: string | null; name: string; sku?: string | null; barcode?: string | null; unit?: ProductUnit; cost_price?: string | number | null; sale_price?: string | number; minimum_stock?: string | number; active?: boolean };
+        Update: { category_id?: string | null; name?: string; sku?: string | null; barcode?: string | null; unit?: ProductUnit; cost_price?: string | number | null; sale_price?: string | number; minimum_stock?: string | number; active?: boolean };
+        Relationships: [{ foreignKeyName: "products_category_tenant_fk"; columns: ["category_id", "business_id"]; isOneToOne: false; referencedRelation: "product_categories"; referencedColumns: ["id", "business_id"] }];
       };
       business_modules: {
         Row: { business_id: string; module: BusinessModule; enabled: boolean } & Timestamps;

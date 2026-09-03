@@ -22,7 +22,9 @@ test("module checks and shared navigation retain all current items with defaults
   assert.equal(modulesApi.businessHasModule(defaults, "scheduling"), true);
   assert.equal(modulesApi.businessHasModule(defaults, "management"), false);
   assert.equal(modulesApi.businessHasModule(defaults, "fiscal"), false);
-  assert.deepEqual(getAdminNavigation(defaults, false), adminNavigationItems);
+  assert.deepEqual(getAdminNavigation(defaults, false), adminNavigationItems.filter((item) => item.requiredModule !== "management"));
+  assert.ok(!getAdminNavigation(defaults, false).some((item) => item.href === "/admin/produtos"));
+  assert.ok(getAdminNavigation({ ...defaults, management: true }, false).some((item) => item.href === "/admin/produtos"));
   assert.equal(getAdminNavigation(defaults, true).at(-1)?.href, "/super-admin");
   const future = [{ label: "Base" }, { label: "Gestão", requiredModule: "management" as const }];
   assert.deepEqual(modulesApi.filterModuleNavigation(future, defaults), [future[0]]);

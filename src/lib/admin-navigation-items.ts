@@ -1,4 +1,4 @@
-import { CalendarDays, Clock3, Home, Palette, Settings2, ShieldCheck, Store, type LucideIcon } from "lucide-react";
+import { CalendarDays, Clock3, Home, Package, Palette, Settings2, ShieldCheck, Store, type LucideIcon } from "lucide-react";
 import { filterModuleNavigation, type BusinessModule, type BusinessModules } from "./business-modules";
 
 type AdminNavigationItem = {
@@ -14,6 +14,7 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
   { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays, requiredModule: "scheduling" },
   { href: "/admin/configuracao", label: "Configuração", Icon: Settings2, requiredModule: "scheduling" },
   { href: "/admin/horarios", label: "Horários", Icon: Clock3, requiredModule: "scheduling" },
+  { href: "/admin/produtos", label: "Produtos", Icon: Package, requiredModule: "management" },
   { href: "/admin/aparencia", label: "Aparência", Icon: Palette },
   { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
 ];
