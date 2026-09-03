@@ -41,6 +41,12 @@ export interface Database {
         Update: { category_id?: string | null; name?: string; sku?: string | null; barcode?: string | null; unit?: ProductUnit; cost_price?: string | number | null; sale_price?: string | number; minimum_stock?: string | number; active?: boolean };
         Relationships: [{ foreignKeyName: "products_category_tenant_fk"; columns: ["category_id", "business_id"]; isOneToOne: false; referencedRelation: "product_categories"; referencedColumns: ["id", "business_id"] }];
       };
+      stock_movements: {
+        Row: { id: string; business_id: string; product_id: string; movement_type: "manual_in" | "manual_out" | "adjustment_in" | "adjustment_out" | "loss" | "reversal"; quantity_delta: number; unit_cost: number | null; reason: string | null; source_type: string | null; source_id: string | null; reversal_of_id: string | null; created_by: string | null; occurred_at: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       business_modules: {
         Row: { business_id: string; module: BusinessModule; enabled: boolean } & Timestamps;
         Insert: { business_id: string; module: BusinessModule; enabled?: boolean; created_at?: string; updated_at?: string };
@@ -152,8 +158,12 @@ export interface Database {
         Relationships: [{ foreignKeyName: "admin_notification_push_deliveries_notification_id_fkey"; columns: ["notification_id"]; isOneToOne: false; referencedRelation: "admin_notifications"; referencedColumns: ["id"] }, { foreignKeyName: "admin_notification_push_deliveries_subscription_id_fkey"; columns: ["subscription_id"]; isOneToOne: false; referencedRelation: "push_subscriptions"; referencedColumns: ["id"] }];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
+    };
     Functions: {
+      create_admin_stock_movement: { Args: { p_product_id: string; p_movement_type: string; p_quantity: string | number; p_unit_cost?: string | number | null; p_reason?: string | null; p_occurred_at?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
+      reverse_admin_stock_movement: { Args: { p_movement_id: string; p_reason?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
       complete_business_onboarding: { Args: { p_payload: Json }; Returns: string };
       get_public_founder_offer: { Args: never; Returns: Json };
       create_admin_appointment: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
