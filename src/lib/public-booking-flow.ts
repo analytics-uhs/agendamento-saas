@@ -1,17 +1,19 @@
 import type { BookingIntent, PublicBookingGroup, PublicReservationPayload } from "@/types/public-booking";
+import type { PublicBookingStartOrder } from "./public-booking-start-order";
 
 export type PublicBookingStepId = "intent" | "group_1" | "group_2" | "date" | "time" | "complementary" | "customer" | "review";
 export type PublicBookingStep = { id: PublicBookingStepId; label: string };
 
-export function publicBookingSteps(groupOneLabel?: string, groupTwoLabel?: string, intent?: BookingIntent | null, complementaryLabel?: string, complementaryMode?: "day" | "time_slot" | null): PublicBookingStep[] {
+export function publicBookingSteps(groupOneLabel?: string, groupTwoLabel?: string, intent?: BookingIntent | null, complementaryLabel?: string, complementaryMode?: "day" | "time_slot" | null, startOrder: PublicBookingStartOrder = "service_first"): PublicBookingStep[] {
   if (complementaryLabel && !intent) return [{ id: "intent", label: "Reserva" }];
   const primary = intent !== "complementary";
   const complementary = intent === "complementary" || intent === "combined";
   return [
     ...(complementaryLabel ? [{ id: "intent" as const, label: "Reserva" }] : []),
+    ...(startOrder === "date_first" ? [{ id: "date" as const, label: "Data" }] : []),
     ...(primary && groupOneLabel ? [{ id: "group_1" as const, label: groupOneLabel }] : []),
     ...(primary && groupTwoLabel ? [{ id: "group_2" as const, label: groupTwoLabel }] : []),
-    { id: "date" as const, label: "Data" },
+    ...(startOrder === "service_first" ? [{ id: "date" as const, label: "Data" }] : []),
     ...(primary || (intent === "complementary" && complementaryMode === "time_slot") ? [{ id: "time" as const, label: "Horário" }] : []),
     ...(complementary ? [{ id: "complementary" as const, label: complementaryLabel ?? "Complemento" }] : []),
     { id: "customer" as const, label: "Seus dados" },

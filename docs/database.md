@@ -33,6 +33,27 @@ Um usuário autenticado lê e altera somente o próprio profile. Membros leem o 
 
 `public.create_business_with_owner` é a primitiva atômica de onboarding: cria negócio, owner, dois grupos, sete dias de horários e settings padrão. Inserção direta em `businesses` não é concedida ao cliente autenticado.
 
+## Ordem inicial do agendamento público
+
+`business_settings.public_booking_start_order` é `text NOT NULL DEFAULT
+'service_first'`, limitado por check a `service_first` e `date_first`. O padrão
+preserva negócios existentes. Em **Admin → Horários**, “Ordem do agendamento
+público” é salva por Server Action autenticada, com tenant derivado da sessão e
+as policies/grants existentes. `get_public_booking_page` publica somente esse
+valor adicional nos settings curados.
+
+`publicBookingSteps` continua sendo a única sequência de navegação, progresso e
+Voltar. Data primeiro move Data antes dos grupos principal/secundário, mas mantém
+intent na primeira posição. A data fica em rascunho até completar os grupos
+necessários; só então se consulta a disponibilidade existente. Mudança de grupo
+preserva a data, e mudança de data preserva grupos, invalidando horário/blocos e
+complemento dependente. Não há regras de slots duplicadas no browser.
+
+Complementar-only preserva a dependência atual nas duas ordens: `day` consulta
+recursos após Data; `time_slot` consulta recursos após Data e Horário. Combined
+reordena apenas Data e grupos principais, mantendo o complementar após Horário.
+Nenhuma RPC de disponibilidade/criação ou regra do motor muda com essa opção.
+
 ## Antecedência mínima pública
 
 `business_settings.minimum_booking_notice_minutes` é inteiro não negativo,

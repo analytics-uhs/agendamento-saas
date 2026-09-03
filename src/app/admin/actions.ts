@@ -6,6 +6,7 @@ import { getBusinessConfiguration } from "@/lib/repositories/business-configurat
 import { requireAuthenticatedUser } from "@/lib/auth/session";
 import { getPalette } from "@/lib/palettes";
 import { validBookingNotice } from "@/lib/booking-notice";
+import { isPublicBookingStartOrder } from "@/lib/public-booking-start-order";
 import { bookingGroupPosition, bookingGroupProductName } from "@/lib/booking-groups";
 import { normalizeOptionalUrl, normalizeSlug, validateBusinessContact, validateBusinessGroups, validateBusinessHours, validateDuration, validateSlug } from "@/lib/business-form";
 import { getSupabaseEnvironment } from "@/lib/supabase/env";
@@ -117,6 +118,18 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin/configuracao");
   return { ok: true, message: "Configuração da agenda salva.", data: (await getBusinessConfiguration(current.business.id)).groups };
+}
+
+export async function savePublicBookingStartOrder(value: string): Promise<ActionResult> {
+  const current = await context();
+  if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
+  if (!isPublicBookingStartOrder(value)) return { ok: false, message: "Selecione uma ordem válida." };
+  const { error } = await current.supabase.from("business_settings")
+    .update({ public_booking_start_order: value }).eq("business_id", current.business.id);
+  if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
+  revalidatePath("/admin/horarios");
+  revalidatePath(`/agendar/${current.business.slug}`);
+  return { ok: true, message: "Ordem do agendamento público salva." };
 }
 
 export async function saveBookingNotice(minutes: number): Promise<ActionResult> {

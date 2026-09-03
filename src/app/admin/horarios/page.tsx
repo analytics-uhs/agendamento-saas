@@ -6,5 +6,5 @@ export const metadata: Metadata = { title: "Horários" };
 export default async function HoursPage() {
   const business = await requireCurrentBusiness();
   const config = await getBusinessConfiguration(business.id);
-  return <BusinessHours initialHours={config.hours} initialNotice={config.minimumBookingNoticeMinutes ?? 60} />;
+  return <BusinessHours initialHours={config.hours} initialNotice={config.minimumBookingNoticeMinutes ?? 60} initialStartOrder={config.publicBookingStartOrder ?? "service_first"} />;
 }

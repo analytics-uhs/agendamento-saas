@@ -1,3 +1,4 @@
+import { parsePublicBookingStartOrder } from "@/lib/public-booking-start-order";
 import { createClient } from "@/lib/supabase/server";
 import { getPalette } from "@/lib/palettes";
 import { displayEndTime } from "@/lib/time-of-day";
@@ -56,6 +57,7 @@ export function parsePublicBookingPage(value: Json | null): PublicBookingData | 
     groups,
     hours,
     settings: {
+      publicBookingStartOrder: parsePublicBookingStartOrder(settings.public_booking_start_order),
       durationMode: settings.duration_mode as PublicBookingData["settings"]["durationMode"],
       fixedDurationMinutes: typeof settings.fixed_duration_minutes === "number" ? settings.fixed_duration_minutes : 60,
       allowMultipleBlocks: settings.allow_multiple_blocks === true,

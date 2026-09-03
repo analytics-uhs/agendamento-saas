@@ -21,6 +21,7 @@ import { formatDuration, formatLongDate, parseISO, todayISO } from "@/lib/date";
 import { consecutiveSelectionTimes, fixedMultipleEndTime, selectFixedMultipleSlot } from "@/lib/fixed-multiple-selection";
 import { getPalette } from "@/lib/palettes";
 import { bookingCtaHelper, buildPublicReservationPayload, intentOptions, publicBookingSteps, previousPublicBookingStep, type PublicBookingStepId } from "@/lib/public-booking-flow";
+import { parsePublicBookingStartOrder } from "@/lib/public-booking-start-order";
 import { civilDayWindows, endsNextDay, minutesToTime, timeToMinutes } from "@/lib/time-of-day";
 import type { VisualThemePreference } from "@/types/business";
 import type { BookingConfirmation, BookingIntent, BookingSlot, ComplementaryAvailabilityOption, PublicBookingData } from "@/types/public-booking";
@@ -63,8 +64,9 @@ function localSlots(booking: PublicBookingData, date: string, duration: number) 
 export function BookingFlow({ booking: bookingProp, preview = false, paletteId, themePreference }: { booking?: PublicBookingData; preview?: boolean; paletteId?: string; themePreference?: VisualThemePreference }) {
   const router = useRouter(); const { state } = useMockApp(); const booking = bookingProp ?? previewData(state, paletteId, themePreference);
   const groupOne = booking.groups.find((group) => group.position === 1); const groupTwo = booking.groups.find((group) => group.position === 2); const complementaryGroup = booking.groups.find((group) => group.position === 3);
+  const startOrder = parsePublicBookingStartOrder(booking.settings.publicBookingStartOrder);
   const [intent, setIntent] = useState<BookingIntent | null>(complementaryGroup ? null : "primary");
-  const steps = useMemo(() => publicBookingSteps(groupOne?.label, groupTwo?.label, intent, complementaryGroup?.intentName || complementaryGroup?.label, complementaryGroup?.occupancyMode), [groupOne?.label, groupTwo?.label, intent, complementaryGroup]);
+  const steps = useMemo(() => publicBookingSteps(groupOne?.label, groupTwo?.label, intent, complementaryGroup?.intentName || complementaryGroup?.label, complementaryGroup?.occupancyMode, startOrder), [groupOne?.label, groupTwo?.label, intent, complementaryGroup, startOrder]);
   const [activeStep, setActiveStep] = useState<PublicBookingStepId>(complementaryGroup ? "intent" : steps[0]?.id ?? "date");
   const [group1, setGroup1] = useState<string | null>(null); const [group2, setGroup2] = useState<string | null>(null); const [complementary, setComplementary] = useState<string | null>(null);
   const [windowStart, setWindowStart] = useState(todayISO()); const [date, setDate] = useState<string | null>(null); const [time, setTime] = useState<string | null>(null); const [slots, setSlots] = useState<BookingSlot[]>([]); const [blocks, setBlocks] = useState(1);
@@ -73,7 +75,8 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   const includesPrimary = intent === "primary" || intent === "combined"; const includesComplementary = intent === "complementary" || intent === "combined";
   const group1Done = !includesPrimary || !groupOne || Boolean(group1); const group2Done = group1Done && (!includesPrimary || !groupTwo || Boolean(group2));
   const selectedGroupOne = groupOne?.options.find((option) => option.id === group1); const selectedGroupTwo = groupTwo?.options.find((option) => option.id === group2); const selectedComplementary = complementaryGroup?.options.find((option) => option.id === complementary); const selectedSlot = slots.find((slot) => slot.startTime === time);
-  const availableWeekdays = includesPrimary && selectedGroupOne?.availableWeekdays ? selectedGroupOne.availableWeekdays : booking.hours.flatMap((hour) => [hour.weekday, ...((includesPrimary || complementaryGroup?.occupancyMode !== "day") && endsNextDay(hour.startTime, hour.endTime) && timeToMinutes(hour.endTime) > 0 ? [(hour.weekday + 1) % 7] : [])]);
+  const businessWeekdays = booking.hours.flatMap((hour) => [hour.weekday, ...(endsNextDay(hour.startTime, hour.endTime) && timeToMinutes(hour.endTime) > 0 ? [(hour.weekday + 1) % 7] : [])]);
+  const availableWeekdays = startOrder === "date_first" && includesPrimary && groupOne ? groupOne.options.flatMap((option) => option.availableWeekdays ?? businessWeekdays) : includesPrimary && selectedGroupOne?.availableWeekdays ? selectedGroupOne.availableWeekdays : booking.hours.flatMap((hour) => [hour.weekday, ...((includesPrimary || complementaryGroup?.occupancyMode !== "day") && endsNextDay(hour.startTime, hour.endTime) && timeToMinutes(hour.endTime) > 0 ? [(hour.weekday + 1) % 7] : [])]);
   const selectedTimes = booking.settings.durationMode === "fixed_multiple" && includesPrimary ? consecutiveSelectionTimes(slots, time, blocks).filter((selected) => !time || selected >= time) : time ? [time] : [];
   const duration = (selectedSlot?.durationMinutes ?? booking.settings.fixedDurationMinutes) * (booking.settings.durationMode === "fixed_multiple" && includesPrimary ? blocks : 1);
   const endTime = time && selectedSlot ? fixedMultipleEndTime(time, selectedSlot.durationMinutes, booking.settings.durationMode === "fixed_multiple" && includesPrimary ? blocks : 1) : null;
@@ -100,10 +103,23 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   }
 
   function nextAfter(id: PublicBookingStepId) { const index = steps.findIndex((step) => step.id === id); setActiveStep(steps[index + 1]?.id ?? "customer"); }
-  function resetSchedule() { requestRef.current += 1; setDate(null); setTime(null); setSlots([]); setBlocks(1); setComplementary(null); setComplementaryOptions([]); setMessage(null); setSequenceMessage(null); }
-  function chooseIntent(value: BookingIntent) { if (value === intent) { nextAfter("intent"); return; } setIntent(value); setGroup1(null); setGroup2(null); resetSchedule(); const next = publicBookingSteps(groupOne?.label, groupTwo?.label, value, complementaryGroup?.intentName || complementaryGroup?.label, complementaryGroup?.occupancyMode)[1]?.id ?? "date"; setActiveStep(next); }
-  function chooseGroupOne(optionId: string) { if (optionId !== group1) { setGroup1(optionId); setGroup2(null); resetSchedule(); } nextAfter("group_1"); }
-  function chooseGroupTwo(optionId: string) { if (optionId !== group2) { setGroup2(optionId); resetSchedule(); } nextAfter("group_2"); }
+  function resetSchedule(keepDate = false) { requestRef.current += 1; if (!keepDate) setDate(null); setTime(null); setSlots([]); setBlocks(1); setComplementary(null); setComplementaryOptions([]); setMessage(null); setSequenceMessage(null); }
+  function chooseIntent(value: BookingIntent) { if (value === intent) { nextAfter("intent"); return; } setIntent(value); setGroup1(null); setGroup2(null); resetSchedule(); const next = publicBookingSteps(groupOne?.label, groupTwo?.label, value, complementaryGroup?.intentName || complementaryGroup?.label, complementaryGroup?.occupancyMode, startOrder)[1]?.id ?? "date"; setActiveStep(next); }
+  function advanceSelection(id: PublicBookingStepId, primaryId = group1, secondaryId = group2, changed = false) {
+    const next = steps[steps.findIndex((step) => step.id === id) + 1]?.id;
+    if (next === "time" && date && (changed || !slots.length)) loadDate(date, primaryId, secondaryId);
+    else nextAfter(id);
+  }
+  function chooseGroupOne(optionId: string) {
+    const changed = optionId !== group1;
+    if (changed) { setGroup1(optionId); setGroup2(null); resetSchedule(true); }
+    advanceSelection("group_1", optionId, changed ? null : group2, changed);
+  }
+  function chooseGroupTwo(optionId: string) {
+    const changed = optionId !== group2;
+    if (changed) { setGroup2(optionId); resetSchedule(true); }
+    advanceSelection("group_2", group1, optionId, changed);
+  }
 
   function fetchComplementary(selectedDate: string, selectedStart: string | null, selectedEnd: string | null) {
     const request = ++requestRef.current; setComplementary(null); setComplementaryOptions([]); setMessage(null); setActiveStep("complementary");
@@ -111,7 +127,9 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
     startComplementaryTransition(async () => { const result = await getComplementaryAvailability({ slug: booking.business.slug, date: selectedDate, startTime: complementaryGroup?.occupancyMode === "time_slot" ? selectedStart : null, endTime: complementaryGroup?.occupancyMode === "time_slot" ? selectedEnd : null }); if (request !== requestRef.current) return; if (result.ok) setComplementaryOptions(result.data.options); else setMessage(result.message); });
   }
 
-  function loadDate(selectedDate: string) {
+  function loadDate(selectedDate: string, primaryId = group1, secondaryId = group2) {
+    // Date-first must not query the engine until all active groups are selected.
+    if (includesPrimary && ((groupOne && !primaryId) || (groupTwo && !secondaryId))) return;
     const request = ++requestRef.current; setDate(selectedDate); setTime(null); setBlocks(1); setSlots([]); setComplementary(null); setComplementaryOptions([]); setMessage(null); setSequenceMessage(null);
     if (intent === "complementary" && complementaryGroup?.occupancyMode === "day") { fetchComplementary(selectedDate, null, null); return; }
     setActiveStep("time");
@@ -119,8 +137,8 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
       startSlotsTransition(async () => { const result = await getComplementaryTimeSlots({ slug: booking.business.slug, date: selectedDate }); if (request !== requestRef.current) return; if (result.ok) setSlots(result.data); else setMessage(result.message); });
       return;
     }
-    if (preview) { setSlots(localSlots(booking, selectedDate, booking.settings.durationMode === "group_2" ? selectedGroupTwo?.durationMinutes ?? 30 : booking.settings.fixedDurationMinutes)); return; }
-    startSlotsTransition(async () => { const result = await getAvailability({ slug: booking.business.slug, date: selectedDate, group1OptionId: group1, group2OptionId: group2 }); if (request !== requestRef.current) return; if (result.ok) setSlots(result.data); else setMessage(result.message); });
+    if (preview) { setSlots(localSlots(booking, selectedDate, booking.settings.durationMode === "group_2" ? groupTwo?.options.find((option) => option.id === secondaryId)?.durationMinutes ?? 30 : booking.settings.fixedDurationMinutes)); return; }
+    startSlotsTransition(async () => { const result = await getAvailability({ slug: booking.business.slug, date: selectedDate, group1OptionId: primaryId, group2OptionId: secondaryId }); if (request !== requestRef.current) return; if (result.ok) setSlots(result.data); else setMessage(result.message); });
   }
 
   function finishTimeSelection(selectedStart: string, selectedEnd: string, keepSelection = false) {
@@ -137,20 +155,25 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
   function continueAfterMultiple() { if (time && endTime) finishTimeSelection(time, endTime, true); }
 
   function chooseDate(value: string) {
-    if (value === date && (slots.length || (!timeRequired && complementaryOptions.length))) nextAfter("date");
+    const next = steps[steps.findIndex((step) => step.id === "date") + 1]?.id;
+    if (next === "group_1" || next === "group_2") {
+      if (value !== date) { resetSchedule(true); setDate(value); }
+      nextAfter("date");
+    } else if (value === date && (slots.length || (!timeRequired && complementaryOptions.length))) nextAfter("date");
     else loadDate(value);
   }
   const canContinue = activeStep === "intent" ? Boolean(intent)
     : activeStep === "group_1" ? Boolean(group1)
     : activeStep === "group_2" ? Boolean(group2)
-    : activeStep === "date" ? Boolean(date && (slots.length || (!timeRequired && complementaryOptions.length)))
+    : activeStep === "date" ? Boolean(date)
     : activeStep === "time" ? Boolean(time && selectedSlot)
     : activeStep === "complementary" ? Boolean(complementary)
     : activeStep === "customer" ? canConfirm : false;
   function continueStep() {
     if (!canContinue || navigationPending) return;
     if (activeStep === "time") continueAfterMultiple();
-    else nextAfter(activeStep);
+    else if (activeStep === "date" && date) chooseDate(date);
+    else advanceSelection(activeStep);
   }
 
   function completedStepValue(id: PublicBookingStepId) {
@@ -173,12 +196,12 @@ export function BookingFlow({ booking: bookingProp, preview = false, paletteId, 
     <header className={classes("flex flex-col items-center text-center lg:flex-row lg:justify-between lg:text-left", hasProgress && "max-lg:flex-row max-lg:items-center max-lg:text-left")}><div className={classes("flex min-w-0 items-center gap-3", !hasProgress && "max-lg:flex-col")}><BusinessLogo name={booking.business.name} logoUrl={booking.business.logoUrl} size={hasProgress ? "md" : "lg"} /><div className="min-w-0"><h1 className={classes("font-semibold", hasProgress ? "truncate text-base" : "text-xl lg:text-2xl")}>{booking.business.name}</h1>{booking.business.address ? <p className={classes("mt-1.5 max-w-md items-start gap-1.5 text-xs leading-relaxed text-muted lg:flex", hasProgress ? "hidden lg:flex" : "flex justify-center lg:justify-start")}><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />{booking.business.address}</p> : hasProgress ? <p className="text-xs text-muted lg:hidden">Agendamento online</p> : null}</div></div><div className={classes("flex flex-wrap items-center justify-center gap-2 lg:justify-end", hasProgress ? "ml-auto" : "mt-3 lg:mt-0")}>{booking.business.whatsapp ? <a href={`https://wa.me/${normalizeWhatsapp(booking.business.whatsapp)}`} target="_blank" rel="noopener noreferrer" className={classes("focus-ring inline-flex items-center justify-center gap-2 rounded-xl border bg-card text-xs font-semibold transition-colors hover:border-primary hover:text-primary", hasProgress ? "h-10 w-10 lg:w-auto lg:px-3" : "min-h-10 px-3")} aria-label={`Falar com ${booking.business.name} pelo WhatsApp`}><WhatsappIcon className="h-4 w-4" /><span className={hasProgress ? "hidden lg:inline" : ""}>{formatWhatsappInput(booking.business.whatsapp)}</span></a> : null}{booking.business.googleMapsUrl ? <a href={booking.business.googleMapsUrl} target="_blank" rel="noopener noreferrer" className={classes("focus-ring h-10 w-10 items-center justify-center rounded-xl border bg-card text-muted hover:border-primary hover:text-primary lg:inline-flex", hasProgress ? "hidden" : "inline-flex")} aria-label="Abrir localização no Google Maps"><MapPin className="h-4 w-4" /></a> : null}{booking.business.instagramUrl ? <a href={booking.business.instagramUrl} target="_blank" rel="noopener noreferrer" className={classes("focus-ring h-10 w-10 items-center justify-center rounded-xl border bg-card text-muted hover:border-primary hover:text-primary lg:inline-flex", hasProgress ? "hidden" : "inline-flex")} aria-label="Abrir Instagram"><InstagramIcon className="h-4 w-4" /></a> : null}{booking.business.facebookUrl ? <a href={booking.business.facebookUrl} target="_blank" rel="noopener noreferrer" className={classes("focus-ring h-10 w-10 items-center justify-center rounded-xl border bg-card text-muted hover:border-primary hover:text-primary lg:inline-flex", hasProgress ? "hidden" : "inline-flex")} aria-label="Abrir Facebook"><FacebookIcon className="h-4 w-4" /></a> : null}</div></header>
     {!configurationInvalid ? <div className="mt-6"><FlowProgress steps={steps} activeStep={activeStep} /></div> : null}
     {configurationInvalid ? <EmptyState size="md" className="mt-7">O agendamento online ainda está sendo configurado. Tente novamente mais tarde.</EmptyState> : null}
-    {!configurationInvalid ? <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"><main ref={stepContentRef} className="space-y-3">
+    {!configurationInvalid ? <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]"><main ref={stepContentRef} className="min-w-0 space-y-3">
       {activeStepIndex > 0 ? <div className="grid gap-3 lg:grid-cols-3">{steps.slice(0, activeStepIndex).map((step) => { const value = completedStepValue(step.id); return value ? <CompletedStep key={step.id} label={step.label} value={value} /> : null; })}</div> : null}
       {complementaryGroup && activeStep === "intent" ? <ExpandedStep number={1} title="O que você deseja reservar?" description="Escolha uma opção para começar."><div className="grid gap-3 md:grid-cols-3">{intentOptions(groupOne, complementaryGroup).map((option) => <button key={option.id} type="button" aria-pressed={intent === option.id} onClick={() => chooseIntent(option.id)} className={classes("focus-ring min-h-24 rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary", intent === option.id && "border-primary bg-primary/10")}><span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary"><Layers3 className="h-4 w-4" /></span><span className="mt-3 block text-sm font-semibold">{option.name}</span><span className="mt-1 block text-xs leading-relaxed text-muted">{option.description}</span></button>)}</div></ExpandedStep> : null}
       {includesPrimary && groupOne && activeStep === "group_1" ? <ExpandedStep number={numberOf("group_1")} title={groupOne.label} description="Selecione uma opção para continuar."><div className="space-y-2">{groupOne.options.map((option) => <OptionButton key={option.id} selected={group1 === option.id} name={option.name} onClick={() => chooseGroupOne(option.id)} />)}</div></ExpandedStep> : null}
       {includesPrimary && groupTwo && group1Done && activeStep === "group_2" ? <ExpandedStep number={numberOf("group_2")} title={groupTwo.label} description="Selecione uma opção para continuar."><div className="space-y-2">{groupTwo.options.map((option) => <OptionButton key={option.id} selected={group2 === option.id} name={option.name} meta={booking.settings.durationMode === "group_2" ? formatDuration(option.durationMinutes ?? 0) : undefined} onClick={() => chooseGroupTwo(option.id)} />)}</div></ExpandedStep> : null}
-      {intent && group2Done && activeStep === "date" ? <ExpandedStep number={numberOf("date")} title="Escolha a data" description="Navegue em janelas de sete dias consecutivos."><DateStrip windowStart={windowStart} onWindowStartChange={(value) => { setWindowStart(value); resetSchedule(); setActiveStep("date"); }} selected={date} onSelect={chooseDate} isUnavailable={(value) => value < todayISO() || !availableWeekdays.includes(parseISO(value).getDay())} /></ExpandedStep> : null}
+      {intent && (startOrder === "date_first" || group2Done) && activeStep === "date" ? <ExpandedStep number={numberOf("date")} title="Escolha a data" description="Navegue em janelas de sete dias consecutivos."><DateStrip windowStart={windowStart} onWindowStartChange={(value) => { setWindowStart(value); resetSchedule(); setActiveStep("date"); }} selected={date} onSelect={chooseDate} isUnavailable={(value) => value < todayISO() || !availableWeekdays.includes(parseISO(value).getDay())} /></ExpandedStep> : null}
       {date && activeStep === "time" ? <ExpandedStep number={numberOf("time")} title="Escolha o horário" description={`${formatLongDate(date)} · duração de ${formatDuration(duration)}.`}>{booking.settings.durationMode === "fixed_multiple" && includesPrimary ? <div className="mb-3 flex items-start gap-2 rounded-xl bg-primary/10 px-3 py-2.5 text-xs leading-relaxed"><Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />Para reservar mais tempo, selecione horários consecutivos.</div> : null}{isLoadingSlots ? <EmptyState size="md" className="flex items-center justify-center gap-2" aria-live="polite"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando horários...</EmptyState> : (includesPrimary ? <TimeSlotList slots={slots} selectedTimes={selectedTimes} onSelect={chooseTime} /> : <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-5">{slots.map((slot) => <button key={slot.startTime} type="button" aria-pressed={selectedTimes.includes(slot.startTime)} onClick={() => chooseTime(slot)} className={classes("focus-ring min-h-12 rounded-xl border bg-card px-2 py-3 text-sm font-semibold tabular-nums transition-colors hover:border-primary", selectedTimes.includes(slot.startTime) && "border-primary bg-primary text-white")}>{slot.startTime}</button>)}</div>)}{!isLoadingSlots && slots.length === 0 ? <EmptyState size="md">{date === todayISO() ? "Não há mais horários disponíveis para agendamento hoje. Escolha outro dia." : "Nenhum horário disponível nesta data. Escolha outro dia para continuar."}</EmptyState> : null}{sequenceMessage ? <p role="status" className="mt-3 text-xs font-medium text-danger">{sequenceMessage}</p> : null}{time && selectedSlot && booking.settings.durationMode === "fixed_multiple" && includesPrimary ? <><div className="mt-3 rounded-xl border border-primary bg-primary/10 p-3"><p className="text-lg font-semibold tabular-nums text-primary">{time} → {endTime}</p><p className="text-xs text-muted">{formatDuration(duration)} selecionados</p></div>{blocks < selectedSlot.maxBlocks && timeToMinutes(time) + blocks * selectedSlot.durationMinutes >= 1440 ? <Button variant="ghost" className="mt-2 w-full" onClick={() => { setBlocks((value) => value + 1); setComplementary(null); setComplementaryOptions([]); }}>Adicionar {minutesToTime(timeToMinutes(time) + blocks * selectedSlot.durationMinutes)}</Button> : null}{timeToMinutes(time) + (blocks - 1) * selectedSlot.durationMinutes >= 1440 ? <Button variant="ghost" className="mt-2 w-full" onClick={() => { setBlocks((value) => Math.max(1, value - 1)); setComplementary(null); setComplementaryOptions([]); }}>Remover último bloco</Button> : null}</> : null}</ExpandedStep> : null}
       {date && includesComplementary && activeStep === "complementary" ? <ExpandedStep number={numberOf("complementary")} title={complementaryGroup?.label ?? "Escolha uma opção"} description={complementaryGroup?.occupancyMode === "day" ? `${formatLongDate(date)} · reserva do dia.` : `${formatLongDate(date)} · ${time}–${endTime}.`}>{isLoadingComplementary ? <EmptyState size="md" className="flex items-center justify-center gap-2" aria-live="polite"><LoaderCircle className="h-4 w-4 animate-spin" />Consultando opções...</EmptyState> : <div className="space-y-2">{complementaryOptions.map((option) => <OptionButton key={option.id} selected={complementary === option.id} name={option.name} disabled={!option.available} meta={option.available ? undefined : "Indisponível"} onClick={() => { setComplementary(option.id); setMessage(null); setActiveStep("customer"); }} />)}</div>}{!isLoadingComplementary && complementaryOptions.every((option) => !option.available) ? <div className="mt-3 rounded-xl border bg-surface p-4 text-sm"><p className="font-semibold">Nenhuma opção disponível nesta data.</p><p className="mt-2 text-muted">Use Voltar para revisar suas escolhas.</p></div> : null}</ExpandedStep> : null}
       {((!timeRequired && date) || time) && activeStep === "customer" ? <ExpandedStep number={numberOf("customer")} title="Seus dados" description="Falta pouco para confirmar sua reserva."><div className="space-y-4"><div className="space-y-2"><Label htmlFor="customer">Nome</Label><Input id="customer" value={customer} maxLength={120} autoComplete="name" onChange={(event) => setCustomer(event.target.value)} placeholder="Como podemos chamar você?" /></div><div className="space-y-2"><Label htmlFor="whatsapp">WhatsApp</Label><Input id="whatsapp" inputMode="tel" autoComplete="tel" maxLength={15} value={whatsapp} onChange={(event) => setWhatsapp(formatWhatsappInput(event.target.value))} placeholder="(00) 00000-0000" /><p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />Usaremos seu WhatsApp somente para informações sobre esta reserva.</p></div></div></ExpandedStep> : null}
