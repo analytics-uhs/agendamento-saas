@@ -1,5 +1,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+import type { BusinessModule } from "@/lib/business-modules";
+
 export type BusinessRole = "owner" | "admin";
 export type DurationMode = "fixed" | "fixed_multiple" | "group_2";
 export type ThemePreference = "light" | "dark" | "system";
@@ -25,6 +27,12 @@ export interface Database {
         Insert: { id?: string; name: string; slug: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; created_at?: string; updated_at?: string };
         Update: { name?: string; slug?: string; whatsapp?: string | null; logo_url?: string | null; address?: string | null; google_maps_url?: string | null; instagram_url?: string | null; facebook_url?: string | null; active?: boolean; active_updated_at?: string | null; active_updated_by?: string | null; updated_at?: string };
         Relationships: [];
+      };
+      business_modules: {
+        Row: { business_id: string; module: BusinessModule; enabled: boolean } & Timestamps;
+        Insert: { business_id: string; module: BusinessModule; enabled?: boolean; created_at?: string; updated_at?: string };
+        Update: { enabled?: boolean; updated_at?: string };
+        Relationships: [{ foreignKeyName: "business_modules_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
       };
       business_members: {
         Row: { id: string; business_id: string; user_id: string; role: BusinessRole; created_at: string };

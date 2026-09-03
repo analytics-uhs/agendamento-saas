@@ -3,7 +3,16 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
 
-delete from private.founder_offer_claims;
+-- Linked-safe: compare against a snapshot, never delete customer claims.
+create temp table founder_test_baseline as
+select count(*)::integer as claims from private.founder_offer_claims;
+grant select on founder_test_baseline to anon, authenticated;
+create function pg_temp.expected_founder_offer(extra integer) returns jsonb
+language sql as $$
+  select jsonb_build_object('totalSpots',50,'occupiedSpots',occupied,
+    'availableSpots',50-occupied,'occupiedPercentage',occupied*2)
+  from (select least(50,38+claims+extra) occupied from founder_test_baseline) counts;
+$$;
 
 select has_function(
   'public',
@@ -22,7 +31,7 @@ select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
 select results_eq(
   $$select public.get_public_founder_offer()$$,
-  $$values ('{"totalSpots":50,"occupiedSpots":38,"availableSpots":12,"occupiedPercentage":76}'::jsonb)$$,
+  $$select pg_temp.expected_founder_offer(0)$$,
   'the public snapshot starts at the commercial baseline'
 );
 
@@ -40,7 +49,7 @@ values ('90000000-0000-4000-8000-000000000001', 'founder-no-business@example.tes
 
 select results_eq(
   $$select public.get_public_founder_offer()$$,
-  $$values ('{"totalSpots":50,"occupiedSpots":38,"availableSpots":12,"occupiedPercentage":76}'::jsonb)$$,
+  $$select pg_temp.expected_founder_offer(0)$$,
   'an authenticated user without a business does not consume a spot'
 );
 
@@ -76,8 +85,8 @@ select is(
 
 select results_eq(
   $$select public.get_public_founder_offer()$$,
-  $$values ('{"totalSpots":50,"occupiedSpots":39,"availableSpots":11,"occupiedPercentage":78}'::jsonb)$$,
-  'one eligible business produces 39 occupied and 11 available'
+  $$select pg_temp.expected_founder_offer(1)$$,
+  'one eligible business adds one occupied spot up to the cap'
 );
 
 insert into private.founder_offer_claims (business_id)
@@ -85,8 +94,8 @@ select gen_random_uuid() from generate_series(1, 4);
 
 select results_eq(
   $$select public.get_public_founder_offer()$$,
-  $$values ('{"totalSpots":50,"occupiedSpots":43,"availableSpots":7,"occupiedPercentage":86}'::jsonb)$$,
-  'five eligible businesses produce 43 occupied and 7 available'
+  $$select pg_temp.expected_founder_offer(5)$$,
+  'five eligible businesses add five occupied spots up to the cap'
 );
 
 insert into private.founder_offer_claims (business_id)

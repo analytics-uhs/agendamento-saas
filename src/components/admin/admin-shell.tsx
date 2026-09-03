@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AlertTriangle, CalendarDays, Clock3, ExternalLink, Home, LogOut, Palette, Settings2, ShieldCheck, Store } from "lucide-react";
+import { AlertTriangle, ExternalLink, LogOut } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { classes } from "@/lib/classes";
 import type { CurrentBusiness } from "@/lib/repositories/businesses";
@@ -17,21 +17,15 @@ import { AdminPwaInstallAction, AdminPwaInstallDialog, useAdminPwaInstall } from
 import { adminSidebarItemClass } from "@/lib/admin-navigation";
 import { AdminMobileNavigationItem } from "@/components/admin/admin-mobile-navigation-item";
 
-const nav = [
-  { href: "/admin", label: "Início", Icon: Home, exact: true },
-  { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
-  { href: "/admin/configuracao", label: "Configuração", Icon: Settings2 },
-  { href: "/admin/horarios", label: "Horários", Icon: Clock3 },
-  { href: "/admin/aparencia", label: "Aparência", Icon: Palette },
-  { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
-];
+import { getAdminNavigation } from "@/lib/admin-navigation-items";
+import type { BusinessModules } from "@/lib/business-modules";
 
-export function AdminShell({ children, currentBusiness, platformAdmin, logoUrl, palette, initialTheme, notificationFeed, vapidPublicKey, user }: { children: React.ReactNode; currentBusiness: CurrentBusiness; platformAdmin: boolean; logoUrl: string | null; palette: BusinessPalette; initialTheme: VisualThemePreference; notificationFeed: AdminNotificationFeed; vapidPublicKey: string | null; user: { id: string; name: string; email: string } }) {
+export function AdminShell({ children, currentBusiness, modules, platformAdmin, logoUrl, palette, initialTheme, notificationFeed, vapidPublicKey, user }: { children: React.ReactNode; currentBusiness: CurrentBusiness; modules: BusinessModules; platformAdmin: boolean; logoUrl: string | null; palette: BusinessPalette; initialTheme: VisualThemePreference; notificationFeed: AdminNotificationFeed; vapidPublicKey: string | null; user: { id: string; name: string; email: string } }) {
   const pathname = usePathname();
   const business = currentBusiness;
   const notificationCenter = useAdminNotificationCenter({ initialFeed: notificationFeed, userId: user.id, vapidPublicKey });
   const pwaInstall = useAdminPwaInstall();
-  const navigation = platformAdmin ? [...nav, { href: "/super-admin", label: "Super Admin", Icon: ShieldCheck, exact: false }] : nav;
+  const navigation = getAdminNavigation(modules, platformAdmin);
   const active = (href: string, exact?: boolean) => exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   return <BusinessAppearance palette={palette} initialTheme={initialTheme}><div className="admin-pwa-shell min-h-screen bg-surface">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background px-4 py-6 lg:flex">
