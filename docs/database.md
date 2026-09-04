@@ -43,6 +43,13 @@ ajustes, perdas e estornos são deltas assinados, e a view
 saldo zero. Estorno cria movimento compensatório e nunca edita/apaga o original.
 Detalhes em [Motor de estoque](architecture-stock-ledger.md).
 
+`purchases` e `purchase_items` mantêm o registro comercial mínimo de compras.
+Rascunhos não afetam o estoque. `confirm_admin_purchase` recalcula o total e,
+na mesma transação, cria um `stock_movements` positivo por item; origem única
+`(source_type='purchase', source_id=purchase_item.id)` impede dupla entrada.
+Compras confirmadas são somente leitura. Não há cancelamento, financeiro,
+fornecedor estruturado, fiscal ou custo médio nesta etapa.
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;

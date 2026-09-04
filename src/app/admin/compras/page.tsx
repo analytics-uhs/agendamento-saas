@@ -1,0 +1,10 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { listPurchases } from "@/lib/repositories/purchases";
+import { formatCatalogBRL } from "@/lib/product-catalog";
+const linkClass="focus-ring inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90";
+export default async function PurchasesPage(){const purchases=await listPurchases();return <><PageHeader title="Compras" description="Registre entradas de mercadorias e mantenha seu estoque atualizado." action={<Link className={linkClass} href="/admin/compras/nova"><Plus className="h-4 w-4"/>Nova compra</Link>}/><div className="mt-6">{!purchases.length?<EmptyState size="lg"><p className="font-semibold text-foreground">Nenhuma compra registrada</p><p className="mt-2">Crie um rascunho e confirme quando os itens estiverem corretos.</p><Link className={`${linkClass} mt-4`} href="/admin/compras/nova">Nova compra</Link></EmptyState>:<Card><ul className="divide-y">{purchases.map(purchase=><li key={purchase.id}><Link href={`/admin/compras/${purchase.id}`} className="focus-ring grid gap-2 rounded-xl p-4 hover:bg-surface sm:grid-cols-[8rem_minmax(0,1fr)_5rem_8rem_auto] sm:items-center"><span className="text-sm tabular-nums">{new Intl.DateTimeFormat("pt-BR").format(new Date(`${purchase.purchase_date}T12:00:00`))}</span><span className="min-w-0 break-words text-sm font-medium">{purchase.supplier_name||"Fornecedor não informado"}</span><span className="text-sm text-muted">{purchase.item_count} {purchase.item_count===1?"item":"itens"}</span><span className="text-sm font-semibold tabular-nums">{formatCatalogBRL(purchase.total_amount)}</span><Badge variant={purchase.status==="confirmed"?"success":"neutral"}>{purchase.status==="confirmed"?"Confirmada":"Rascunho"}</Badge></Link></li>)}</ul></Card>}</div></>}

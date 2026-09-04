@@ -8,7 +8,10 @@ linha registra um `quantity_delta` assinado; o saldo é sempre
 cache mutável. Estoque inicial é um `adjustment_in` com motivo explícito.
 
 Os tipos do MVP são `manual_in`, `manual_out`, `adjustment_in`,
-`adjustment_out`, `loss` e `reversal`. Quantidades usam `numeric(14,3)` e custo
+`adjustment_out`, `loss`, `purchase` e `reversal`. Uma compra em rascunho não
+altera saldo; sua confirmação gera exatamente um movimento `purchase` por item,
+identificado por `source_type='purchase'` e `source_id=purchase_items.id`.
+Quantidades usam `numeric(14,3)` e custo
 unitário opcional usa `numeric(12,2)`. O custo é histórico; não calcula custo
 médio nem altera o custo de referência do produto.
 
@@ -42,5 +45,5 @@ tenants. Leitura e RPCs exigem usuário autenticado, papel owner/admin e módulo
 passa por `requireBusinessModule("management")` e nunca aceita `business_id` do
 browser.
 
-Compras, vendas, fornecedores, caixa, financeiro, fiscal, custo médio, lotes,
+Cancelamento de compra, vendas, fornecedores estruturados, caixa, financeiro, fiscal, custo médio, lotes,
 validade, depósitos e baixa automática permanecem fora desta etapa.

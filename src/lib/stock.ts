@@ -5,7 +5,7 @@ export const STOCK_MOVEMENT_TYPES = {
   adjustment_out: "Ajuste negativo", loss: "Perda",
 } as const;
 export type ManualStockMovementType = keyof typeof STOCK_MOVEMENT_TYPES;
-export type StockMovementType = ManualStockMovementType | "reversal";
+export type StockMovementType = ManualStockMovementType | "purchase" | "reversal";
 export type StockStatus = "normal" | "low" | "negative";
 export type StockFilters = { search: string; category: string; status: "all" | StockStatus; page: number; history: string; historyPage: number };
 export type StockBalance = { product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: string | number; active: boolean; quantity: string | number; stock_status: StockStatus };
@@ -55,5 +55,5 @@ export function parseStockMovementInput(input: unknown) {
 export function stockDelta(type: ManualStockMovementType, quantity: string|number) { return (["manual_in","adjustment_in"] as string[]).includes(type) ? Math.abs(Number(quantity)) : -Math.abs(Number(quantity)); }
 export function stockStatus(quantity: string|number, minimum: string|number): StockStatus { const q=Number(quantity), m=Number(minimum); return q<0?"negative":m>0&&q<=m?"low":"normal"; }
 export function formatStockQuantity(value: string|number, unit: ProductUnit) { return `${new Intl.NumberFormat("pt-BR",{maximumFractionDigits:3}).format(Number(value))} ${unit}`; }
-export function formatMovementType(type: StockMovementType) { return type==="reversal"?"Estorno":STOCK_MOVEMENT_TYPES[type]; }
+export function formatMovementType(type: StockMovementType) { return type==="reversal"?"Estorno":type==="purchase"?"Compra":STOCK_MOVEMENT_TYPES[type]; }
 export function stockError(error: { code?: string; message?: string }) { const message=error.message??""; if (message.includes("already_reversed")||error.code==="23505") return "Esta movimentação já foi estornada."; if (message.includes("not_reversible")) return "Um estorno não pode ser estornado novamente."; if (error.code==="42501") return "Você não tem acesso a esta operação."; return "Não foi possível concluir a movimentação. Revise os dados e tente novamente."; }
