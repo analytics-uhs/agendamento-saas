@@ -50,6 +50,13 @@ na mesma transação, cria um `stock_movements` positivo por item; origem única
 Compras confirmadas são somente leitura. Não há cancelamento, financeiro,
 fornecedor estruturado, fiscal ou custo médio nesta etapa.
 
+`sales` e `sale_items` registram o PDV mínimo. Draft não altera saldo;
+`complete_admin_sale` exige um pagamento `pix`, `cash` ou `card`, recalcula o
+total e grava uma saída negativa `sale` por item na mesma transação. O índice
+único da origem torna a finalização idempotente e estoque negativo é permitido.
+Vendas finalizadas são somente leitura. Não há caixa, recebíveis, cancelamento,
+devolução, fiscal ou integração com Agenda.
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;

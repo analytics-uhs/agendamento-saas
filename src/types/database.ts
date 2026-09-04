@@ -42,7 +42,7 @@ export interface Database {
         Relationships: [{ foreignKeyName: "products_category_tenant_fk"; columns: ["category_id", "business_id"]; isOneToOne: false; referencedRelation: "product_categories"; referencedColumns: ["id", "business_id"] }];
       };
       stock_movements: {
-        Row: { id: string; business_id: string; product_id: string; movement_type: "manual_in" | "manual_out" | "adjustment_in" | "adjustment_out" | "loss" | "reversal" | "purchase"; quantity_delta: number; unit_cost: number | null; reason: string | null; source_type: string | null; source_id: string | null; reversal_of_id: string | null; created_by: string | null; occurred_at: string; created_at: string };
+        Row: { id: string; business_id: string; product_id: string; movement_type: "manual_in" | "manual_out" | "adjustment_in" | "adjustment_out" | "loss" | "reversal" | "purchase" | "sale"; quantity_delta: number; unit_cost: number | null; reason: string | null; source_type: string | null; source_id: string | null; reversal_of_id: string | null; created_by: string | null; occurred_at: string; created_at: string };
         Insert: never;
         Update: never;
         Relationships: [];
@@ -53,6 +53,14 @@ export interface Database {
       };
       purchase_items: {
         Row: { id: string; business_id: string; purchase_id: string; product_id: string; quantity: number; unit_cost: number; created_at: string };
+        Insert: never; Update: never; Relationships: [];
+      };
+      sales: {
+        Row: { id: string; business_id: string; status: "draft" | "completed"; customer_name: string | null; payment_method: "pix" | "cash" | "card" | null; total_amount: number; completed_at: string | null; created_by: string | null } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
+      };
+      sale_items: {
+        Row: { id: string; business_id: string; sale_id: string; product_id: string; quantity: number; unit_price: number; created_at: string };
         Insert: never; Update: never; Relationships: [];
       };
       business_modules: {
@@ -174,6 +182,8 @@ export interface Database {
       reverse_admin_stock_movement: { Args: { p_movement_id: string; p_reason?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
       save_admin_purchase_draft: { Args: { p_purchase_id: string | null; p_supplier_name: string | null; p_purchase_date: string; p_notes: string | null; p_items: Json }; Returns: string };
       confirm_admin_purchase: { Args: { p_purchase_id: string }; Returns: Database["public"]["Tables"]["purchases"]["Row"] };
+      save_admin_sale_draft: { Args: { p_sale_id: string | null; p_customer_name: string | null; p_payment_method: string | null; p_items: Json }; Returns: string };
+      complete_admin_sale: { Args: { p_sale_id: string }; Returns: Database["public"]["Tables"]["sales"]["Row"] };
       complete_business_onboarding: { Args: { p_payload: Json }; Returns: string };
       get_public_founder_offer: { Args: never; Returns: Json };
       create_admin_appointment: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };

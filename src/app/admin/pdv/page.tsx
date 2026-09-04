@@ -1,0 +1,1 @@
+import {SaleEditor} from "@/components/admin/sale-editor";import {getSaleEditor} from "@/lib/repositories/sales";export default async function PosPage(){return <SaleEditor {...await getSaleEditor()}/>;}
