@@ -75,8 +75,13 @@ sem alterar o schema operacional. Não existe cadastro `clients` nem preço
 persistido no booking: o Admin informa o valor total manualmente no detalhe.
 
 `create_admin_financial_entry` permite manual ou Agenda, exige owner/admin e
-`management`, deriva o negócio da membership e nunca aceita `business_id` do
-cliente. `get_admin_financial_summary` tem a mesma autorização. A tabela concede
+`management`. O repository resolve o negócio com `requireBusinessModule` e passa
+`p_business_id` explicitamente; nenhum ID enviado pelo browser é utilizado.
+`get_admin_financial_summary` usa o mesmo negócio. Ambas validam a autorização
+no banco com `private.can_manage_business_module`, sem escolher a primeira membership.
+A corretiva `20260905011000_financial_current_business.sql` mantém as assinaturas
+antigas sem grants e falhando de forma fechada; não altera a migration aplicada,
+RLS, canonicalização ou a transação de vendas. A tabela concede
 somente SELECT autenticado com RLS; mutações passam pelas RPCs. Lançamentos são
 somente criação/leitura nesta fase (incluindo pendentes), sem edição ou exclusão.
 

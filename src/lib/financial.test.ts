@@ -15,10 +15,16 @@ test("financial input preserves exact money and rejects invalid values and dates
 test("real repository allowlists origin and derives tenant through guard", async () => {
   let allowed = true;
   const calls: Array<[string, Record<string, unknown>]> = [];
+  const filters: Array<[string, unknown]> = [];
+  const query = {
+    select: () => query, eq: (field: string, value: unknown) => { filters.push([field,value]); return query; },
+    gte: () => query, lt: () => query, order: () => query,
+    range: async () => ({data:[], count:0, error:null}),
+  };
   const dependencies: Record<string, unknown> = {
     "server-only": {}, "@/lib/financial": financial,
-    "@/lib/auth/business-module": { requireBusinessModule: async (module: string) => { assert.equal(module,"management"); if(!allowed) throw Error("denied");return {id:"tenant"}; } },
-    "@/lib/supabase/server": { createClient: async () => ({rpc: async (name: string, payload: Record<string, unknown>) => { calls.push([name,payload]);return {data:{id:"entry",amount:12.5,description:null,payment_method:null},error:null}; }}) },
+    "@/lib/auth/business-module": { requireBusinessModule: async (module: string) => { assert.equal(module,"management"); if(!allowed) throw Error("denied");return {id:"business-B"}; } },
+    "@/lib/supabase/server": { createClient: async () => ({from: () => query, rpc: async (name: string, payload: Record<string, unknown>) => { calls.push([name,payload]);return {data:{id:"entry",amount:12.5,description:null,payment_method:null},error:null}; }}) },
   };
   const exports: Record<string, (...args: unknown[]) => Promise<unknown>> = {};
   const code=ts.transpileModule(readFileSync("src/lib/repositories/financial.ts","utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
@@ -28,6 +34,11 @@ test("real repository allowlists origin and derives tenant through guard", async
   assert.equal(calls[0][1].p_amount,"12.50");assert.ok(!("business_id" in calls[0][1]));
   await exports.createFinancialEntry({...input,entry_type:"expense"},{type:"appointment",id:"ee640000-0000-4000-8000-000000000001"});
   assert.equal(calls[1][1].p_entry_type,"income");
+  await exports.getFinancialMonth("2026-09");
+  assert.equal(calls[2][0],"get_admin_financial_summary");
+  assert.equal(calls[2][1].p_month,"2026-09-01");
+  for (const [,payload] of calls) assert.equal(payload.p_business_id,"business-B");
+  assert.deepEqual(filters,[["business_id","business-B"]]);
   allowed=false;
   await assert.rejects(exports.createFinancialEntry(input),/denied/);
   await assert.rejects(exports.getFinancialMonth("2026-09"),/denied/);

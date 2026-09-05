@@ -188,8 +188,8 @@ export interface Database {
       confirm_admin_purchase: { Args: { p_purchase_id: string }; Returns: Database["public"]["Tables"]["purchases"]["Row"] };
       save_admin_sale_draft: { Args: { p_sale_id: string | null; p_customer_name: string | null; p_payment_method: string | null; p_items: Json }; Returns: string };
       complete_admin_sale: { Args: { p_sale_id: string }; Returns: Database["public"]["Tables"]["sales"]["Row"] };
-      create_admin_financial_entry: { Args: { p_source_type: string; p_source_id: string | null; p_entry_type: string; p_amount: string; p_description: string; p_payment_method: string | null; p_entry_date: string; p_status: string }; Returns: Database["public"]["Tables"]["financial_entries"]["Row"] };
-      get_admin_financial_summary: { Args: { p_month: string }; Returns: Json };
+      create_admin_financial_entry: { Args: { p_business_id: string; p_source_type: string; p_source_id: string | null; p_entry_type: string; p_amount: string; p_description: string; p_payment_method: string | null; p_entry_date: string; p_status: string }; Returns: Database["public"]["Tables"]["financial_entries"]["Row"] };
+      get_admin_financial_summary: { Args: { p_business_id: string; p_month: string }; Returns: Json };
       complete_business_onboarding: { Args: { p_payload: Json }; Returns: string };
       get_public_founder_offer: { Args: never; Returns: Json };
       create_admin_appointment: { Args: { p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
