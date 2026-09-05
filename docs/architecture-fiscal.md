@@ -1,5 +1,51 @@
 # Fundação fiscal
 
+## Configuração cadastral fiscal
+
+`business_fiscal_settings` mantém dados do emitente e endereço estruturado.
+`businesses.name` é nome comercial e `businesses.address` é texto livre: não são
+fonte oficial de razão social/endereço fiscal. Não há cópia automática.
+`product_fiscal_settings` é 1:1 por produto, com FK composta para o tenant.
+Nenhuma tabela comercial, snapshot fiscal ou finalização foi alterada.
+
+Campos vazios podem ser salvos para completar o cadastro gradualmente. Formatos
+preenchidos são validados: CNPJ 14 dígitos, CEP 8, município IBGE 7, UF 2 letras,
+NCM 8, CEST opcional 7, CFOP 4, origem 0–8. Banco normaliza pontuação numérica,
+trim e uppercase de UF/IE. CNPJ é validação de formato, não consulta cadastral ou
+validação de existência. IE é texto (inclusive ISENTO); não há regra estadual.
+
+CRT é armazenado como texto 1/2/3. ICMS separa `icms_code_type=csosn|cst`
+de `icms_code` (3/2 dígitos). Prontidão marca incompatibilidade se CRT 1 não usar
+CSOSN ou CRT 2/3 não usar CST. Formato não significa adequação tributária: não
+escolhemos códigos nem implementamos validações por UF, catálogo tributário ou
+cálculo. CRT 4/MEI não é oferecido nesta etapa de escopo 1/2/3.
+
+`getFiscalReadiness` e `getProductFiscalReadiness` indicam **completude cadastral**,
+nunca “pronto para emitir”. Negócio exige IE preenchida ou ISENTO; produto exige
+NCM/CFOP/origem/tipo/código ICMS e regime compatível. CEST não é inferido como
+obrigatório. Mudança de CRT pode deixar produtos incompletos, sem bloquear venda.
+
+Ambiente default `homologation`; `production` pode ser salvo mas não habilita
+emissão. RPCs de configuração exigem current business explícito e módulo fiscal,
+com normalização no banco e escrita direta revogada. Repositories ignoram IDs
+de negócio enviados pelo browser. A página fica em `/admin/fiscal/configuracao`.
+No editor de Produtos, a seção aparece somente com Fiscal ativo. Produto novo
+é salvo primeiro e recebe dados fiscais na edição; salvamentos comercial/fiscal
+são independentes. A preparação local da #65 não exige esses dados e documentos
+anteriores não são migrados.
+
+Fontes oficiais para os códigos (consulta limitada em setembro/2026):
+
+- [MOC 7.0, Anexo I — origem, CRT e ICMS](https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/moc7-anexo-i-leiaute-e-rv.pdf).
+- [Portal NF-e — CRT/CSOSN](https://www.nfe.fazenda.gov.br/Portal/perguntasFrequentes.aspx?AspxAutoDetectCookieSupport=1&tipoConteudo=S%2FEAGUrzRyk%3D).
+- [NT 2024.001 — CRT MEI](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?conteudo=kIiniiSkpKc%3D): extensão CRT 4 conhecida, fora do escopo solicitado.
+
+Sem provider real, credenciais, certificado, CSC ou emissão. Antes de integrar
+um provider será necessário revisar os requisitos fiscais vigentes, incluindo
+regimes e regras não cobertos por esta configuração mínima.
+
+## Preparação local
+
 `sale → fiscal_document → provider` separa o histórico comercial da futura
 emissão. Esta etapa prepara apenas NFC-e em `draft`; nenhum provedor, credencial,
 API fiscal, XML, PDF ou autorização é simulado. `provider` e respostas externas

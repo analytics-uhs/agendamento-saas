@@ -11,7 +11,7 @@ export default async function FiscalPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const { documents, count, page } = await listFiscalDocuments(Number(params.page ?? 1));
   return <>
-    <PageHeader title="Fiscal" description="Acompanhe os documentos fiscais das suas vendas." />
+    <PageHeader title="Fiscal" description="Acompanhe os documentos fiscais das suas vendas." action={<Link className="focus-ring rounded-xl border px-4 py-3 text-sm hover:bg-surface" href="/admin/fiscal/configuracao">Configuração fiscal</Link>}/>
     <div className="mt-6">
       {!documents.length ? <EmptyState size="lg">
         <p className="font-semibold text-foreground">Nenhum documento fiscal preparado.</p>

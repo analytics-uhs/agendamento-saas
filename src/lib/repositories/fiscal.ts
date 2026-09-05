@@ -4,6 +4,42 @@ import { createClient } from "@/lib/supabase/server";
 import { validCatalogId } from "@/lib/product-catalog";
 import { fiscalError, type FiscalDocument, type FiscalDocumentItem } from "@/lib/fiscal";
 import type { ActionResult } from "@/types/business";
+import { parseFiscalSettings, fiscalSettingsReadiness } from "@/lib/fiscal-settings";
+
+export async function getBusinessFiscalSettings() {
+  const {business,supabase}=await context();
+  const {data,error}=await supabase.from("business_fiscal_settings").select("*").eq("business_id",business.id).maybeSingle();
+  if(error) throw Error("Não foi possível carregar os dados fiscais.");
+  return parseFiscalSettings("business",data??{});
+}
+export async function getFiscalReadiness() {
+  return fiscalSettingsReadiness(await getBusinessFiscalSettings());
+}
+export async function getProductFiscalSettings(productId:string) {
+  const {business,supabase}=await context();
+  if(!validCatalogId(productId)) throw Error("Produto inválido.");
+  const product=await supabase.from("products").select("id").eq("business_id",business.id).eq("id",productId).maybeSingle();
+  if(product.error||!product.data) throw Error("Produto indisponível.");
+  const {data,error}=await supabase.from("product_fiscal_settings").select("*").eq("business_id",business.id).eq("product_id",productId).maybeSingle();
+  if(error) throw Error("Não foi possível carregar os dados fiscais.");
+  const businessSettings=await getBusinessFiscalSettings();
+  return {settings:parseFiscalSettings("product",data??{}),taxRegime:businessSettings.tax_regime};
+}
+export async function saveBusinessFiscalSettings(input:unknown):Promise<ActionResult> {
+  const {business,supabase}=await context();
+  let value;
+  try {value=parseFiscalSettings("business",input);} catch(error){return {ok:false,message:(error as Error).message};}
+  const {error}=await supabase.rpc("save_admin_business_fiscal_settings",{p_business_id:business.id,p_data:value});
+  return error?{ok:false,message:"Não foi possível salvar os dados fiscais. Revise os campos e tente novamente."}:{ok:true,message:"Configuração fiscal salva."};
+}
+export async function saveProductFiscalSettings(productId:string,input:unknown):Promise<ActionResult> {
+  const {business,supabase}=await context();
+  if(!validCatalogId(productId))return {ok:false,message:"Produto inválido."};
+  let value;
+  try {value=parseFiscalSettings("product",input);} catch(error){return {ok:false,message:(error as Error).message};}
+  const {error}=await supabase.rpc("save_admin_product_fiscal_settings",{p_business_id:business.id,p_product_id:productId,p_data:value});
+  return error?{ok:false,message:"Não foi possível salvar os dados fiscais do produto. Revise os campos e tente novamente."}:{ok:true,message:"Dados fiscais do produto salvos."};
+}
 
 async function context() {
   const business = await requireBusinessModule("fiscal");
