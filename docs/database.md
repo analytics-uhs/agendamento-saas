@@ -57,6 +57,16 @@ total e grava uma saída negativa `sale` por item na mesma transação. O índic
 Vendas finalizadas são somente leitura. Não há caixa, recebíveis, cancelamento,
 devolução, fiscal ou integração com Agenda.
 
+## Fundação fiscal
+
+`fiscal_documents` e `fiscal_document_items` armazenam preparação local de NFC-e,
+com snapshot imutável e total conferido contra a venda completed. A RPC
+`prepare_admin_fiscal_document(p_business_id,p_sale_id)` valida current business
+explícito e `fiscal=true`; RLS limita leitura, sem grants de escrita direta.
+A migration `20260905020000_fiscal_foundation.sql` é aditiva, sem alterar vendas,
+estoque ou financeiro. Não há emissão externa nem documento automático ao vender.
+Detalhes em [Fundação fiscal](architecture-fiscal.md).
+
 ## Financeiro mínimo
 
 `financial_entries` registra `income`/`expense` com valor positivo `numeric(14,2)`,
