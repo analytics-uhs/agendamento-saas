@@ -15,6 +15,7 @@ import { recurrenceWeekday } from "@/lib/recurrence";
 import type { AdminAppointment } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { BookingPayment } from "@/components/admin/booking-payment";
 
 const actionIcons = { edit: Pencil, completed: CheckCircle2, no_show: UserX, cancelled: Ban };
 
@@ -111,6 +112,7 @@ export function AppointmentDetails({
           </div>
         ) : null}
       </dl>
+      <BookingPayment target={{ type: "appointment", id: appointment.id }} />
       {cancelling ? (
         <div className="mt-4 rounded-xl border border-danger/25 bg-danger/5 p-3">
           <p className="text-sm font-semibold">Como deseja cancelar?</p>
