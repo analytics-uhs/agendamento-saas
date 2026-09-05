@@ -1,3 +1,3 @@
 "use server";import {revalidatePath} from "next/cache";import {completeSale,saveSale} from "@/lib/repositories/sales";
 export async function saveSaleDraft(id:string|null,input:unknown){const result=await saveSale(id,input);if(result.ok&&result.data){revalidatePath("/admin/vendas");revalidatePath(`/admin/vendas/${result.data.id}`)}return result;}
-export async function completeSaleDraft(id:string|null,input:unknown){const result=await completeSale(id,input);if(result.ok&&result.data){revalidatePath("/admin/vendas");revalidatePath("/admin/estoque");revalidatePath(`/admin/vendas/${result.data.id}`)}return result;}
+export async function completeSaleDraft(id:string|null,input:unknown){const result=await completeSale(id,input);if(result.ok&&result.data){revalidatePath("/admin/vendas");revalidatePath("/admin/estoque");revalidatePath("/admin/financeiro");revalidatePath(`/admin/vendas/${result.data.id}`)}return result;}

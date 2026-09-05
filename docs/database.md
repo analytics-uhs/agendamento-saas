@@ -57,6 +57,40 @@ total e grava uma saída negativa `sale` por item na mesma transação. O índic
 Vendas finalizadas são somente leitura. Não há caixa, recebíveis, cancelamento,
 devolução, fiscal ou integração com Agenda.
 
+## Financeiro mínimo
+
+`financial_entries` registra `income`/`expense` com valor positivo `numeric(14,2)`,
+data comercial, descrição, método opcional (`pix`, `cash`, `card`, `other`) e status
+`paid`/`pending`. A tela `/admin/financeiro` usa mês atual em America/Sao_Paulo por
+padrão, seletor mensal e listagem paginada. O resumo agrega **todo o mês**, somando
+somente pagos: entradas menos saídas; pendentes não entram no saldo realizado.
+
+Origens: `manual`, `sale`, `reservation` e `appointment` legado. A reserva agregada
+é a origem comercial quando há `appointments.reservation_id`; sem esse vínculo,
+o próprio appointment (incluindo ocorrências recorrentes) é a origem estável.
+A RPC canonicaliza a origem e o índice único `(source_type,source_id)` impede
+cobrança duplicada via componentes diferentes da mesma reserva. FKs compostas
+validam sale/reservation; appointments usam a PK existente e trigger de tenant,
+sem alterar o schema operacional. Não existe cadastro `clients` nem preço
+persistido no booking: o Admin informa o valor total manualmente no detalhe.
+
+`create_admin_financial_entry` permite manual ou Agenda, exige owner/admin e
+`management`, deriva o negócio da membership e nunca aceita `business_id` do
+cliente. `get_admin_financial_summary` tem a mesma autorização. A tabela concede
+somente SELECT autenticado com RLS; mutações passam pelas RPCs. Lançamentos são
+somente criação/leitura nesta fase (incluindo pendentes), sem edição ou exclusão.
+
+A migration `20260905010000_financial_foundation.sql` redefine somente
+`complete_admin_sale`: status completed, saída de estoque e income paid pelo
+total final são gravados na mesma transação; uma falha reverte tudo. Vendas com
+total zero permanecem draft, pois lançamento financeiro exige valor positivo.
+O recebimento automático vale para finalizações a partir da migration, sem
+backfill de vendas históricas. Estoque negativo permanece permitido.
+
+Agenda não gera financeiro ao criar/concluir/cancelar: registro é explícito,
+sem alterar status operacional. Compras confirmadas não geram expense.
+Sem caixa, parcelas, pagamento parcial, financeiro recorrente, estorno ou fiscal.
+
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 
 - `private.is_business_member(business_id)`;

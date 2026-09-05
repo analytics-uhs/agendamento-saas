@@ -19,6 +19,7 @@ import { AdminMobileNavigationItem } from "@/components/admin/admin-mobile-navig
 
 import { getAdminNavigation } from "@/lib/admin-navigation-items";
 import type { BusinessModules } from "@/lib/business-modules";
+import { ManagementAccess } from "@/components/admin/management-access";
 
 export function AdminShell({ children, currentBusiness, modules, platformAdmin, logoUrl, palette, initialTheme, notificationFeed, vapidPublicKey, user }: { children: React.ReactNode; currentBusiness: CurrentBusiness; modules: BusinessModules; platformAdmin: boolean; logoUrl: string | null; palette: BusinessPalette; initialTheme: VisualThemePreference; notificationFeed: AdminNotificationFeed; vapidPublicKey: string | null; user: { id: string; name: string; email: string } }) {
   const pathname = usePathname();
@@ -27,7 +28,7 @@ export function AdminShell({ children, currentBusiness, modules, platformAdmin, 
   const pwaInstall = useAdminPwaInstall();
   const navigation = getAdminNavigation(modules, platformAdmin);
   const active = (href: string, exact?: boolean) => exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-  return <BusinessAppearance palette={palette} initialTheme={initialTheme}><div className="admin-pwa-shell min-h-screen bg-surface">
+  return <ManagementAccess.Provider value={modules.management}><BusinessAppearance palette={palette} initialTheme={initialTheme}><div className="admin-pwa-shell min-h-screen bg-surface">
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-background px-4 py-6 lg:flex">
       <div className="flex items-center justify-between gap-2"><Link href="/admin" className="focus-ring flex min-w-0 items-center gap-2 rounded-xl px-2"><BusinessLogo name={business.name} logoUrl={logoUrl} /><span className="truncate font-semibold">{business.name}</span></Link><AdminNotificationBell center={notificationCenter} placement="desktop" /></div>
       <nav className="mt-8 flex flex-col gap-1" aria-label="Principal">
@@ -52,5 +53,5 @@ export function AdminShell({ children, currentBusiness, modules, platformAdmin, 
       <AdminPwaInstallAction controller={pwaInstall} placement="mobile" />
     </div></nav>
     <AdminPwaInstallDialog controller={pwaInstall} />
-  </div></BusinessAppearance>;
+  </div></BusinessAppearance></ManagementAccess.Provider>;
 }

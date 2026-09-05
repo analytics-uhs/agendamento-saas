@@ -19,6 +19,7 @@ export const adminNavigationItems: readonly AdminNavigationItem[] = [
   { href: "/admin/compras", label: "Compras", Icon: ShoppingCart, requiredModule: "management" },
   { href: "/admin/vendas", label: "Vendas", Icon: ReceiptText, requiredModule: "management" },
   { href: "/admin/pdv", label: "PDV", Icon: Store, requiredModule: "management" },
+  { href: "/admin/financeiro", label: "Financeiro", Icon: ReceiptText, requiredModule: "management" },
   { href: "/admin/aparencia", label: "Aparência", Icon: Palette },
   { href: "/admin/negocio", label: "Meu negócio", Icon: Store },
 ];
