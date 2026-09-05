@@ -17,6 +17,14 @@ type Timestamps = { created_at: string; updated_at: string };
 export interface Database {
   public: {
     Tables: {
+      fiscal_documents: {
+        Row: Omit<import("@/lib/fiscal").FiscalDocument, "total_amount"> & { total_amount: number };
+        Insert: never; Update: never; Relationships: [];
+      };
+      fiscal_document_items: {
+        Row: Omit<import("@/lib/fiscal").FiscalDocumentItem, "quantity" | "unit_price" | "total_amount"> & { quantity: number; unit_price: number; total_amount: number };
+        Insert: never; Update: never; Relationships: [];
+      };
       profiles: {
         Row: { id: string; name: string; whatsapp: string | null } & Timestamps;
         Insert: { id: string; name?: string; whatsapp?: string | null; created_at?: string; updated_at?: string };
@@ -182,6 +190,7 @@ export interface Database {
       product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
     };
     Functions: {
+      prepare_admin_fiscal_document: { Args: { p_business_id: string; p_sale_id: string }; Returns: Database["public"]["Tables"]["fiscal_documents"]["Row"] };
       create_admin_stock_movement: { Args: { p_product_id: string; p_movement_type: string; p_quantity: string | number; p_unit_cost?: string | number | null; p_reason?: string | null; p_occurred_at?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
       reverse_admin_stock_movement: { Args: { p_movement_id: string; p_reason?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
       save_admin_purchase_draft: { Args: { p_purchase_id: string | null; p_supplier_name: string | null; p_purchase_date: string; p_notes: string | null; p_items: Json }; Returns: string };

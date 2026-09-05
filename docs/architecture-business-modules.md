@@ -9,11 +9,13 @@ feature é uma funcionalidade dentro dele. Não é um sistema genérico de plugi
 | Chave | Nome futuro | Default | Conteúdo |
 | --- | --- | --- | --- |
 | `scheduling` | Agenda | ativo | Núcleo atual, sem mudanças no motor |
-| `management` | Gestão | inativo | Futuramente Produtos, Estoque, Compras, Vendas e Financeiro |
-| `fiscal` | Fiscal | inativo | Futuramente NFC-e, Configuração fiscal e Documentos fiscais |
+| `management` | Gestão | inativo | Produtos, Estoque, Compras, Vendas e Financeiro |
+| `fiscal` | Fiscal | inativo | Preparação local e leitura de documentos NFC-e; emissão futura |
 
-Gestão e Fiscal ainda não têm páginas nem operações. Fiscal poderá depender
-comercialmente de Gestão; esta PR não cria dependência técnica entre eles.
+Fiscal possui `/admin/fiscal` e preparação opcional a partir de vendas completed.
+Usa seu próprio guard/RLS, sem depender tecnicamente de `management`; o detalhe
+comercial da venda continua na Gestão. Nenhum módulo é ativado automaticamente.
+Veja [Fundação fiscal](architecture-fiscal.md).
 
 ## Persistência e onboarding
 
@@ -54,7 +56,7 @@ Erros de leitura não habilitam módulos; configurações ausentes falham fechad
 `admin-navigation-items.ts` centraliza os itens com `requiredModule` opcional.
 Início/Agenda/Configuração/Horários declaram `scheduling`; Aparência/Meu negócio
 continuam gerais. Os defaults preservam todos os itens, ícones, ordem e classes.
-Nenhum link de Gestão/Fiscal foi adicionado.
+Gestão e Fiscal adicionam seus links somente quando o respectivo módulo está ativo.
 
 Páginas futuras devem executar, **antes de ler seus dados**:
 
