@@ -29,6 +29,14 @@ inativos. Membros têm somente leitura via RLS, sem ativação pelo cliente.
 Detalhes de defaults, atomicidade, navegação e guard server-side em
 [Módulos por negócio](architecture-business-modules.md).
 
+Super Admin gerencia módulos por `get_platform_business_modules` e
+`set_platform_business_module_enabled`, com sessão autenticada e validação da
+allow-list existente no banco. A migration `20260906030000_super_admin_business_modules.sql`
+adiciona último ator `updated_by`; UPSERT registra timestamp sem liberar escrita
+direta nem alterar RLS. Gestão/Fiscal são independentes e desativação preserva
+seus dados. Agenda não pode ser desligada nesta etapa (o Início ainda a assume);
+Agenda ausente/inativa pode ser restaurada. Não há backfill de ativação.
+
 O módulo Gestão inicia seu modelo com `product_categories` e `products`, ambos
 protegidos simultaneamente por membership administrativa, módulo ativo e RLS.
 A FK composta impede categoria de outro tenant; SKU/barcode são únicos dentro
