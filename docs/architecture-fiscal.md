@@ -1,5 +1,13 @@
 # Fundação fiscal
 
+## Integração Focus NFe em desenvolvimento
+
+A PR #67 iniciou o transporte server-only de homologação e os helpers de
+pagamento fiscal explícito. Ainda **não conecta emissão à UI/banco**; o lifecycle
+e o snapshot persistido abaixo permanecem como na fundação. Card/Pix não recebem
+default fiscal; Dinheiro possui mapeamento inequívoco. Consulte o
+[checkpoint Focus NFe](integrations/focus-nfe.md) para contratos, testes e pendências.
+
 ## Configuração cadastral fiscal
 
 `business_fiscal_settings` mantém dados do emitente e endereço estruturado.

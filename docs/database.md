@@ -59,6 +59,11 @@ devolução, fiscal ou integração com Agenda.
 
 ## Fundação fiscal
 
+Checkpoint da PR #67: cliente Focus NFe e helpers de pagamento fiscal foram
+adicionados somente na aplicação. **Nenhuma alteração de banco nesta etapa**;
+referência/snapshot de envio e transições persistidas ainda não implementados.
+Veja [integração Focus em desenvolvimento](integrations/focus-nfe.md).
+
 A migration aditiva `20260906010000_fiscal_settings.sql` cria
 `business_fiscal_settings` e `product_fiscal_settings`, entidades cadastrais
 separadas, com RLS fiscal, normalização por trigger e RPCs de upsert autenticadas
