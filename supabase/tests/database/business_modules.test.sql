@@ -4,20 +4,22 @@ create temp table modules_results(result text);
 grant select, insert on modules_results to anon, authenticated;
 insert into modules_results select plan(16);
 
-insert into modules_results select is(
-  (select count(*) from public.businesses b where
-    (select count(*) from public.business_modules m where m.business_id=b.id) <> 3),
-  0::bigint, 'backfill covers all existing businesses');
-insert into modules_results select is(
-  (select count(*) from public.business_modules where enabled <> (module='scheduling')),
-  0::bigint, 'initial migration defaults: scheduling on, management and fiscal off');
-
 insert into auth.users(id,email) values
 ('a9300000-0000-4000-8000-000000000001','modules-owner@example.test'),
 ('a9300000-0000-4000-8000-000000000002','modules-admin@example.test');
 insert into public.businesses(id,name,slug) values
 ('b9300000-0000-4000-8000-000000000001','Modules A','test-modules-a'),
 ('b9300000-0000-4000-8000-000000000002','Modules B','test-modules-b');
+-- Platform configuration is mutable now; verify defaults on synthetic new
+-- businesses, never assume every real tenant still uses its initial settings.
+insert into modules_results select is(
+  (select count(*) from public.business_modules where business_id in
+    ('b9300000-0000-4000-8000-000000000001','b9300000-0000-4000-8000-000000000002')),
+  6::bigint, 'new businesses receive all modules');
+insert into modules_results select is(
+  (select count(*) from public.business_modules where business_id in
+    ('b9300000-0000-4000-8000-000000000001','b9300000-0000-4000-8000-000000000002') and enabled <> (module='scheduling')),
+  0::bigint, 'new business defaults: scheduling on, management and fiscal off');
 insert into public.business_members(business_id,user_id,role) values
 ('b9300000-0000-4000-8000-000000000001','a9300000-0000-4000-8000-000000000001','owner'),
 ('b9300000-0000-4000-8000-000000000001','a9300000-0000-4000-8000-000000000002','admin');

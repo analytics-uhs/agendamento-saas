@@ -31,19 +31,33 @@ Ambos usam `ON CONFLICT DO NOTHING`, sem sobrescrever estados existentes.
 O trigger participa da transação original: falhas posteriores revertem negócio,
 módulos e demais efeitos do onboarding. Não foram copiadas nem alteradas RPCs.
 
-## Segurança e ativação futura
+## Segurança e gestão pelo Super Admin
 
 RLS usa `private.is_business_member`; authenticated possui somente SELECT dos
 próprios negócios. Não há grants para anon/service_role nem mutações para
-owner/admin. Não há política de escrita, RPC ou Server Action de ativação.
+owner/admin. Não há política de escrita nem UPDATE direto pelo browser.
 O trigger privado usa `security definer`, `search_path = ''` e execução revogada
 dos papéis de cliente. Grants existentes de outras tabelas permanecem iguais.
 
-Nesta etapa apenas um operador SQL privilegiado pode modificar a configuração;
-nenhuma ativação é feita por esta PR. Uma futura operação do Super Admin deverá
-validar `private.is_platform_admin()` e auditar ator/alteração no servidor. A
-allow-list existente não dá acesso direto a esta tabela sem membership, nem
-permite escrita. A interface atual do Super Admin permanece inalterada.
+A migration `20260906030000_super_admin_business_modules.sql` acrescenta
+`updated_by` (último ator; não é histórico completo) e duas RPCs com
+`search_path = ''`: `get_platform_business_modules` e
+`set_platform_business_module_enabled`. Ambas exigem `auth.uid()` e a autoridade
+existente `private.is_platform_admin()`. EXECUTE somente para authenticated;
+owner/admin comum continua bloqueado pela validação. RLS de leitura não muda.
+
+O detalhe `/super-admin/negocios/[businessId]` contém a seção Módulos. Repository
+server-only verifica `requirePlatformAdmin()` e usa a sessão autenticada, sem
+service role. A Server Action revalida o detalhe e o layout Admin. A RPC valida
+negócio/módulo/booleano, faz UPSERT pela PK e registra ator/timestamp. Somente a
+linha do módulo solicitado muda: desativar não apaga, arquiva nem altera os dados
+de Gestão/Fiscal. Os módulos permanecem independentes.
+
+Agenda ativa fica não editável: `/admin` e RPCs atuais ainda assumem o núcleo de
+agendamento, portanto não seria seguro apenas ocultar o menu. A RPC também
+rejeita `scheduling=false`. Se a linha estiver ausente/inativa, a interface mostra
+o estado real e permite restaurar Agenda via UPSERT; não fabrica um estado ativo.
+Outras linhas ausentes são interpretadas como inativas, preservando fail-closed.
 
 ## Aplicação, navegação e rotas futuras
 
@@ -70,8 +84,9 @@ mantêm os redirects existentes. Mutations futuras também precisarão dessa
 verificação e de autorização/integridade no banco; esconder menu não autoriza
 uma operação. Rotas/RPCs atuais de Agenda não foram bloqueadas nem alteradas.
 
-## Limites
+## Limites da gestão de módulos
 
-Sem cobrança, planos, trial, produtos, estoque, caixa, notas fiscais, novas
-telas ou alteração de booking/notifications/Founder. A migração deve preceder
-o deploy da aplicação, pois o layout passa a ler `business_modules`.
+Sem cobrança, planos, submódulos ou alteração das regras de booking, estoque,
+vendas, financeiro ou emissão fiscal. A migration deve preceder o deploy da
+seção de gestão. Ativações em negócios reais são feitas pelo operador; testes
+usam fixtures sintéticas com rollback, sem ativar negócio de cliente.

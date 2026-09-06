@@ -84,7 +84,7 @@ export interface Database {
         Insert: never; Update: never; Relationships: [];
       };
       business_modules: {
-        Row: { business_id: string; module: BusinessModule; enabled: boolean } & Timestamps;
+        Row: { business_id: string; module: BusinessModule; enabled: boolean; updated_by: string | null } & Timestamps;
         Insert: { business_id: string; module: BusinessModule; enabled?: boolean; created_at?: string; updated_at?: string };
         Update: { enabled?: boolean; updated_at?: string };
         Relationships: [{ foreignKeyName: "business_modules_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
@@ -256,6 +256,8 @@ export interface Database {
       set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
       update_admin_appointment_occurrence: { Args: { p_appointment_id: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: boolean };
       set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
+      get_platform_business_modules: { Args: { p_business_id: string }; Returns: Json };
+      set_platform_business_module_enabled: { Args: { p_business_id: string; p_module: string; p_enabled: boolean }; Returns: Json };
     };
     Enums: {
       business_role: BusinessRole;
