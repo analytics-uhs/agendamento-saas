@@ -13,7 +13,7 @@ test("business fiscal normalizes and readiness is cadastral only",()=>{
 });
 test("product fiscal formats, optional data and CRT compatibility",()=>{
  const empty=parseFiscalSettings("product",{});assert.equal(getProductFiscalReadiness(empty,"1").ready,false);
- const product=parseFiscalSettings("product",{ncm:"12.34.56.78",cfop:"5.102",origin:"0",icms_code_type:"csosn",icms_code:"102",cest:""});
+ const product=parseFiscalSettings("product",{ncm:"12.34.56.78",cfop:"5.102",origin:"0",icms_code_type:"csosn",icms_code:"102",cest:"",fiscal_unit:"UN",fiscal_gtin:"SEM GTIN",pis_code:"07",cofins_code:"07"});
  assert.equal(product.ncm,"12345678");assert.equal(product.cfop,"5102");
  assert.equal(getProductFiscalReadiness(product,"1").ready,true);
  assert.equal(getProductFiscalReadiness(product,"2").ready,false);

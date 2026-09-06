@@ -1,9 +1,10 @@
 export const BUSINESS_FISCAL_FIELDS = ["legal_name","trade_name","cnpj","state_registration","tax_regime","environment","address_street","address_number","address_complement","address_neighborhood","address_city","address_city_code","address_state","address_zip_code"] as const;
-export const PRODUCT_FISCAL_FIELDS = ["ncm","cest","cfop","origin","icms_code_type","icms_code"] as const;
+export const PRODUCT_FISCAL_FIELDS = ["ncm","cest","cfop","origin","icms_code_type","icms_code","fiscal_unit","fiscal_gtin","pis_code","cofins_code"] as const;
 export type BusinessFiscalSettings = Record<typeof BUSINESS_FISCAL_FIELDS[number], string>;
 export type ProductFiscalSettings = Record<typeof PRODUCT_FISCAL_FIELDS[number], string>;
 export const FISCAL_FIELD_LABELS: Record<string,string> = {"legal_name":"Razão social","trade_name":"Nome fantasia","cnpj":"CNPJ","state_registration":"Inscrição estadual","tax_regime":"Regime tributário","environment":"Ambiente","address_street":"Logradouro","address_number":"Número","address_complement":"Complemento","address_neighborhood":"Bairro","address_city":"Cidade","address_city_code":"Código IBGE","address_state":"UF","address_zip_code":"CEP","ncm":"NCM","cest":"CEST","cfop":"CFOP","origin":"Origem","icms_code_type":"Tipo ICMS","icms_code":"Código ICMS"};
 export const TAX_REGIMES = {"1":"Simples Nacional","2":"Simples Nacional — excesso de sublimite","3":"Regime Normal"};
+Object.assign(FISCAL_FIELD_LABELS, {fiscal_unit:"Unidade fiscal (comercial e tributável)",fiscal_gtin:"GTIN fiscal ou SEM GTIN",pis_code:"CST PIS",cofins_code:"CST COFINS"});
 // MOC 7.0 Anexo I / tabela de origem. See architecture-fiscal.md for official sources.
 export const PRODUCT_ORIGINS = {
  "0":"Nacional, exceto códigos 3, 4, 5 e 8",
@@ -42,6 +43,10 @@ export function parseFiscalSettings(kind: "business" | "product", input: unknown
    if(result.tax_regime&&!["1","2","3"].includes(result.tax_regime)) throw Error("Selecione um regime tributário válido.");
    if(!["homologation","production"].includes(result.environment)) throw Error("Selecione um ambiente válido.");
  } else {
+   result.fiscal_unit=result.fiscal_unit.toUpperCase(); result.fiscal_gtin=result.fiscal_gtin.toUpperCase();
+   if(result.fiscal_unit&&!/^[A-Z0-9]{1,6}$/.test(result.fiscal_unit)) throw Error("Informe uma unidade fiscal com até 6 letras/números.");
+   if(result.fiscal_gtin&&result.fiscal_gtin!=="SEM GTIN"&&!/^(\d{8}|\d{12}|\d{13}|\d{14})$/.test(result.fiscal_gtin)) throw Error("Informe o GTIN fiscal ou declare SEM GTIN.");
+   for(const key of ["pis_code","cofins_code"]) if(result[key]&&!/^\d{2}$/.test(result[key])) throw Error("CST PIS/COFINS deve ter 2 dígitos.");
    if(result.origin&&!/^[0-8]$/.test(result.origin)) throw Error("Selecione uma origem válida.");
    if(result.icms_code_type&&!["csosn","cst"].includes(result.icms_code_type)) throw Error("Selecione CST ou CSOSN.");
    if(result.icms_code&&!(result.icms_code_type==="csosn"?/^\d{3}$/:result.icms_code_type==="cst"?/^\d{2}$/:/a^/).test(result.icms_code)) throw Error("Informe 3 dígitos para CSOSN ou 2 para CST.");

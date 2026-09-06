@@ -10,6 +10,8 @@ export type FocusNfcePayload = {
   local_destino: string;
   presenca_comprador: string;
   natureza_operacao: string;
+  valor_total?: string;
+  indicador_inscricao_estadual_destinatario?: string;
   items: ReadonlyArray<Readonly<Record<string, string | number>>>;
   formas_pagamento: ReadonlyArray<Readonly<{ forma_pagamento: string; valor_pagamento: string }>>;
 };

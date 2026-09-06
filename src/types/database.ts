@@ -22,7 +22,7 @@ export interface Database {
         Insert: never; Update: never; Relationships: [];
       };
       product_fiscal_settings: {
-        Row: { business_id: string; product_id: string; ncm: string | null; cest: string | null; cfop: string | null; origin: string | null; icms_code_type: string | null; icms_code: string | null } & Timestamps;
+        Row: { business_id: string; product_id: string; ncm: string | null; cest: string | null; cfop: string | null; origin: string | null; icms_code_type: string | null; icms_code: string | null; fiscal_unit:string|null; fiscal_gtin:string|null; pis_code:string|null; cofins_code:string|null } & Timestamps;
         Insert: never; Update: never; Relationships: [];
       };
       fiscal_documents: {
@@ -198,6 +198,9 @@ export interface Database {
       product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
     };
     Functions: {
+      get_admin_fiscal_emission_context: {Args:{p_business_id:string;p_document_id:string};Returns:Json};
+      claim_fiscal_dispatch: {Args:{p_business_id:string;p_actor_id:string;p_document_id:string;p_context:Json;p_request:Json;p_emit:boolean};Returns:Json};
+      record_fiscal_dispatch: {Args:{p_business_id:string;p_document_id:string;p_token:string;p_result:Json};Returns:boolean};
       save_admin_business_fiscal_settings: { Args: { p_business_id: string; p_data: Json }; Returns: Database["public"]["Tables"]["business_fiscal_settings"]["Row"] };
       save_admin_product_fiscal_settings: { Args: { p_business_id: string; p_product_id: string; p_data: Json }; Returns: Database["public"]["Tables"]["product_fiscal_settings"]["Row"] };
       prepare_admin_fiscal_document: { Args: { p_business_id: string; p_sale_id: string }; Returns: Database["public"]["Tables"]["fiscal_documents"]["Row"] };

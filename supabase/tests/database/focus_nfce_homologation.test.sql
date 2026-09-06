@@ -1,0 +1,96 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+create temp table fiscal_results(result text);
+grant select,insert on fiscal_results to authenticated,anon,service_role;
+insert into fiscal_results select no_plan();
+insert into auth.users(id,email) values('ae670000-0000-4000-8000-000000000001','focus-owner@example.test');
+insert into public.businesses(id,name,slug) values
+ ('be670000-0000-4000-8000-000000000001','Focus A','focus-a-test'),
+ ('be670000-0000-4000-8000-000000000002','Focus B','focus-b-test');
+insert into public.business_members(business_id,user_id,role,created_at) values
+ ('be670000-0000-4000-8000-000000000001','ae670000-0000-4000-8000-000000000001','owner','2020-01-01'),
+ ('be670000-0000-4000-8000-000000000002','ae670000-0000-4000-8000-000000000001','admin','2021-01-01');
+update public.business_modules set enabled=true where business_id in ('be670000-0000-4000-8000-000000000001','be670000-0000-4000-8000-000000000002') and module in ('fiscal','management');
+insert into public.products(id,business_id,name,sale_price) values('de670000-0000-4000-8000-000000000001','be670000-0000-4000-8000-000000000002','Focus product',999);
+insert into public.sales(id,business_id,payment_method) values('ce670000-0000-4000-8000-000000000001','be670000-0000-4000-8000-000000000002','pix');
+insert into public.sale_items(business_id,sale_id,product_id,quantity,unit_price) values('be670000-0000-4000-8000-000000000002','ce670000-0000-4000-8000-000000000001','de670000-0000-4000-8000-000000000001',1,10);
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"ae670000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+select public.complete_admin_sale('ce670000-0000-4000-8000-000000000001');
+select public.prepare_admin_fiscal_document('be670000-0000-4000-8000-000000000002','ce670000-0000-4000-8000-000000000001');
+select public.save_admin_business_fiscal_settings('be670000-0000-4000-8000-000000000002','{"cnpj":"12345678000190","environment":"homologation","tax_regime":"1"}');
+insert into fiscal_results select lives_ok($$select public.save_admin_product_fiscal_settings('be670000-0000-4000-8000-000000000002','de670000-0000-4000-8000-000000000001','{"fiscal_unit":"UN","fiscal_gtin":"SEM GTIN","pis_code":"07","cofins_code":"07"}')$$,'explicit fiscal fields save');
+insert into fiscal_results select throws_ok($$select public.save_admin_product_fiscal_settings('be670000-0000-4000-8000-000000000001','de670000-0000-4000-8000-000000000001','{}')$$,'42501','fiscal_unauthorized','cross tenant settings blocked');
+reset role;
+update public.business_modules set enabled=false where business_id='be670000-0000-4000-8000-000000000002' and module='management';
+create temp table dispatch_state as select id,private.fiscal_emission_context(business_id,id) as context,
+ '{"cnpj_emitente":"12345678000190","items":[{"valor_unitario_comercial":"10.00"}],"formas_pagamento":[{"forma_pagamento":"20","valor_pagamento":"10.00","tipo_integracao":"2"}]}'::jsonb as request,
+ null::jsonb as claim from public.fiscal_documents where sale_id='ce670000-0000-4000-8000-000000000001';
+grant select,update on dispatch_state to authenticated,service_role;
+insert into fiscal_results select ok(not has_function_privilege('authenticated','public.claim_fiscal_dispatch(uuid,uuid,uuid,jsonb,jsonb,boolean)','execute'),'browser cannot claim');
+insert into fiscal_results select ok(not has_function_privilege('authenticated','public.record_fiscal_dispatch(uuid,uuid,uuid,jsonb)','execute'),'browser cannot forge result');
+insert into fiscal_results select ok(not has_function_privilege('anon','public.get_admin_fiscal_emission_context(uuid,uuid)','execute'),'anon cannot read context');
+insert into fiscal_results select ok(not has_table_privilege('service_role','public.fiscal_documents','UPDATE'),'service has no direct document writes');
+set local role authenticated;
+insert into fiscal_results select is((select public.get_admin_fiscal_emission_context('be670000-0000-4000-8000-000000000001',id) from dispatch_state),null::jsonb,'context A cannot read B');
+insert into fiscal_results select is((select public.get_admin_fiscal_emission_context('be670000-0000-4000-8000-000000000002',id)->>'payment_method' from dispatch_state),'pix','context uses current B without management');
+reset role;
+create function pg_temp.claim_test(p_emit boolean default true,p_actor uuid default 'ae670000-0000-4000-8000-000000000001') returns jsonb language sql as $$
+ select public.claim_fiscal_dispatch('be670000-0000-4000-8000-000000000002',p_actor,id,context,request,p_emit) from dispatch_state;
+$$;
+grant execute on function pg_temp.claim_test(boolean,uuid) to service_role;
+set local role service_role;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+insert into fiscal_results select throws_ok($$select pg_temp.claim_test(true,'ae670000-0000-4000-8000-000000000099')$$,'42501','fiscal_unauthorized','service revalidates actor membership');
+update dispatch_state set context=jsonb_set(context,'{business,environment}','"production"');
+insert into fiscal_results select throws_ok($$select pg_temp.claim_test()$$,'40001','fiscal_context_changed','forged/stale context rejected');
+reset role;
+update public.business_fiscal_settings set environment='production' where business_id='be670000-0000-4000-8000-000000000002';
+update dispatch_state set context=private.fiscal_emission_context('be670000-0000-4000-8000-000000000002',id);
+set local role service_role;
+insert into fiscal_results select throws_ok($$select pg_temp.claim_test()$$,'23514','fiscal_production_blocked','production blocked before pending');
+reset role;
+update public.business_fiscal_settings set environment='homologation' where business_id='be670000-0000-4000-8000-000000000002';
+update dispatch_state set context=private.fiscal_emission_context('be670000-0000-4000-8000-000000000002',id);
+update public.business_modules set enabled=false where business_id='be670000-0000-4000-8000-000000000002' and module='fiscal';
+set local role service_role;
+insert into fiscal_results select throws_ok($$select pg_temp.claim_test()$$,'42501','fiscal_unauthorized','disabled fiscal blocks service');
+reset role;
+update public.business_modules set enabled=true where business_id='be670000-0000-4000-8000-000000000002' and module='fiscal';
+set local role service_role;
+update dispatch_state set request=jsonb_set(request,'{formas_pagamento,0,forma_pagamento}','"03"');
+insert into fiscal_results select throws_ok($$select pg_temp.claim_test()$$,'23514','fiscal_payment_invalid','wrong fiscal payment family blocked');
+update dispatch_state set request=jsonb_set(request,'{formas_pagamento,0,forma_pagamento}','"20"');
+update dispatch_state set claim=pg_temp.claim_test();
+insert into fiscal_results select is((select claim->>'emit' from dispatch_state),'true','first claim allows one POST');
+insert into fiscal_results select is(pg_temp.claim_test()->>'busy','true','concurrent/repeated claim cannot POST while lease active');
+reset role;
+insert into fiscal_results select is((select status from public.fiscal_documents where id=(select id from dispatch_state)),'pending','pending committed before external call');
+insert into fiscal_results select is((select provider_reference from public.fiscal_documents where id=(select id from dispatch_state)),'agendafacil-'||(select id::text from dispatch_state),'stable reference');
+insert into fiscal_results select is((select provider_request_snapshot from public.fiscal_documents where id=(select id from dispatch_state)),(select request from dispatch_state),'payment and request snapshot frozen');
+insert into fiscal_results select throws_ok($$update public.fiscal_documents set provider_request_snapshot='{}' where id=(select id from dispatch_state)$$,'55000','fiscal_read_only','direct snapshot update blocked');
+select set_config('app.fiscal_dispatch','on',true);
+insert into fiscal_results select throws_ok($$update public.fiscal_documents set provider_request_snapshot='{}' where id=(select id from dispatch_state)$$,'55000','fiscal_snapshot_immutable','snapshot immutable even within dispatch context');
+select set_config('app.fiscal_dispatch','',true);
+-- No HTTP: deterministic synthetic response only, all changes roll back.
+set local role service_role;
+insert into fiscal_results select is((select public.record_fiscal_dispatch('be670000-0000-4000-8000-000000000001',id,(claim->>'token')::uuid,'{"status":"authorized"}') from dispatch_state),false,'result cannot cross tenant');
+insert into fiscal_results select is((select public.record_fiscal_dispatch('be670000-0000-4000-8000-000000000002',id,'00000000-0000-0000-0000-000000000000','{"status":"pending"}') from dispatch_state),false,'stale token cannot reconcile');
+insert into fiscal_results select is((select public.record_fiscal_dispatch('be670000-0000-4000-8000-000000000002',id,(claim->>'token')::uuid,'{"status":"pending","code":"provider_timeout"}') from dispatch_state),true,'timeout preserves recoverable pending');
+update dispatch_state set claim=pg_temp.claim_test();
+insert into fiscal_results select is((select claim->>'emit' from dispatch_state),'false','retry after timeout is GET, never new POST');
+insert into fiscal_results select is((select claim->'request' from dispatch_state),(select request from dispatch_state),'retry uses original request');
+insert into fiscal_results select is((select public.record_fiscal_dispatch('be670000-0000-4000-8000-000000000002',id,(claim->>'token')::uuid,'{"status":"authorized","accessKey":"41190612345678000123650010000000121743484310","number":"12","series":"1","protocol":"123456789012345"}') from dispatch_state),true,'GET recovers authorization');
+update dispatch_state set claim=pg_temp.claim_test(false);
+insert into fiscal_results select is((select public.record_fiscal_dispatch('be670000-0000-4000-8000-000000000002',id,(claim->>'token')::uuid,'{"status":"pending"}') from dispatch_state),true,'late uncertain result handled');
+reset role;
+insert into fiscal_results select is((select status from public.fiscal_documents where id=(select id from dispatch_state)),'authorized','terminal authorization never regresses');
+insert into fiscal_results select ok((select authorized_at is not null and protocol='123456789012345' from public.fiscal_documents where id=(select id from dispatch_state)),'authorization metadata and timestamp persist');
+insert into fiscal_results select is((select count(*) from public.fiscal_documents where sale_id='ce670000-0000-4000-8000-000000000001'),1::bigint,'one document');
+insert into fiscal_results select is((select count(*) from public.stock_movements where business_id='be670000-0000-4000-8000-000000000002'),1::bigint,'stock unchanged by emission');
+insert into fiscal_results select is((select count(*) from public.financial_entries where business_id='be670000-0000-4000-8000-000000000002'),1::bigint,'financial unchanged by emission');
+insert into fiscal_results select is((select status||':'||payment_method from public.sales where id='ce670000-0000-4000-8000-000000000001'),'completed:pix','commercial status and method unchanged');
+insert into fiscal_results select is((select count(*) from public.fiscal_documents where business_id='be670000-0000-4000-8000-000000000001'),0::bigint,'no data created in first membership A');
+insert into fiscal_results select * from finish();
+select result from fiscal_results;
+rollback;
