@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as fiscal from "./fiscal";
+import * as fiscalSettings from "./fiscal-settings";
 import { validCatalogId } from "./product-catalog";
 
 test("fiscal labels and controlled errors do not simulate emission", () => {
@@ -29,7 +30,7 @@ test("real fiscal repository uses explicit server business and module on every o
     maybeSingle: async () => ({ data: null, error: null }),
   };
   const dependencies: Record<string, unknown> = {
-    "server-only": {}, "@/lib/fiscal": fiscal, "@/lib/product-catalog": { validCatalogId },
+    "server-only": {}, "@/lib/fiscal": fiscal, "@/lib/fiscal-settings": fiscalSettings, "@/lib/product-catalog": { validCatalogId },
     "@/lib/auth/business-module": { requireBusinessModule: async (module: string) => {
       assert.equal(module, "fiscal"); if (!allowed) throw Error("disabled"); return { id: "current-B" };
     } },
@@ -53,10 +54,17 @@ test("real fiscal repository uses explicit server business and module on every o
   await exports.getSaleFiscalDocument(saleId);
   assert.equal(calls.filter(([key, value]) => key === "business_id" && value === "current-B").length, 3);
   assert.ok(calls.some(([key, value]) => key === "select" && String(value).includes("total_amount::text")));
+  await exports.saveBusinessFiscalSettings({business_id:"forged",cnpj:"12.345.678/0001-90"});
+  await exports.saveProductFiscalSettings(saleId,{business_id:"forged",ncm:"12.34.56.78"});
+  for (const name of ["save_admin_business_fiscal_settings","save_admin_product_fiscal_settings"]) {
+    const payload=calls.find(([key])=>key===name)?.[1] as {p_business_id:string;p_data:Record<string,string>};
+    assert.equal(payload.p_business_id,"current-B");
+    assert.ok(!("business_id" in payload.p_data));
+  }
   error = { message: "fiscal_total_mismatch" };
   assert.equal((await exports.prepareFiscalDocument(saleId) as { ok: boolean }).ok, false);
   allowed = false;
-  for (const name of ["prepareFiscalDocument", "listFiscalDocuments", "getFiscalDocument", "getSaleFiscalDocument"]) {
+  for (const name of ["prepareFiscalDocument", "listFiscalDocuments", "getFiscalDocument", "getSaleFiscalDocument", "getBusinessFiscalSettings", "getFiscalReadiness", "getProductFiscalSettings", "saveBusinessFiscalSettings", "saveProductFiscalSettings"]) {
     await assert.rejects(exports[name](saleId), /disabled/);
   }
 });

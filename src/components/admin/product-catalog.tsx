@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Modal } from "@/components/ui/modal";
+import {ProductFiscalEditor} from "@/components/admin/fiscal-settings-form";
 
 // Operate: existing Admin vocabulary; one compact list, clear prices and actions.
 // No stock counters. Forms preserve context and use the incumbent modal/fields.
@@ -35,7 +36,7 @@ function CatalogDialog({ title, onClose, children }: { title: string; onClose: (
   return <Modal title={title} onClose={onClose}><div ref={content} className="p-4 sm:p-5">{children}</div></Modal>;
 }
 
-function ProductEditor({ product, categories, onClose, onSaved }: { product: Product | null; categories: ProductCategory[]; onClose: () => void; onSaved: (message: string) => void }) {
+function ProductEditor({ product, categories, onClose, onSaved, fiscalEnabled }: { product: Product | null; categories: ProductCategory[]; onClose: () => void; onSaved: (message: string) => void; fiscalEnabled:boolean }) {
   const initial = product ? productToInput(product) : emptyProduct;
   const [form, setForm] = useState<ProductInput>({ ...initial });
   const [error, setError] = useState("");
@@ -71,6 +72,7 @@ function ProductEditor({ product, categories, onClose, onSaved }: { product: Pro
       {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-danger">{error}</p>}
       <div className="flex flex-wrap justify-end gap-2 border-t pt-4"><Button variant="outline" onClick={close} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending}>{pending ? "Salvando…" : "Salvar produto"}</Button></div>
     </form>
+    {fiscalEnabled&&(product?<ProductFiscalEditor productId={product.id}/>:<p className="mt-4 text-sm text-muted">Dados fiscais opcionais: salve o produto e abra a edição para configurá-los.</p>)}
   </CatalogDialog>;
 }
 
@@ -114,7 +116,7 @@ function CategoryManager({ categories, onClose, onSaved }: { categories: Product
   </CatalogDialog>;
 }
 
-export function ProductCatalog({ products, categories: initialCategories, total, filters }: { products: Product[]; categories: ProductCategory[]; total: number; filters: CatalogFilters }) {
+export function ProductCatalog({ products, categories: initialCategories, total, filters, fiscalEnabled=false }: { products: Product[]; categories: ProductCategory[]; total: number; filters: CatalogFilters; fiscalEnabled?:boolean }) {
   const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
   const [editor, setEditor] = useState<Product | "new" | null>(null);
@@ -151,7 +153,7 @@ export function ProductCatalog({ products, categories: initialCategories, total,
         </li>)}</ul></Card>}
       {(total > CATALOG_PAGE_SIZE || filters.page > 1) && <nav aria-label="Paginação dos produtos" className="flex items-center justify-between gap-2"><Button variant="outline" disabled={pending || filters.page <= 1} onClick={() => navigate({ ...filters, page: filters.page - 1 })}>Anterior</Button><span className="text-xs text-muted">Página {filters.page} de {Math.max(1, Math.ceil(total / CATALOG_PAGE_SIZE))}</span><Button variant="outline" disabled={pending || filters.page * CATALOG_PAGE_SIZE >= total} onClick={() => navigate({ ...filters, page: filters.page + 1 })}>Próxima</Button></nav>}
     </div>
-    {editor && <ProductEditor product={editor === "new" ? null : editor} categories={categories} onClose={() => setEditor(null)} onSaved={saved} />}
+    {editor && <ProductEditor product={editor === "new" ? null : editor} categories={categories} fiscalEnabled={fiscalEnabled} onClose={() => setEditor(null)} onSaved={saved} />}
     {showCategories && <CategoryManager categories={categories} onClose={() => setShowCategories(false)} onSaved={(category, message) => { setCategories((current) => [...current.filter((item) => item.id !== category.id), category].sort((a,b) => a.name.localeCompare(b.name))); setFeedback({ ok: true, message }); router.refresh(); }} />}
   </>;
 }

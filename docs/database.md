@@ -59,6 +59,13 @@ devolução, fiscal ou integração com Agenda.
 
 ## Fundação fiscal
 
+A migration aditiva `20260906010000_fiscal_settings.sql` cria
+`business_fiscal_settings` e `product_fiscal_settings`, entidades cadastrais
+separadas, com RLS fiscal, normalização por trigger e RPCs de upsert autenticadas
+por current business explícito. Homologação é default; dados parciais são aceitos,
+formatos inválidos não. Prontidão é cadastral, sem emissão/provider/certificado.
+Não altera venda, estoque, financeiro, `prepare_admin_fiscal_document` nem snapshots.
+
 `fiscal_documents` e `fiscal_document_items` armazenam preparação local de NFC-e,
 com snapshot imutável e total conferido contra a venda completed. A RPC
 `prepare_admin_fiscal_document(p_business_id,p_sale_id)` valida current business

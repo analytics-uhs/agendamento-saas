@@ -17,6 +17,14 @@ type Timestamps = { created_at: string; updated_at: string };
 export interface Database {
   public: {
     Tables: {
+      business_fiscal_settings: {
+        Row: { business_id: string; legal_name: string | null; trade_name: string | null; cnpj: string | null; state_registration: string | null; tax_regime: string | null; environment: string; address_street: string | null; address_number: string | null; address_complement: string | null; address_neighborhood: string | null; address_city: string | null; address_city_code: string | null; address_state: string | null; address_zip_code: string | null } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
+      };
+      product_fiscal_settings: {
+        Row: { business_id: string; product_id: string; ncm: string | null; cest: string | null; cfop: string | null; origin: string | null; icms_code_type: string | null; icms_code: string | null } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
+      };
       fiscal_documents: {
         Row: Omit<import("@/lib/fiscal").FiscalDocument, "total_amount"> & { total_amount: number };
         Insert: never; Update: never; Relationships: [];
@@ -190,6 +198,8 @@ export interface Database {
       product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
     };
     Functions: {
+      save_admin_business_fiscal_settings: { Args: { p_business_id: string; p_data: Json }; Returns: Database["public"]["Tables"]["business_fiscal_settings"]["Row"] };
+      save_admin_product_fiscal_settings: { Args: { p_business_id: string; p_product_id: string; p_data: Json }; Returns: Database["public"]["Tables"]["product_fiscal_settings"]["Row"] };
       prepare_admin_fiscal_document: { Args: { p_business_id: string; p_sale_id: string }; Returns: Database["public"]["Tables"]["fiscal_documents"]["Row"] };
       create_admin_stock_movement: { Args: { p_product_id: string; p_movement_type: string; p_quantity: string | number; p_unit_cost?: string | number | null; p_reason?: string | null; p_occurred_at?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
       reverse_admin_stock_movement: { Args: { p_movement_id: string; p_reason?: string | null }; Returns: Database["public"]["Tables"]["stock_movements"]["Row"] };
