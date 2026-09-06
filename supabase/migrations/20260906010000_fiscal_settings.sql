@@ -82,7 +82,7 @@ begin
  if auth.uid() is null or p_business_id is null or not private.can_manage_business_module(p_business_id,'fiscal') then
    raise exception 'fiscal_unauthorized' using errcode='42501'; end if;
  if p_data is null or jsonb_typeof(p_data)<>'object' then raise exception 'fiscal_settings_invalid' using errcode='22023'; end if;
- 
+
  insert into public.business_fiscal_settings(business_id,legal_name,trade_name,cnpj,state_registration,tax_regime,environment,address_street,address_number,address_complement,address_neighborhood,address_city,address_city_code,address_state,address_zip_code)
  values(p_business_id,p_data->>'legal_name',p_data->>'trade_name',p_data->>'cnpj',p_data->>'state_registration',p_data->>'tax_regime',coalesce(nullif(p_data->>'environment',''),'homologation'),p_data->>'address_street',p_data->>'address_number',p_data->>'address_complement',p_data->>'address_neighborhood',p_data->>'address_city',p_data->>'address_city_code',p_data->>'address_state',p_data->>'address_zip_code')
  on conflict(business_id) do update set legal_name=excluded.legal_name,trade_name=excluded.trade_name,cnpj=excluded.cnpj,state_registration=excluded.state_registration,tax_regime=excluded.tax_regime,environment=excluded.environment,address_street=excluded.address_street,address_number=excluded.address_number,address_complement=excluded.address_complement,address_neighborhood=excluded.address_neighborhood,address_city=excluded.address_city,address_city_code=excluded.address_city_code,address_state=excluded.address_state,address_zip_code=excluded.address_zip_code
@@ -108,4 +108,3 @@ begin
 end; $$;
 revoke all on function public.save_admin_product_fiscal_settings(uuid,uuid,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.save_admin_product_fiscal_settings(uuid,uuid,jsonb) to authenticated;
-
