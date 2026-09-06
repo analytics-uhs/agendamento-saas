@@ -18,6 +18,9 @@ export type FiscalDocument = {
   prepared_at: string | null; submitted_at: string | null; authorized_at: string | null;
   rejected_at: string | null; cancelled_at: string | null; created_by: string | null;
   created_at: string; updated_at: string;
+  provider_reference: string | null; provider_environment: "homologation" | null;
+  provider_request_snapshot: import("@/types/database").Json | null;
+  provider_response_snapshot: import("@/types/database").Json | null;
 };
 export type FiscalDocumentItem = {
   id: string; business_id: string; fiscal_document_id: string; sale_item_id: string;

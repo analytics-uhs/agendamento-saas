@@ -33,7 +33,7 @@ export function FiscalSettingsForm({initial,productId,taxRegime=""}:{initial:Bus
        <Input id={`fiscal-${field}`} maxLength={200} value={form[field]} onChange={e=>setForm({...form,[field]:e.target.value})}/>}
      </div>)}
    </div></section>)}
-   {!productId&&<p className="text-sm text-muted">{form.environment==="production"?"Produção está selecionada, mas a emissão fiscal ainda não está habilitada.":"Ambiente destinado a testes. Nenhuma emissão real está disponível nesta etapa."}</p>}
+   {!productId&&<p className="text-sm text-muted">{form.environment==="production"?"Emissão em produção ainda não está habilitada.":"Emissão disponível somente em homologação, após validar os dados do documento e confirmar o envio."}</p>}
    <Button type="submit" disabled={pending}>{pending?"Salvando…":productId?"Salvar dados fiscais do produto":"Salvar configuração fiscal"}</Button>
    {feedback&&<p role={feedback.ok?"status":"alert"} className={`text-sm ${feedback.ok?"text-success":"text-danger"}`}>{feedback.message}</p>}
  </form>;

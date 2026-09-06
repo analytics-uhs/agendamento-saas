@@ -1,5 +1,14 @@
 # Fundação fiscal
 
+## Integração Focus NFe em homologação
+
+A PR #67 conecta UI, readiness, snapshot imutável de envio, claim e reconciliação
+ao transporte server-only. Card/Pix exigem detalhamento fiscal explícito;
+Dinheiro possui mapeamento inequívoco. A fundação comercial abaixo permanece
+imutável; apenas metadados do provider evoluem por RPCs restritas. Consulte
+[Focus NFe](integrations/focus-nfe.md) para cobertura tributária limitada,
+segurança e validação externa ainda pendente. Produção permanece bloqueada.
+
 ## Configuração cadastral fiscal
 
 `business_fiscal_settings` mantém dados do emitente e endereço estruturado.

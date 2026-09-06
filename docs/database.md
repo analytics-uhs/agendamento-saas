@@ -59,6 +59,17 @@ devolução, fiscal ou integração com Agenda.
 
 ## Fundação fiscal
 
+A migration `20260906020000_focus_nfce_homologation.sql` adiciona unidade fiscal,
+GTIN, PIS e COFINS ao cadastro fiscal do produto, sem defaults tributários.
+Em `fiscal_documents`, adiciona referência única estável, ambiente restrito à
+homologação e snapshots de requisição imutável/resultado curado. Leases privados
+com nonce e lock de documento protegem envio/reconciliação. O contexto é lido
+por RPC autenticada com current business explícito; claim/resultado são RPCs
+exclusivas do servidor/service_role, sem writes diretos liberados ao browser.
+O claim valida membership/módulo/contexto e persiste pending antes do HTTP; não
+há transação aberta durante acesso à Focus. Não altera vendas/estoque/financeiro.
+Veja [integração Focus e seus limites tributários](integrations/focus-nfe.md).
+
 A migration aditiva `20260906010000_fiscal_settings.sql` cria
 `business_fiscal_settings` e `product_fiscal_settings`, entidades cadastrais
 separadas, com RLS fiscal, normalização por trigger e RPCs de upsert autenticadas
@@ -71,7 +82,8 @@ com snapshot imutável e total conferido contra a venda completed. A RPC
 `prepare_admin_fiscal_document(p_business_id,p_sale_id)` valida current business
 explícito e `fiscal=true`; RLS limita leitura, sem grants de escrita direta.
 A migration `20260905020000_fiscal_foundation.sql` é aditiva, sem alterar vendas,
-estoque ou financeiro. Não há emissão externa nem documento automático ao vender.
+estoque ou financeiro. Não há documento automático ao vender; emissão é ação
+explícita de homologação na integração acima.
 Detalhes em [Fundação fiscal](architecture-fiscal.md).
 
 ## Financeiro mínimo

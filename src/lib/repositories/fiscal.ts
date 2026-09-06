@@ -46,7 +46,7 @@ async function context() {
   return { business, supabase: await createClient() };
 }
 // PostgREST casts retain database numeric precision; no monetary writes from JS.
-const documentFields = "id,business_id,sale_id,document_type,status,total_amount::text,provider,provider_document_id,access_key,document_number,series,protocol,xml_url,pdf_url,error_code,error_message,prepared_at,submitted_at,authorized_at,rejected_at,cancelled_at,created_by,created_at,updated_at";
+const documentFields = "id,business_id,sale_id,document_type,status,total_amount::text,provider,provider_document_id,access_key,document_number,series,protocol,xml_url,pdf_url,error_code,error_message,prepared_at,submitted_at,authorized_at,rejected_at,cancelled_at,created_by,created_at,updated_at,provider_reference,provider_environment";
 export async function listFiscalDocuments(page = 1) {
   const { business, supabase } = await context();
   const currentPage = Math.max(1, Math.min(10000, Math.floor(page) || 1));

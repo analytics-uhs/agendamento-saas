@@ -6,12 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { getFiscalDocument } from "@/lib/repositories/fiscal";
 import { FISCAL_BADGES, FISCAL_STATUSES, fiscalDate } from "@/lib/fiscal";
 import { formatCatalogBRL } from "@/lib/product-catalog";
+import {getFiscalEmissionView} from "@/lib/repositories/fiscal-emission";
+import {FiscalEmissionForm} from "@/components/admin/fiscal-emission-form";
 
 export default async function FiscalDocumentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await getFiscalDocument(id);
   if (!data) notFound();
   const { document, items } = data;
+  const emission=await getFiscalEmissionView(id);
   const metadata = [
     ["Tipo", "NFC-e"], ["Valor total", formatCatalogBRL(document.total_amount)],
     ["Preparação", fiscalDate(document.prepared_at)], ["Provedor", document.provider],
@@ -19,12 +22,15 @@ export default async function FiscalDocumentPage({ params }: { params: Promise<{
     ["Série", document.series], ["Protocolo", document.protocol],
   ];
   return <>
-    <PageHeader title="Documento fiscal" description="Preparação local. Nenhuma emissão fiscal foi realizada nesta etapa." action={<Badge variant={FISCAL_BADGES[document.status]}>{FISCAL_STATUSES[document.status]}</Badge>} />
+    <PageHeader title="Documento fiscal" description="NFC-e em homologação — sem validade fiscal." action={<Badge variant={FISCAL_BADGES[document.status]}>{FISCAL_STATUSES[document.status]}{document.status==="authorized"?" em homologação":""}</Badge>} />
     <Card padding="md" className="mt-6 space-y-6">
       <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {metadata.map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-xs text-muted">{label}</dt><dd className="mt-1 break-words text-sm font-medium">{value || "—"}</dd></div>)}
       </dl>
       <p className="text-sm">Venda relacionada: <Link className="focus-ring rounded text-primary underline underline-offset-4" href={`/admin/vendas/${document.sale_id}`}>#{document.sale_id.slice(0, 8)}</Link></p>
+      {document.error_message&&<p role="status" className="text-sm text-danger">{document.error_message}</p>}
+      <div className="flex flex-wrap gap-4 text-sm">{[["XML",document.xml_url],["DANFCe",document.pdf_url]].map(([label,url])=>url&&/^https:\/\/homologacao\.focusnfe\.com\.br\//.test(url)?<a key={label} href={url} target="_blank" rel="noopener noreferrer" className="focus-ring rounded text-primary underline">{label}</a>:null)}</div>
+      <FiscalEmissionForm id={id} status={document.status} {...emission}/>
       <section aria-labelledby="fiscal-items">
         <h2 id="fiscal-items" className="font-semibold">Itens preparados</h2>
         <ul className="mt-3 divide-y border-y">
