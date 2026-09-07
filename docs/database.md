@@ -65,6 +65,16 @@ total e grava uma saída negativa `sale` por item na mesma transação. O índic
 Vendas finalizadas são somente leitura. Não há caixa, recebíveis, cancelamento,
 devolução, fiscal ou integração com Agenda.
 
+## Operação de Copa sobre vendas
+
+`20260906040000_copa_tabs.sql` adiciona `sales.sale_type` (quick default/tab),
+`tab_name` e revisão incremental. Comandas são drafts persistentes. RPCs Copa
+validam current business/módulo, lock e revisão esperada; itens preservam preço,
+usam quantidades inteiras e não reservam estoque. Fechamento delega à existente
+`complete_admin_sale`, com pagamento, estoque e financeiro na mesma transação.
+Sem alteração de valores históricos ou emissão automática. Detalhes e limites
+de unidades legadas em [Copa](architecture-copa.md).
+
 ## Fundação fiscal
 
 A migration `20260906020000_focus_nfce_homologation.sql` adiciona unidade fiscal,

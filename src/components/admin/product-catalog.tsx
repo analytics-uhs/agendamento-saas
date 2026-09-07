@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { saveCategory, saveProduct, setProductActive } from "@/app/admin/produtos/actions";
-import { CATALOG_PAGE_SIZE, PRODUCT_UNITS, emptyProduct, formatCatalogBRL, parseCategoryInput, parseProductInput, productToInput, type CatalogFilters, type Product, type ProductCategory, type ProductInput } from "@/lib/product-catalog";
+import { CATALOG_PAGE_SIZE, emptyProduct, formatCatalogBRL, parseCategoryInput, parseProductInput, productToInput, type CatalogFilters, type Product, type ProductCategory, type ProductInput } from "@/lib/product-catalog";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/field";
@@ -61,14 +61,16 @@ function ProductEditor({ product, categories, onClose, onSaved, fiscalEnabled }:
       <div className="space-y-2"><Label htmlFor="product-name">Nome *</Label><Input id="product-name" required maxLength={160} value={form.name} onChange={(e) => field("name", e.target.value)} /></div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2"><Label htmlFor="product-category">Categoria</Label><Select id="product-category" value={form.category_id} onChange={(e) => field("category_id", e.target.value)}><option value="">Sem categoria</option>{categories.filter((category) => category.active || category.id === product?.category_id).map((category) => <option key={category.id} value={category.id}>{category.name}{!category.active ? " (inativa)" : ""}</option>)}</Select></div>
-        <div className="space-y-2"><Label htmlFor="product-unit">Unidade *</Label><Select id="product-unit" value={form.unit} onChange={(e) => field("unit", e.target.value)}>{Object.entries(PRODUCT_UNITS).map(([code, label]) => <option key={code} value={code}>{label} ({code})</option>)}</Select></div>
-        <div className="space-y-2"><Label htmlFor="product-sku">Código interno / SKU</Label><Input id="product-sku" maxLength={64} value={form.sku} onChange={(e) => field("sku", e.target.value)} autoCapitalize="characters" /></div>
-        <div className="space-y-2"><Label htmlFor="product-barcode">Código de barras</Label><Input id="product-barcode" maxLength={80} value={form.barcode} onChange={(e) => field("barcode", e.target.value)} /></div>
+        <div className="space-y-2"><p className="text-sm font-medium">Unidade</p><p className="text-sm">{form.unit === "UN" ? "un" : `${form.unit} (legado, preservado; não disponível na Copa)`}</p></div>
         <div className="space-y-2"><Label htmlFor="product-cost">Preço de custo (R$)</Label><Input id="product-cost" inputMode="decimal" placeholder="Opcional" value={form.cost_price} onChange={(e) => field("cost_price", e.target.value)} aria-describedby="product-cost-help" /><p id="product-cost-help" className="text-xs text-muted">Custo de referência, não custo médio.</p></div>
         <div className="space-y-2"><Label htmlFor="product-sale">Preço de venda (R$) *</Label><Input id="product-sale" inputMode="decimal" required placeholder="0,00" value={form.sale_price} onChange={(e) => field("sale_price", e.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="product-minimum">Estoque mínimo</Label><Input id="product-minimum" inputMode="decimal" required value={form.minimum_stock} onChange={(e) => field("minimum_stock", e.target.value)} aria-describedby="product-minimum-help" /><p id="product-minimum-help" className="text-xs text-muted">Configuração para uso futuro. Não representa o saldo atual.</p></div>
         <div className="space-y-2"><Label htmlFor="product-status">Status</Label><Select id="product-status" value={String(form.active)} onChange={(e) => field("active", e.target.value === "true")}><option value="true">Ativo</option><option value="false">Inativo</option></Select></div>
       </div>
+      <details><summary className="focus-ring cursor-pointer rounded py-2 text-sm font-medium">Mais opções</summary><div className="mt-3 grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2"><Label htmlFor="product-sku">Código interno / SKU</Label><Input id="product-sku" maxLength={64} value={form.sku} onChange={(e) => field("sku", e.target.value)} autoCapitalize="characters" /></div>
+        <div className="space-y-2"><Label htmlFor="product-barcode">Código de barras</Label><Input id="product-barcode" maxLength={80} value={form.barcode} onChange={(e) => field("barcode", e.target.value)} /></div>
+      </div></details>
       {error && <p ref={errorRef} tabIndex={-1} role="alert" className="text-sm text-danger">{error}</p>}
       <div className="flex flex-wrap justify-end gap-2 border-t pt-4"><Button variant="outline" onClick={close} disabled={pending}>Cancelar</Button><Button type="submit" disabled={pending}>{pending ? "Salvando…" : "Salvar produto"}</Button></div>
     </form>

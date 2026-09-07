@@ -29,6 +29,8 @@ test("real sale flow uses management guard and atomic RPCs", () => {
   assert.match(migration, /source_type='sale'/);
   assert.doesNotMatch(ui, /business_id/);
   assert.doesNotMatch(repo, /\.insert\(|\.update\(|\.delete\(/);
-  assert.match(ui, /Salvar rascunho/);
-  assert.match(ui, /Finalizar venda/);
+  assert.match(ui, /Historical read-only detail/);
+  const copa = readFileSync("src/components/admin/copa-editor.tsx", "utf8");
+  assert.match(copa, /Finalizar pagamento/);
+  assert.match(copa, /updateCopaSale/);
 });

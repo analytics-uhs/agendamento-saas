@@ -1,1 +1,3 @@
-import {SaleEditor} from "@/components/admin/sale-editor";import {getSaleEditor} from "@/lib/repositories/sales";export default async function PosPage(){return <SaleEditor {...await getSaleEditor()}/>;}
+import { redirect } from "next/navigation";
+import { requireBusinessModule } from "@/lib/auth/business-module";
+export default async function PosPage() { await requireBusinessModule("management"); redirect("/admin/copa/venda-rapida"); }

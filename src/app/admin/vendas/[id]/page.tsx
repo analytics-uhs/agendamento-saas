@@ -1,3 +1,3 @@
-import {notFound} from "next/navigation";import {SaleEditor} from "@/components/admin/sale-editor";import {getSaleEditor} from "@/lib/repositories/sales";
+import {notFound,redirect} from "next/navigation";import {SaleEditor} from "@/components/admin/sale-editor";import {getSaleEditor} from "@/lib/repositories/sales";
 import { SaleFiscal } from "@/components/admin/sale-fiscal";
-export default async function SalePage({params}:{params:Promise<{id:string}>}){const {id}=await params;const data=await getSaleEditor(id);if(!data.sale)notFound();return <><SaleEditor {...data}/>{data.sale.status==="completed" && <SaleFiscal saleId={id}/>}</>;}
+export default async function SalePage({params}:{params:Promise<{id:string}>}){const {id}=await params;const data=await getSaleEditor(id);if(!data.sale)notFound();if(data.sale.status==="draft")redirect(data.sale.sale_type==="tab"?`/admin/copa/comandas/${id}`:`/admin/copa/venda-rapida?id=${id}`);return <><SaleEditor sale={data.sale} items={data.items}/><SaleFiscal saleId={id}/></>;}
