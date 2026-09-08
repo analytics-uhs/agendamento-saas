@@ -76,12 +76,12 @@ export interface Database {
         Insert: never; Update: never; Relationships: [];
       };
       sales: {
-        Row: { id: string; business_id: string; status: "draft" | "completed"; customer_name: string | null; payment_method: "pix" | "cash" | "card" | null; total_amount: number; completed_at: string | null; created_by: string | null } & Timestamps;
+        Row: { id: string; business_id: string; sale_type: "quick" | "tab"; tab_name: string | null; revision: number; updated_at: string; status: "draft" | "completed"; customer_name: string | null; payment_method: "pix" | "cash" | "card" | null; total_amount: number; completed_at: string | null; created_by: string | null } & Timestamps;
         Insert: never; Update: never; Relationships: [];
       };
       sale_items: {
         Row: { id: string; business_id: string; sale_id: string; product_id: string; quantity: number; unit_price: number; created_at: string };
-        Insert: never; Update: never; Relationships: [];
+        Insert: never; Update: never; Relationships: [{ foreignKeyName: "sale_items_sale_tenant_fk"; columns: ["sale_id", "business_id"]; isOneToOne: false; referencedRelation: "sales"; referencedColumns: ["id", "business_id"] }];
       };
       business_modules: {
         Row: { business_id: string; module: BusinessModule; enabled: boolean; updated_by: string | null } & Timestamps;
@@ -256,6 +256,9 @@ export interface Database {
       set_appointment_status: { Args: { p_appointment_id: string; p_status: AppointmentStatus }; Returns: boolean };
       update_admin_appointment_occurrence: { Args: { p_appointment_id: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: boolean };
       set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
+      open_admin_copa_sale: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_tab_name: string | null }; Returns: string };
+      set_admin_copa_item: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_revision: number; p_product_id: string; p_quantity: number }; Returns: number };
+      complete_admin_copa_sale: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_revision: number; p_payment_method: string }; Returns: string };
       get_platform_business_modules: { Args: { p_business_id: string }; Returns: Json };
       set_platform_business_module_enabled: { Args: { p_business_id: string; p_module: string; p_enabled: boolean }; Returns: Json };
     };

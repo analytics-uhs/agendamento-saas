@@ -83,7 +83,7 @@ test("module action revalidates detail/Admin layout and sanitizes errors", async
 test("existing navigation reflects module enable/disable on the next read, independently", () => {
   const initial = { scheduling: true, management: false, fiscal: false };
   const enabled = modulesApi.parseBusinessModules([{ module: "scheduling", enabled: true }, { module: "management", enabled: true }]);
-  for (const href of ["/admin/pdv", "/admin/vendas", "/admin/produtos", "/admin/estoque", "/admin/compras", "/admin/financeiro"]) {
+  for (const href of ["/admin/copa", "/admin/produtos", "/admin/estoque", "/admin/compras", "/admin/financeiro"]) {
     assert.ok(getAdminNavigation(enabled, false).some((item) => item.href === href));
     assert.ok(!getAdminNavigation(initial, false).some((item) => item.href === href));
   }
