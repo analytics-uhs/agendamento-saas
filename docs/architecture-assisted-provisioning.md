@@ -18,9 +18,9 @@ propostos, não descrevem RPCs já disponíveis.
 | Perfil | Trigger de auth.users cria profiles; e-mail permanece no Auth | Usar signup existente, sem Admin API ou usuário fictício |
 | Current business | `getCurrentBusiness` escolhe primeira membership por created_at | Aplicação não oferece seletor de negócio; não adicionar segunda membership no aceite desta PR |
 | Destino Auth | `resolveUserDestination`: platform → /super-admin; membership → /admin; demais → /onboarding | Depois do aceite, membership existente dispensa onboarding |
-| Signup | `/criar-conta`, `supabase.auth.signUp`, nome/e-mail/senha, trata ausência de session | Reutilizar; não assumir autenticação imediata |
+| Signup | `/criar-conta`, `supabase.auth.signUp`, nome/e-mail/senha, trata ausência de session | Reutilizar; nova decisão prevê sessão imediata, sempre verificando session válida |
 | Login | `signInWithPassword`, depois resolveUserDestination; next limitado a /admin | Introduzir retorno de convite controlado pelo servidor, não open redirect |
-| Callback | `/auth/callback` troca code por sessão e resolve destino | Ainda não preserva convite |
+| Callback | `/auth/callback` troca code por sessão e resolve destino | Preservar fluxo existente; convite não depende desse callback |
 | Proxy | Atualiza sessão; exige claims em /admin | /convite pode continuar público sem enfraquecer /admin |
 | Super Admin | requirePlatformAdmin + is_current_user_platform_admin + private.is_platform_admin | Reutilizar allow-list/autorização existente, nunca role fictícia |
 | Configuração | getBusinessConfiguration(businessId), quatro formulários Admin, actions centralizadas | Reutilização possível sem copiar formulários |
@@ -43,9 +43,11 @@ Arquivos principais auditados:
 por isso provisionamento mínimo precisa criá-los mesmo antes da personalização.
 Dados opcionais de contato não devem se tornar obrigatórios por esta evolução.
 
-## Auth remoto: evidência e pendência operacional
+## Auth: decisão aprovada e evidência histórica
 
-Leitura seletiva via API de gerenciamento, sem registrar tokens/credenciais:
+Na auditoria inicial de 08/09/2026, a leitura seletiva via API de gerenciamento
+retornou os valores abaixo. Eles são evidência histórica, não confirmação da
+configuração após a alteração manual decidida posteriormente:
 
 - `external_email_enabled=true`;
 - `disable_signup=false`;
@@ -54,15 +56,21 @@ Leitura seletiva via API de gerenciamento, sem registrar tokens/credenciais:
 - allow-list contém localhost e domínios Vercel; não contém
   `https://agenda.uhsanalytics.com.br/auth/callback`.
 
-Não foi alterada configuração de Auth. Para confirmar e-mail com retorno ao
-domínio público canônico, será necessária autorização específica para acrescentar
-esse callback, preservando os redirects existentes. Não assumir que o origin
-enviado atualmente por signup será aceito no domínio canônico.
+**Decisão aprovada:** Confirm Email será desativado manualmente no Dashboard
+Supabase. Nenhuma ferramenta desta PR deve alterar automaticamente essa configuração.
+O contrato esperado passa a ser signup por e-mail/senha com sessão imediata.
 
-A implementação pode avançar sem essa alteração; a validação ponta a ponta do
-callback em produção ficará pendente. Se a confirmação acontecer em outro
-navegador/dispositivo, instruir o cliente a reabrir o link original do WhatsApp
-após autenticar; cookie não é uma transferência entre dispositivos.
+Depois de signUp bem-sucedido **e session válida**, retornar ao convite e solicitar
+aceite explícito. Não implementar espera por confirmação de e-mail, retomada
+pós-confirmação ou dependência da allow-list/callback para este fluxo. Preservar
+o callback existente para seus usos atuais, sem removê-lo ou ampliar seu escopo.
+
+Se signup não retornar sessão, falhar de forma segura: não aceitar convite nem
+criar membership; informar que o acesso autenticado não foi concluído e oferecer
+login. Essa checagem defensiva não cria um fluxo paralelo de confirmação.
+
+O e-mail não comprova propriedade do negócio. A autoridade do aceite permanece
+**sessão autenticada + convite secreto válido**, sem vínculo automático por e-mail.
 
 ## Solução proposta: criação e configuração
 
@@ -114,8 +122,10 @@ Abrir `/convite/[token]` valida no servidor sem consumir o convite. Bots de prev
 do WhatsApp não devem aceitar nem revogar nada. Não fazer mutations em GET.
 
 CTA explícito guarda o token em cookie HttpOnly, SameSite=Lax, Secure em produção,
-path adequado e vida limitada à validade do convite. Navegação Auth usa uma rota
-fixa de retomada sem token na URL; hash somente server-side antes de RPC.
+path adequado e vida limitada à validade do convite. Signup e login existentes
+retornam, após sessão válida, a uma rota fixa do convite sem token na URL; hash
+somente server-side antes de RPC. Não há etapa de confirmação de e-mail neste
+fluxo. Usuário já autenticado pode ir diretamente ao aceite explícito.
 Cookie é apagado após sucesso/abandono. Evitar analytics e referrer de token:
 no-store, noindex e Referrer-Policy no-referrer nas superfícies de convite.
 Não logar token, hash, cookie ou corpo de erro que os contenha. Logs de acesso da
@@ -153,15 +163,17 @@ Depois: pgTAP específico cobrindo os 32 casos do pedido, regressões onboarding
 legado/complementar/Fundadores, módulos, RLS, configuração e público sem owner;
 db lint, migration list e dry-run finais.
 
-Aplicação: testes de geração única, estados/CTAs, signup sem sessão imediata,
-cookie/retomada/callback, aceite/bypass onboarding, bloqueio de contexto manipulado,
+Aplicação: testes de geração única, estados/CTAs, signup com sessão imediata,
+login com retorno ao convite, cookie seguro, rejeição defensiva sem sessão,
+aceite explícito/bypass onboarding, bloqueio de contexto manipulado,
 reuso de configurações e isolamento. npm test, lint, TypeScript, diff check e build.
 Validação visual detalhada pendente para Vercel Preview / revisão humana.
 
 ## Checkpoint de retomada
 
 - Branch: `feat/assisted-business-provisioning`, base `main` em `84f4493`.
-- Concluído: auditoria, leitura seletiva Auth, migration list/dry-run iniciais.
+- Concluído: auditoria, leitura seletiva Auth, migration list/dry-run iniciais e
+  atualização da arquitetura para a decisão de desativar Confirm Email manualmente.
 - Banco inicial alinhado até `20260906040000`; dry-run sem pendências.
 - Não iniciado: SQL novo, repositories/actions, UI, testes específicos, aplicação.
 - Nenhuma migration criada/aplicada, usuário criado, convite emitido, token gerado
