@@ -3,8 +3,10 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { isPlatformAdmin } from "@/lib/repositories/super-admin";
+import { pendingInviteToken } from "@/lib/auth/invite-session";
 
 export async function resolveUserDestination(userId: string) {
+  if (await pendingInviteToken()) return "/convite";
   if (await isPlatformAdmin()) return "/super-admin";
   return await getCurrentBusiness(userId) ? "/admin" : "/onboarding";
 }

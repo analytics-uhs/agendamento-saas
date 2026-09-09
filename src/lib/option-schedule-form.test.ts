@@ -122,6 +122,7 @@ test("salvamento usa RPC existente e tenant da sessão, sem writes diretos", () 
   assert.match(repository, /eq\("business_id", businessId\)/);
   assert.match(repository, /bookingGroupPosition\("primary"\)/);
   assert.doesNotMatch(repository, /\.(insert|update|delete)\(/);
-  assert.match(action, /requireCurrentBusiness\(\)/);
+  assert.match(action, /requireConfigurationBusiness\(platformBusinessId\)/);
+  assert.match(readFileSync("src/lib/auth/configuration-business.ts", "utf8"), /platformBusinessId === undefined\) return requireCurrentBusiness\(\)/);
   assert.match(action, /validateOptionSchedule\(mode, hours\)/);
 });

@@ -1,5 +1,25 @@
 # Fundação Supabase
 
+## Provisionamento assistido e convites
+
+`business_invites` guarda somente SHA-256 do token criptográfico, role owner,
+status pending/accepted/revoked, expiração (sete dias), atores e timestamps.
+RLS está habilitada; anon/authenticated não possuem acesso direto à tabela.
+RPCs curadas permitem inspeção mínima, geração/revogação pelo Platform Admin
+e aceite explícito autenticado. O aceite bloqueia business/convite, valida
+expiração e ausência de owner/membership, insere owner e consome o convite na
+mesma transação. Platform Admin não pode aceitar como owner.
+
+`private.assisted_businesses` registra provisionamento e último contexto de
+configuração autorizado, sem representar membership. A inicialização base é
+compartilhada com self-service; onboarding e claim Fundadores permanecem no
+fluxo existente. Aceite não reinicializa configurações nem módulos.
+
+Migrations: `20260908010000_assisted_business_provisioning.sql` e
+`20260908011000_invite_platform_admin_guard.sql`. Ver
+[arquitetura](architecture-assisted-provisioning.md) para OAuth/PKCE e cookie
+HttpOnly de retorno ao convite; nenhuma credencial OAuth é persistida aqui.
+
 ## Modelo e relacionamentos
 
 `profiles` estende `auth.users` em uma relação 1:1 e não duplica e-mail. O trigger `on_auth_user_created` cria o perfil automaticamente.

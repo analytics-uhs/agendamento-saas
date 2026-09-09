@@ -11,7 +11,7 @@ import { SaveNotice } from "@/components/admin/save-notice";
 import { Button } from "@/components/ui/button";
 import type { ActionResult, BusinessHourForm } from "@/types/business";
 
-export function BusinessHours({ initialHours, initialNotice = 60, initialStartOrder = "service_first" }: { initialHours: BusinessHourForm[]; initialNotice?: number; initialStartOrder?: PublicBookingStartOrder }) {
+export function BusinessHours({ initialHours, initialNotice = 60, initialStartOrder = "service_first", platformBusinessId }: { initialHours: BusinessHourForm[]; initialNotice?: number; initialStartOrder?: PublicBookingStartOrder; platformBusinessId?: string }) {
   const [hours, setHours] = useState(initialHours);
   const [result, setResult] = useState<ActionResult | null>(null);
   const [pending, startTransition] = useTransition();
@@ -23,7 +23,7 @@ export function BusinessHours({ initialHours, initialNotice = 60, initialStartOr
   const [orderPending, saveOrder] = useTransition();
 
   return <><PageHeader title="Horários" description="Defina quando novos horários podem ser reservados." /><section className="mt-6 space-y-3"><div><h2 className="text-sm font-semibold">Horários de funcionamento</h2><p className="text-xs text-muted">Adicione períodos separados para almoço ou turnos.</p></div><BusinessHoursEditor hours={hours} onChange={setHours} /></section>
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><SaveNotice result={result} /><Button disabled={pending} onClick={() => startTransition(async () => setResult(await saveHours(hours)))}>{pending ? "Salvando..." : "Salvar horários"}</Button></div>
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><SaveNotice result={result} /><Button disabled={pending} onClick={() => startTransition(async () => setResult(await saveHours(hours, platformBusinessId)))}>{pending ? "Salvando..." : "Salvar horários"}</Button></div>
     <section className="mt-8 space-y-3 border-t pt-6" aria-label="Antecedência para agendamentos públicos">
       <div className="space-y-2 sm:max-w-sm">
         <Label htmlFor="booking-notice">Antecedência mínima</Label>
@@ -34,7 +34,7 @@ export function BusinessHours({ initialHours, initialNotice = 60, initialStartOr
         </Select>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3"><SaveNotice result={noticeResult} /><Button disabled={noticePending} onClick={() => saveNotice(async () => {
-        try { setNoticeResult(await saveBookingNotice(notice)); }
+        try { setNoticeResult(await saveBookingNotice(notice, platformBusinessId)); }
         catch { setNoticeResult({ ok: false, message: "Não foi possível salvar. Tente novamente." }); }
       })}>{noticePending ? "Salvando..." : "Salvar antecedência"}</Button></div>
     </section>
@@ -47,7 +47,7 @@ export function BusinessHours({ initialHours, initialNotice = 60, initialStartOr
         <p id="booking-start-order-help" className="text-sm text-muted">{publicBookingStartOrders.find((option) => option.value === startOrder)?.description}</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3"><SaveNotice result={orderResult} /><Button disabled={orderPending} onClick={() => saveOrder(async () => {
-        try { setOrderResult(await savePublicBookingStartOrder(startOrder)); }
+        try { setOrderResult(await savePublicBookingStartOrder(startOrder, platformBusinessId)); }
         catch { setOrderResult({ ok: false, message: "Não foi possível salvar. Tente novamente." }); }
       })}>{orderPending ? "Salvando..." : "Salvar ordem"}</Button></div>
     </section>

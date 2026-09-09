@@ -1,9 +1,6 @@
-# Provisionamento assistido — auditoria e proposta da PR #70
+# Provisionamento assistido — PR #70
 
-**Checkpoint: somente auditoria/proposta. Funcionalidade ainda não implementada.**
-Base inspecionada: `84f4493` (main após merge da PR #69), em 08/09/2026.
-Nenhuma migration da PR #70 foi criada ou aplicada. Os contratos abaixo são
-propostos, não descrevem RPCs já disponíveis.
+Implementação: negócio sem owner, configuração explícita pelo Platform Admin e convite secreto com aceite transacional.
 
 ## Arquitetura encontrada
 
@@ -20,7 +17,7 @@ propostos, não descrevem RPCs já disponíveis.
 | Destino Auth | `resolveUserDestination`: platform → /super-admin; membership → /admin; demais → /onboarding | Depois do aceite, membership existente dispensa onboarding |
 | Signup | `/criar-conta`, `supabase.auth.signUp`, nome/e-mail/senha, trata ausência de session | Reutilizar; nova decisão prevê sessão imediata, sempre verificando session válida |
 | Login | `signInWithPassword`, depois resolveUserDestination; next limitado a /admin | Introduzir retorno de convite controlado pelo servidor, não open redirect |
-| Callback | `/auth/callback` troca code por sessão e resolve destino | Preservar fluxo existente; convite não depende desse callback |
+| Callback | `/auth/callback` troca code por sessão e resolve destino | E-mail/senha não depende do callback; Google usa PKCE e retorna ao convite |
 | Proxy | Atualiza sessão; exige claims em /admin | /convite pode continuar público sem enfraquecer /admin |
 | Super Admin | requirePlatformAdmin + is_current_user_platform_admin + private.is_platform_admin | Reutilizar allow-list/autorização existente, nunca role fictícia |
 | Configuração | getBusinessConfiguration(businessId), quatro formulários Admin, actions centralizadas | Reutilização possível sem copiar formulários |
@@ -43,36 +40,16 @@ Arquivos principais auditados:
 por isso provisionamento mínimo precisa criá-los mesmo antes da personalização.
 Dados opcionais de contato não devem se tornar obrigatórios por esta evolução.
 
-## Auth: decisão aprovada e evidência histórica
+## Auth: e-mail/senha e Google
 
-Na auditoria inicial de 08/09/2026, a leitura seletiva via API de gerenciamento
-retornou os valores abaixo. Eles são evidência histórica, não confirmação da
-configuração após a alteração manual decidida posteriormente:
+Confirm Email é desativado manualmente no Supabase. Signup precisa retornar sessão válida; sem sessão, não há aceite. E-mail/senha continuam disponíveis.
 
-- `external_email_enabled=true`;
-- `disable_signup=false`;
-- `mailer_autoconfirm=false`: confirmação de e-mail obrigatória;
-- site_url usa o domínio legado Vercel;
-- allow-list contém localhost e domínios Vercel; não contém
-  `https://agenda.uhsanalytics.com.br/auth/callback`.
+Google usa signInWithOAuth no cliente SSR (PKCE), com callback fixo /auth/callback no origin da Server Action. Provider e credenciais são configurados exclusivamente no painel Supabase/Google, nunca no repositório. O callback troca code por sessão e usa resolveUserDestination: convite pendente primeiro, depois Super Admin, Admin ou onboarding.
 
-**Decisão aprovada:** Confirm Email será desativado manualmente no Dashboard
-Supabase. Nenhuma ferramenta desta PR deve alterar automaticamente essa configuração.
-O contrato esperado passa a ser signup por e-mail/senha com sessão imediata.
+O convite fica em cookie HttpOnly, SameSite=Lax, Secure em produção, durante uma hora. O callback não recebe token na query e não aceita convite: retorna a /convite para confirmação explícita. Ao expirar o cookie, reabrir o link original. Login existente e cadastro Google seguem o mesmo caminho. E-mail Google nunca é usado para localizar negócio ou conceder membership.
 
-Depois de signUp bem-sucedido **e session válida**, retornar ao convite e solicitar
-aceite explícito. Não implementar espera por confirmação de e-mail, retomada
-pós-confirmação ou dependência da allow-list/callback para este fluxo. Preservar
-o callback existente para seus usos atuais, sem removê-lo ou ampliar seu escopo.
+## Criação e configuração
 
-Se signup não retornar sessão, falhar de forma segura: não aceitar convite nem
-criar membership; informar que o acesso autenticado não foi concluído e oferecer
-login. Essa checagem defensiva não cria um fluxo paralelo de confirmação.
-
-O e-mail não comprova propriedade do negócio. A autoridade do aceite permanece
-**sessão autenticada + convite secreto válido**, sem vínculo automático por e-mail.
-
-## Solução proposta: criação e configuração
 
 1. Extrair a inicialização base para helper privado reutilizável, se a revisão
    final confirmar que preserva exatamente os defaults do caminho atual.
@@ -99,7 +76,7 @@ O modo não é impersonação: auth.uid permanece o operador, sem membership
 temporária, service role, acesso falso de owner ou alteração de permissões da Copa,
 Financeiro e Fiscal. Estas áreas operacionais não fazem parte do modo de configuração.
 
-## Solução proposta: convites
+## Convites
 
 - `business_invites`: id, business_id, role=owner, token_hash único, status
   pending/accepted/revoked, expires_at, accepted_at/by, revoked_at, created_by,
@@ -122,7 +99,7 @@ Abrir `/convite/[token]` valida no servidor sem consumir o convite. Bots de prev
 do WhatsApp não devem aceitar nem revogar nada. Não fazer mutations em GET.
 
 CTA explícito guarda o token em cookie HttpOnly, SameSite=Lax, Secure em produção,
-path adequado e vida limitada à validade do convite. Signup e login existentes
+path=/ e vida de uma hora (convite válido por sete dias). Signup e login existentes
 retornam, após sessão válida, a uma rota fixa do convite sem token na URL; hash
 somente server-side antes de RPC. Não há etapa de confirmação de e-mail neste
 fluxo. Usuário já autenticado pode ir diretamente ao aceite explícito.
@@ -145,7 +122,7 @@ dois negócios concorrentes para um usuário sem enfraquecer o self-service.
 Após aceite: mostrar nome do negócio, “seu negócio já está pronto”, botão para
 /admin. Não executar onboarding, resetar grupos/módulos ou criar segundo business.
 
-## UI proposta
+## UI
 
 Estado derivado: owner existente → Ativo; pending não expirado → Aguardando acesso;
 restante → Preparação. Não confundir com businesses.active (publicação do negócio).
@@ -156,31 +133,14 @@ Convite: reutilizar identidade/componentes existentes, CTA cadastro/login ou
 confirmação autenticada; mensagens distintas para inválido/expirado/revogado/usado.
 Sem formulário de senha criado em nome do cliente nem novo sistema de Auth.
 
-## Validação ainda a executar
+## Persistência e validação
 
-Antes de aplicar: migration list e dry-run novamente; somente migration(s) #70.
-Depois: pgTAP específico cobrindo os 32 casos do pedido, regressões onboarding
-legado/complementar/Fundadores, módulos, RLS, configuração e público sem owner;
-db lint, migration list e dry-run finais.
-
-Aplicação: testes de geração única, estados/CTAs, signup com sessão imediata,
-login com retorno ao convite, cookie seguro, rejeição defensiva sem sessão,
-aceite explícito/bypass onboarding, bloqueio de contexto manipulado,
-reuso de configurações e isolamento. npm test, lint, TypeScript, diff check e build.
-Validação visual detalhada pendente para Vercel Preview / revisão humana.
-
-## Checkpoint de retomada
-
-- Branch: `feat/assisted-business-provisioning`, base `main` em `84f4493`.
-- Concluído: auditoria, leitura seletiva Auth, migration list/dry-run iniciais e
-  atualização da arquitetura para a decisão de desativar Confirm Email manualmente.
-- Banco inicial alinhado até `20260906040000`; dry-run sem pendências.
-- Não iniciado: SQL novo, repositories/actions, UI, testes específicos, aplicação.
-- Nenhuma migration criada/aplicada, usuário criado, convite emitido, token gerado
-  ou configuração de produção alterada por esta PR.
-- Próximo passo: implementar criação base e contratos de convite/configuração
-  em nova migration local, com pgTAP, antes de integrar Auth/UI e aplicar no remoto.
-- Reconfirmar estado Git/PR/remoto antes da retomada. Não duplicar branch/PR.
+- 20260908010000_assisted_business_provisioning.sql: base compartilhada, business_invites, auditoria privada e RPCs restritas.
+- 20260908011000_invite_platform_admin_guard.sql: rejeita aceite pelo Platform Admin, sem mudar a migration anterior.
+- business-invites.test.ts cobre credencial, cookies, destino, signup, login, OAuth/callback simulado, aceite explícito e componentes reais renderizados.
+- assisted_business_provisioning.test.sql usa fixtures sintéticas em transação com rollback. Regressões: onboarding, complementar, Fundadores, módulos, RLS e metadata pública.
+- Aceite e onboarding compartilham advisory lock por usuário; gerar/revogar/aceitar serializam pelo business. Não é uma suíte de carga com duas conexões simultâneas.
+- Validação visual detalhada pendente para Vercel Preview / revisão humana. Login externo Google não é executado por testes automatizados.
 
 Fora do escopo: CRM, cobrança/trial, WhatsApp API, transferência, equipe, múltiplos
 owners, impersonação, magic link, automações e mudanças em regras operacionais.

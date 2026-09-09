@@ -6,8 +6,8 @@ import { uploadBusinessLogo } from "@/lib/logo-upload";
 import { Logo } from "@/components/ui/logo";
 import type { ActionResult } from "@/types/business";
 
-export function LogoUploader({ businessId, businessName, logoUrl, onUploaded }: {
-  businessId: string; businessName: string; logoUrl: string | null;
+export function LogoUploader({ businessId, businessName, logoUrl, onUploaded, platformBusinessId }: {
+  platformBusinessId?: string; businessId: string; businessName: string; logoUrl: string | null;
   onUploaded: (url: string, result: ActionResult) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +22,7 @@ export function LogoUploader({ businessId, businessName, logoUrl, onUploaded }: 
         const file = event.target.files?.[0];
         if (!file) return;
         setUploading(true);
-        const result = await uploadBusinessLogo(businessId, file);
+        const result = await uploadBusinessLogo(businessId, file, platformBusinessId);
         setUploading(false);
         if (result.ok && result.data) onUploaded(result.data.url, result);
         else onUploaded(logoUrl ?? "", result);

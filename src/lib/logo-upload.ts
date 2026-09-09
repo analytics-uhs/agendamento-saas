@@ -11,7 +11,7 @@ export function validateLogoFile(file: File) {
   return null;
 }
 
-export async function uploadBusinessLogo(businessId: string, file: File): Promise<ActionResult<{ url: string }>> {
+export async function uploadBusinessLogo(businessId: string, file: File, platformBusinessId?: string): Promise<ActionResult<{ url: string }>> {
   const validationError = validateLogoFile(file);
   if (validationError) return { ok: false, message: validationError };
 
@@ -26,6 +26,6 @@ export async function uploadBusinessLogo(businessId: string, file: File): Promis
 
   const { data } = supabase.storage.from("business-logos").getPublicUrl(path);
   const url = `${data.publicUrl}?v=${Date.now()}`;
-  const result = await saveLogoUrl(url);
+  const result = await saveLogoUrl(url, platformBusinessId);
   return result.ok ? { ok: true, message: "Logo atualizado.", data: { url } } : result;
 }

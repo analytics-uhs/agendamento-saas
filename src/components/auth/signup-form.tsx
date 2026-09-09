@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { GoogleSignIn } from "@/components/auth/google-sign-in";
 import Link from "next/link";
 import { Check, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -124,6 +125,7 @@ export function SignupForm() {
           <p className="mt-2 max-w-md text-sm leading-6 text-muted">Configure sua agenda e deixe seus clientes agendarem online, 24 horas por dia.</p>
         </div>
 
+        <GoogleSignIn />
         <form ref={formRef} action={formAction} className="mt-6 space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="signup-name">Nome</Label>
