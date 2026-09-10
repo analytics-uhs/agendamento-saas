@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentBusiness } from "@/lib/repositories/businesses";
 import { getBusinessConfiguration } from "@/lib/repositories/business-configuration";
 import { requireAuthenticatedUser } from "@/lib/auth/session";
+import { requireConfigurationBusiness } from "@/lib/auth/configuration-business";
 import { getPalette } from "@/lib/palettes";
 import { validBookingNotice } from "@/lib/booking-notice";
 import { isPublicBookingStartOrder } from "@/lib/public-booking-start-order";
@@ -14,7 +15,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { ActionResult, BusinessForm, BusinessGroupForm, BusinessHourForm, VisualThemePreference } from "@/types/business";
 import type { DurationMode } from "@/types/database";
 
-async function context() {
+async function context(platformBusinessId?: string) {
+  if (platformBusinessId !== undefined) return { business: await requireConfigurationBusiness(platformBusinessId), supabase: await createClient() };
   const user = await requireAuthenticatedUser();
   const business = await getCurrentBusiness(user.id);
   if (!business) return null;
@@ -27,8 +29,8 @@ function databaseMessage(message: string, code?: string) {
   return "Não foi possível salvar agora. Tente novamente.";
 }
 
-export async function saveBusiness(input: Pick<BusinessForm, "name" | "whatsapp" | "slug" | "address" | "googleMapsUrl" | "instagramUrl" | "facebookUrl">): Promise<ActionResult> {
-  const current = await context();
+export async function saveBusiness(input: Pick<BusinessForm, "name" | "whatsapp" | "slug" | "address" | "googleMapsUrl" | "instagramUrl" | "facebookUrl">, platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   if (input.name.trim().length < 2) return { ok: false, message: "Informe o nome do negócio." };
   const slugError = validateSlug(input.slug);
@@ -48,8 +50,8 @@ export async function saveBusiness(input: Pick<BusinessForm, "name" | "whatsapp"
   return { ok: true, message: "Dados do negócio salvos." };
 }
 
-export async function saveLogoUrl(url: string): Promise<ActionResult> {
-  const current = await context();
+export async function saveLogoUrl(url: string, platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   const { url: supabaseUrl } = getSupabaseEnvironment();
   const parsed = new URL(url);
@@ -61,8 +63,8 @@ export async function saveLogoUrl(url: string): Promise<ActionResult> {
   return { ok: true, message: "Logo atualizado." };
 }
 
-export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }): Promise<ActionResult<BusinessForm["groups"]>> {
-  const current = await context();
+export async function saveSchedule(input: { groups: [BusinessGroupForm, BusinessGroupForm, BusinessGroupForm]; durationMode: DurationMode; fixedDurationMinutes: number }, platformBusinessId?: string): Promise<ActionResult<BusinessForm["groups"]>> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   const groupsError = validateBusinessGroups(input.groups);
   if (groupsError) return { ok: false, message: groupsError };
@@ -120,8 +122,8 @@ export async function saveSchedule(input: { groups: [BusinessGroupForm, Business
   return { ok: true, message: "Configuração da agenda salva.", data: (await getBusinessConfiguration(current.business.id)).groups };
 }
 
-export async function savePublicBookingStartOrder(value: string): Promise<ActionResult> {
-  const current = await context();
+export async function savePublicBookingStartOrder(value: string, platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   if (!isPublicBookingStartOrder(value)) return { ok: false, message: "Selecione uma ordem válida." };
   const { error } = await current.supabase.from("business_settings")
@@ -132,8 +134,8 @@ export async function savePublicBookingStartOrder(value: string): Promise<Action
   return { ok: true, message: "Ordem do agendamento público salva." };
 }
 
-export async function saveBookingNotice(minutes: number): Promise<ActionResult> {
-  const current = await context();
+export async function saveBookingNotice(minutes: number, platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   if (!validBookingNotice(minutes)) return { ok: false, message: "Selecione uma antecedência válida." };
   const { error } = await current.supabase.from("business_settings")
@@ -143,23 +145,26 @@ export async function saveBookingNotice(minutes: number): Promise<ActionResult> 
   return { ok: true, message: "Antecedência mínima salva." };
 }
 
-export async function saveHours(hours: BusinessHourForm[]): Promise<ActionResult> {
-  const current = await context();
+export async function saveHours(hours: BusinessHourForm[], platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   const validationError = validateBusinessHours(hours);
   if (validationError) return { ok: false, message: validationError };
-  const { error } = await current.supabase.rpc("replace_business_hours", { p_hours: hours.map((hour) => ({
+  const payload = { p_hours: hours.map((hour) => ({
     weekday: hour.weekday,
     active: hour.active && hour.windows.length > 0,
     windows: hour.windows.map((window) => ({ start_time: window.startTime, end_time: window.endTime })),
-  })) });
+  })) };
+  const { error } = platformBusinessId === undefined
+    ? await current.supabase.rpc("replace_business_hours", payload)
+    : await current.supabase.rpc("replace_platform_business_hours", { ...payload, p_business_id: current.business.id });
   if (error) return { ok: false, message: databaseMessage(error.message, error.code) };
   revalidatePath("/admin/horarios");
   return { ok: true, message: "Horários salvos." };
 }
 
-export async function saveAppearance(input: { paletteId: string; themePreference: VisualThemePreference }): Promise<ActionResult> {
-  const current = await context();
+export async function saveAppearance(input: { paletteId: string; themePreference: VisualThemePreference }, platformBusinessId?: string): Promise<ActionResult> {
+  const current = await context(platformBusinessId);
   if (!current) return { ok: false, message: "Estabelecimento não encontrado." };
   if (!(["light", "dark"] as VisualThemePreference[]).includes(input.themePreference)) return { ok: false, message: "Preferência de tema inválida." };
   const { error } = await current.supabase.from("business_settings").update({

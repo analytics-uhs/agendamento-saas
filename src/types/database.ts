@@ -198,6 +198,14 @@ export interface Database {
       product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
     };
     Functions: {
+      create_platform_provisioned_business: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
+      authorize_platform_business_configuration: { Args: { p_business_id: string }; Returns: Json };
+      replace_platform_business_hours: { Args: { p_business_id: string; p_hours: Json }; Returns: boolean };
+      get_platform_business_access: { Args: { p_business_id: string }; Returns: Json };
+      generate_platform_business_invite: { Args: { p_business_id: string; p_token_hash: string }; Returns: Json };
+      revoke_platform_business_invite: { Args: { p_business_id: string }; Returns: boolean };
+      get_business_invite_public: { Args: { p_token_hash: string }; Returns: Json };
+      accept_business_invite: { Args: { p_token_hash: string }; Returns: Json };
       get_admin_fiscal_emission_context: {Args:{p_business_id:string;p_document_id:string};Returns:Json};
       claim_fiscal_dispatch: {Args:{p_business_id:string;p_actor_id:string;p_document_id:string;p_context:Json;p_request:Json;p_emit:boolean};Returns:Json};
       record_fiscal_dispatch: {Args:{p_business_id:string;p_document_id:string;p_token:string;p_result:Json};Returns:boolean};

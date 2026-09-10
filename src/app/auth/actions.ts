@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { resolveUserDestination } from "@/lib/auth/destination";
 import { createClient } from "@/lib/supabase/server";
+import { clearInvite } from "@/lib/auth/invite-session";
 
 export type LoginState = { message: string | null };
 
@@ -26,6 +27,7 @@ export async function login(_state: LoginState, formData: FormData): Promise<Log
 }
 
 export async function logout() {
+  await clearInvite();
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");

@@ -17,10 +17,11 @@ test("legacy metadata defaults to service-first; settings accepts only supported
 test("order is persisted by authenticated action and passed through curated metadata", () => {
   const actions = readFileSync("src/app/admin/actions.ts", "utf8");
   const save = actions.slice(actions.indexOf("export async function savePublicBookingStartOrder"), actions.indexOf("export async function saveBookingNotice"));
-  assert.match(save, /await context\(\)/);
+  assert.match(save, /await context\(platformBusinessId\)/);
+  assert.match(actions, /getCurrentBusiness\(user.id\)/);
   assert.match(save, /isPublicBookingStartOrder\(value\)/);
   assert.match(save, /public_booking_start_order: value/);
   assert.match(save, /eq\("business_id", current.business.id\)/);
   assert.match(readFileSync("src/lib/repositories/public-booking.ts", "utf8"), /parsePublicBookingStartOrder\(settings.public_booking_start_order\)/);
-  assert.match(readFileSync("src/components/admin/business-hours.tsx", "utf8"), /savePublicBookingStartOrder\(startOrder\)/);
+  assert.match(readFileSync("src/components/admin/business-hours.tsx", "utf8"), /savePublicBookingStartOrder\(startOrder, platformBusinessId\)/);
 });

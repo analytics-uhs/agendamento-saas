@@ -12,7 +12,9 @@ test("notice settings offer all requested choices and validate integer minutes",
 test("Admin notice save is tenant-scoped and the exclusive complementary flow uses server slots", () => {
   const actions=readFileSync("src/app/admin/actions.ts","utf8");
   const save=actions.slice(actions.indexOf("export async function saveBookingNotice"),actions.indexOf("export async function saveHours"));
-  assert.match(save,/await context\(\)/);
+  assert.match(save,/await context\(platformBusinessId\)/);
+  assert.match(actions,/if \(platformBusinessId !== undefined\).*requireConfigurationBusiness\(platformBusinessId\)/);
+  assert.match(actions,/getCurrentBusiness\(user.id\)/);
   assert.match(save,/validBookingNotice\(minutes\)/);
   assert.match(save,/eq\("business_id", current.business.id\)/);
   const flow=readFileSync("src/components/booking/booking-flow.tsx","utf8");

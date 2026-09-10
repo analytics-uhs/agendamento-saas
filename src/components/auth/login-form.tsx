@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { GoogleSignIn } from "@/components/auth/google-sign-in";
 import Link from "next/link";
 import { useActionState } from "react";
 import { login, type LoginState } from "@/app/auth/actions";
@@ -31,6 +32,7 @@ export function LoginForm({ next }: { next?: string }) {
       {state.message && <p role="alert" className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger">{state.message}</p>}
       <Button type="submit" className="w-full" disabled={pending}>{pending ? "Entrando..." : "Entrar"}</Button>
     </form>
+    <GoogleSignIn />
     <div className="mt-4 flex justify-center"><ThemeControl compact /></div>
     <p className="mt-4 text-sm text-muted">Ainda não tem uma conta? <Link href="/criar-conta" className="focus-ring rounded font-semibold text-primary hover:underline">Criar conta</Link></p>
     <div className="mx-auto mt-5 max-w-xs border-t pt-4 text-xs text-muted">

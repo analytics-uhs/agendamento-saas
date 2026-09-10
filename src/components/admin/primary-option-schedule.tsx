@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { OptionSchedule } from "@/lib/option-schedule-form";
 import type { BusinessOptionForm } from "@/types/business";
 
-export function PrimaryOptionSchedule({ option }: { option: BusinessOptionForm }) {
+export function PrimaryOptionSchedule({ option, platformBusinessId }: { option: BusinessOptionForm; platformBusinessId?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<OptionSchedule | null>(null);
@@ -19,7 +19,7 @@ export function PrimaryOptionSchedule({ option }: { option: BusinessOptionForm }
     if (!option.id || fetching.current) return;
     fetching.current = true; setLoading(true); setError(null);
     try {
-      const result = await loadOptionSchedule(option.id);
+      const result = await loadOptionSchedule(option.id, platformBusinessId);
       if (result.ok && result.data) setData(result.data);
       else setError(result.message);
     } catch { setError("Não foi possível carregar os horários. Tente novamente."); }
@@ -38,7 +38,7 @@ export function PrimaryOptionSchedule({ option }: { option: BusinessOptionForm }
       <div id={id} hidden={!open} className="mt-3 border-t py-4">
         {loading ? <p role="status" className="text-sm text-muted">Carregando horários...</p> : null}
         {error ? <div className="space-y-2"><p role="alert" className="text-sm text-danger">{error}</p><Button variant="outline" size="sm" onClick={load}>Tentar novamente</Button></div> : null}
-        {data ? <OptionScheduleEditor initial={data} onSave={(mode, hours) => saveOptionSchedule(option.id!, mode, hours)} /> : null}
+        {data ? <OptionScheduleEditor initial={data} onSave={(mode, hours) => saveOptionSchedule(option.id!, mode, hours, platformBusinessId)} /> : null}
       </div>
     </>}
   </div>;

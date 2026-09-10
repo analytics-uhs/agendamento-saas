@@ -12,6 +12,7 @@ import {
   type SignupValues,
 } from "@/lib/auth/signup";
 import { createClient } from "@/lib/supabase/server";
+import { pendingInviteToken } from "@/lib/auth/invite-session";
 
 export type SignupState = {
   status: "idle" | "error" | "confirmation_required";
@@ -96,6 +97,10 @@ export async function signup(previousState: SignupState, formData: FormData): Pr
   }
 
   if (!data.session) {
+    if (await pendingInviteToken()) return {
+      status: "error", message: "Sua sessão não foi iniciada. Entre com sua conta para continuar pelo convite.",
+      fieldErrors: {}, values: validation.values, emailAlreadyExists: false, attempt,
+    };
     return {
       status: "confirmation_required",
       message: "Confira seu e-mail para confirmar sua conta.",

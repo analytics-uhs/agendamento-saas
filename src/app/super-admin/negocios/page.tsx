@@ -30,7 +30,7 @@ export default async function PlatformBusinessesPage({ searchParams }: { searchP
   await requirePlatformAdmin();
   const query = parsePlatformBusinessQuery(await searchParams);
   const result = await listPlatformBusinesses({ ...query, pageSize: 20 });
-  return <><PageHeader title="Negócios" description={`${result.total} estabelecimento${result.total === 1 ? "" : "s"} encontrado${result.total === 1 ? "" : "s"}.`} />
+  return <><PageHeader title="Negócios" description={`${result.total} estabelecimento${result.total === 1 ? "" : "s"} encontrado${result.total === 1 ? "" : "s"}.`} action={<Link href="/super-admin/negocios/novo" className="focus-ring inline-flex min-h-11 items-center rounded-xl bg-primary px-4 font-medium text-white">Criar negócio</Link>} />
     <form className="mt-6 grid gap-3 rounded-xl border bg-background p-4 sm:grid-cols-[1fr_180px_auto]" action="/super-admin/negocios" method="get">
       <div className="relative"><Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-muted" /><Input className="pl-9" type="search" name="q" defaultValue={query.search} maxLength={80} placeholder="Buscar por nome ou slug" aria-label="Buscar negócios" /></div>
       <Select name="status" defaultValue={query.status} aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="active">Ativos</option><option value="inactive">Inativos</option></Select>

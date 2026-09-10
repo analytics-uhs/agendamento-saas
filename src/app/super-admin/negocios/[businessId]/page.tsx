@@ -7,6 +7,8 @@ import { BusinessStatusBadge } from "@/components/super-admin/business-status-ba
 import { BusinessStatusControl } from "@/components/super-admin/business-status-control";
 import { BusinessModulesControl } from "@/components/super-admin/business-modules-control";
 import { getPlatformBusinessModules } from "@/lib/repositories/platform-business-modules";
+import { getBusinessAccess } from "@/lib/repositories/business-invites";
+import { BusinessAccessControl } from "@/components/super-admin/business-access-control";
 import { FacebookIcon, InstagramIcon } from "@/components/ui/social-icons";
 import { formatDuration, formatLongDate, formatShortDate } from "@/lib/date";
 import { bookingGroupProductName } from "@/lib/booking-groups";
@@ -31,6 +33,7 @@ export default async function PlatformBusinessDetailPage({ params }: { params: P
   const detail = await getPlatformBusinessDetail(businessId);
   if (!detail) notFound();
   const modules = await getPlatformBusinessModules(businessId);
+  const access = await getBusinessAccess(businessId);
   const { business, settings } = detail;
   const palette = settings?.palette.id ? getPalette(settings.palette.id) : getPalette("original");
   const summary = [
@@ -49,6 +52,8 @@ export default async function PlatformBusinessDetailPage({ params }: { params: P
     </header>
 
     <BusinessModulesControl businessId={businessId} modules={modules} />
+    <section className="mt-5"><Link href={`/super-admin/negocios/${businessId}/configurar`} className="focus-ring inline-flex min-h-11 items-center rounded-xl border px-4 font-medium">Configurar negócio</Link></section>
+    <BusinessAccessControl businessId={businessId} access={access} />
 
     <div className="mt-5 grid gap-5 lg:grid-cols-2">
       <section className="rounded-xl border bg-background p-5"><h2 className="font-semibold">Dados gerais</h2><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><div><dt className="text-xs text-muted">WhatsApp</dt><dd className="mt-1 flex items-center gap-1.5 font-medium"><Phone className="h-3.5 w-3.5 text-muted" />{business.whatsapp || "Não informado"}</dd></div><div><dt className="text-xs text-muted">Endereço</dt><dd className="mt-1 flex items-start gap-1.5 font-medium"><MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />{business.address || "Não informado"}</dd></div><div><dt className="text-xs text-muted">Última atualização</dt><dd className="mt-1 font-medium">{dateTime(business.updatedAt)}</dd></div><div><dt className="text-xs text-muted">Tema</dt><dd className="mt-1 font-medium">{settings ? <span aria-label={settings.themePreference === "dark" ? "Tema escuro" : "Tema claro"} title={settings.themePreference === "dark" ? "Tema escuro" : "Tema claro"}>{settings.themePreference === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}</span> : "Não configurado"}</dd></div><div><dt className="text-xs text-muted">Paleta</dt><dd className="mt-1 flex items-center gap-2 font-medium"><span className="h-4 w-4 rounded-full border" style={{ background: settings?.palette.primary ?? palette.primary }} /><span className="h-4 w-4 rounded-full border" style={{ background: settings?.palette.accent ?? palette.accent }} />{palette.name}</dd></div>{business.googleMapsUrl || business.instagramUrl || business.facebookUrl ? <div className="sm:col-span-2"><dt className="text-xs text-muted">Links públicos</dt><dd className="mt-2 flex flex-wrap gap-2">{business.googleMapsUrl ? <a href={business.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium hover:text-primary"><MapPin className="h-3.5 w-3.5" />Google Maps</a> : null}{business.instagramUrl ? <a href={business.instagramUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium hover:text-primary"><InstagramIcon className="h-3.5 w-3.5" />Instagram</a> : null}{business.facebookUrl ? <a href={business.facebookUrl} target="_blank" rel="noopener noreferrer" className="focus-ring inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-medium hover:text-primary"><FacebookIcon className="h-3.5 w-3.5" />Facebook</a> : null}</dd></div> : null}{business.activeUpdatedAt ? <div className="sm:col-span-2"><dt className="text-xs text-muted">Última alteração de status</dt><dd className="mt-1 font-medium">{dateTime(business.activeUpdatedAt)}</dd></div> : null}</dl></section>

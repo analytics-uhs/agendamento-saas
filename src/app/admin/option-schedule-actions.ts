@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCurrentBusiness } from "@/lib/repositories/businesses";
+import { requireConfigurationBusiness } from "@/lib/auth/configuration-business";
 import { getOptionSchedule, setOptionSchedule } from "@/lib/repositories/option-schedules";
 import { optionScheduleError, optionScheduleSuccess, validateOptionSchedule, type OptionSchedule } from "@/lib/option-schedule-form";
 import type { ActionResult, BusinessHourForm } from "@/types/business";
@@ -11,8 +11,8 @@ function errorCode(error: unknown) {
   return error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
 }
 
-export async function loadOptionSchedule(optionId: string): Promise<ActionResult<OptionSchedule>> {
-  const business = await requireCurrentBusiness();
+export async function loadOptionSchedule(optionId: string, platformBusinessId?: string): Promise<ActionResult<OptionSchedule>> {
+  const business = await requireConfigurationBusiness(platformBusinessId);
   try {
     return { ok: true, message: "Horários carregados.", data: await getOptionSchedule(business.id, optionId) };
   } catch {
@@ -20,8 +20,8 @@ export async function loadOptionSchedule(optionId: string): Promise<ActionResult
   }
 }
 
-export async function saveOptionSchedule(optionId: string, mode: BookingOptionScheduleMode, hours: BusinessHourForm[]): Promise<ActionResult> {
-  const business = await requireCurrentBusiness();
+export async function saveOptionSchedule(optionId: string, mode: BookingOptionScheduleMode, hours: BusinessHourForm[], platformBusinessId?: string): Promise<ActionResult> {
+  const business = await requireConfigurationBusiness(platformBusinessId);
   const validation = validateOptionSchedule(mode, hours);
   if (validation) return { ok: false, message: validation };
   try {
