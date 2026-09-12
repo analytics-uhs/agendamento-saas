@@ -96,6 +96,7 @@ export type ResourceBlockInput = {
 };
 
 export type AdminComplementaryReservation = {
+  seriesId?: string | null;
   id: string;
   reservationId: string;
   optionId: string;
@@ -112,6 +113,7 @@ export type AdminComplementaryReservation = {
 
 export type AdminReservationIntent = "primary" | "complementary" | "combined";
 export type ManualReservationInput = {
+  repeatCount?: number;
   intent: AdminReservationIntent;
   primary: ManualAppointmentInput | null;
   complementary: { optionId: string; occupancyMode: "day" | "time_slot"; date: string; startTime: string | null; endTime: string | null } | null;

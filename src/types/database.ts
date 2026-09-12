@@ -132,7 +132,7 @@ export interface Database {
         Relationships: [{ foreignKeyName: "appointments_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }, { foreignKeyName: "appointments_series_tenant_fk"; columns: ["series_id", "business_id"]; isOneToOne: false; referencedRelation: "appointment_series"; referencedColumns: ["id", "business_id"] }, { foreignKeyName: "appointments_reservation_tenant_fk"; columns: ["reservation_id", "business_id"]; isOneToOne: false; referencedRelation: "reservations"; referencedColumns: ["id", "business_id"] }];
       };
       reservations: {
-        Row: { id: string; business_id: string; customer_name: string; customer_whatsapp: string; source: AppointmentSource; created_by: string | null } & Timestamps;
+        Row: { id: string; business_id: string; series_id: string | null; series_date: string | null; customer_name: string; customer_whatsapp: string; source: AppointmentSource; created_by: string | null } & Timestamps;
         Insert: { id?: string; business_id: string; customer_name: string; customer_whatsapp: string; source: AppointmentSource; created_by?: string | null; created_at?: string; updated_at?: string };
         Update: { customer_name?: string; customer_whatsapp?: string; updated_at?: string };
         Relationships: [{ foreignKeyName: "reservations_business_id_fkey"; columns: ["business_id"]; isOneToOne: false; referencedRelation: "businesses"; referencedColumns: ["id"] }];
@@ -226,6 +226,8 @@ export interface Database {
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_public_reservation: { Args: { p_slug: string; p_payload: Json }; Returns: Json };
       create_admin_reservation: { Args: { p_payload: Json }; Returns: Json };
+      create_admin_reservation_series: { Args: { p_business_id: string; p_payload: Json; p_repeat_count: number }; Returns: Json };
+      cancel_admin_reservation_series: { Args: { p_business_id: string; p_reservation_id: string; p_scope: string }; Returns: Json };
       cancel_admin_reservation_resource: { Args: { p_resource_id: string }; Returns: Json };
       cancel_admin_reservation: { Args: { p_reservation_id: string }; Returns: Json };
       create_business_with_owner: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };

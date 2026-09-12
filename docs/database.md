@@ -34,6 +34,7 @@ Todos os registros de negócio carregam ou derivam `business_id`:
 - `business_settings`: duração, paleta e preferência de tema;
 - `appointments`: reservas públicas ou administrativas; `source` registra `public`/`admin`, e os estados não cancelados bloqueiam disponibilidade.
 - `appointment_series`: definição administrativa de uma recorrência semanal em um único dia/horário; `repeat_count` nulo significa permanente e `appointments.series_id` distingue ocorrências materializadas de reservas avulsas.
+- `reservation_series`: identidade finita da recorrência semanal Admin Complementar-only (2–260 ocorrências), ligada por `reservations.series_id/series_date`. A RPC `create_admin_reservation_series` reutiliza criação e allocations existentes, rejeita todas as ocorrências se houver conflito e informa suas datas. `day` não recebe horário fictício; combinado/público e novas ações de cancelamento de série ficam fora do escopo. Ver [arquitetura específica](architecture-complementary-weekly-recurrence.md).
 - `reservations`: intenção agregada que futuramente coordena um appointment principal e um ou mais componentes complementares;
 - `reservation_resources`: componentes complementares com modo de ocupação e nomes do catálogo preservados como snapshots;
 - `resource_allocations`: barreira única de concorrência dos recursos complementares.
