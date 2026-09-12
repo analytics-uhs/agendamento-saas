@@ -93,6 +93,8 @@ export async function loadAdminComplementaryAvailability(input: { date: string; 
 }
 
 export async function createManualReservation(input: ManualReservationInput): Promise<AppointmentActionResult<DailyCalendarData>> {
+  if (input.repeatCount !== undefined && (input.intent !== "complementary" || input.primary !== null)) return { ok: false, message: "A recorrência está disponível somente para reservas do Grupo complementar." };
+  if (input.repeatCount !== undefined && (!input.complementary || !Number.isInteger(input.repeatCount) || input.repeatCount < 2 || input.repeatCount > 260)) return { ok: false, message: "Informe de 2 a 260 ocorrências." };
   const hasPrimary = input.primary !== null;
   const hasComplementary = input.complementary !== null;
   const expectedComponents = input.intent === "combined"
@@ -126,8 +128,18 @@ export async function createManualReservation(input: ManualReservationInput): Pr
   const business = await requireCurrentBusiness();
   if (!business.active) return { ok: false, message: "Este estabelecimento está inativo e não aceita novas reservas." };
   const normalized = { ...input, customerName: input.customerName.trim(), customerWhatsapp: normalizeWhatsapp(input.customerWhatsapp) };
-  const error = await createAdminReservation(normalized);
-  if (error) return actionError(error.message, error.code);
+  const error = await createAdminReservation(normalized, business.id);
+  if (error) {
+    if (error.message.includes("reservation_series_conflict")) {
+      let dates = "";
+      try {
+        const conflicts = JSON.parse(error.details ?? "[]") as { date: string; resource: string; startTime?: string }[];
+        dates = conflicts.map(item => `• ${item.resource}: ${formatNumericDate(item.date)}${item.startTime ? ` às ${item.startTime.slice(0,5)}` : ""}`).join("\n");
+      } catch { /* Safe fallback when diagnostics are unavailable. */ }
+      return { ok: false, message: `Não foi possível criar esta recorrência. Nenhuma ocorrência foi criada.\n${dates}\nAjuste a recorrência ou escolha outro recurso.` };
+    }
+    return actionError(error.message, error.code);
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/agenda");
   const { appointments, complementaryReservations, blocks, resourceBlocks, windows } = await readDailyCalendar(business.id, date);
