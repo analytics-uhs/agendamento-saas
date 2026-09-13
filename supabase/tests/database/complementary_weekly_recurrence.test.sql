@@ -54,7 +54,7 @@ insert into admin_complementary_tap_results select throws_ok($$select public.can
 insert into admin_complementary_tap_results select lives_ok(format($$select public.create_admin_reservation(%L::jsonb)$$,pg_temp.payload(current_date+100)),'one-off complementary creation remains available');
 insert into admin_complementary_tap_results select is((select count(*) from public.reservations where series_id is null),1::bigint,'one-off has no series identity');
 insert into admin_complementary_tap_results select throws_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000001',pg_temp.payload(%L),261)$$,current_date+80),'22023','reservation_series_invalid','maximum count enforced');
-insert into admin_complementary_tap_results select throws_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000001',pg_temp.payload(%L),null)$$,current_date+80),'22023','reservation_series_invalid','no permanent series');
+insert into admin_complementary_tap_results select throws_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000001',pg_temp.payload(%L),null)$$,current_date+91),'22023','recurring_start_outside_horizon','permanent start must fit Principal 90-day horizon');
 select set_config('request.jwt.claims','{"sub":"b7000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 insert into admin_complementary_tap_results select throws_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000001',pg_temp.payload(%L),3)$$,current_date+80),'42501','reservation_series_forbidden','cross tenant rejected');
 insert into admin_complementary_tap_results select is((select count(*) from public.reservation_series),0::bigint,'series RLS isolates tenants');
@@ -82,6 +82,23 @@ insert into admin_complementary_tap_results select is(jsonb_array_length(pg_temp
 insert into admin_complementary_tap_results select is((select count(*) from public.reservations where series_date>=current_date+300),0::bigint,'late failure rolls back earlier aggregates');
 insert into admin_complementary_tap_results select is((select count(*) from public.resource_allocations where allocation_date>=current_date+300),0::bigint,'late failure rolls back allocations');
 insert into admin_complementary_tap_results select is((select count(*) from public.reservation_series where starts_on>=current_date+300),0::bigint,'late failure rolls back series identity');
+-- Permanent creation uses the same transaction and conflict diagnostics as finite.
+insert into admin_complementary_tap_results select is(jsonb_array_length(pg_temp.attempt(current_date+20,null)),4,'permanent conflict reports every occupied week in horizon');
+insert into admin_complementary_tap_results select is((select count(*) from public.reservation_series where repeat_count is null),0::bigint,'conflicted permanent series leaves no identity');
+insert into admin_complementary_tap_results select lives_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000001',pg_temp.payload(%L),null)$$,current_date+1),'permanent day succeeds');
+insert into admin_complementary_tap_results select is((select count(*) from public.reservations r join public.reservation_series s on s.id=r.series_id where s.repeat_count is null),13::bigint,'permanent day materializes exactly through today + 90');
+insert into admin_complementary_tap_results select is((select count(*) from public.reservation_resources rr join public.reservations r on r.id=rr.reservation_id join public.reservation_series s on s.id=r.series_id where s.repeat_count is null and rr.start_time is null and rr.end_time is null),13::bigint,'permanent day retains null hours');
+insert into admin_complementary_tap_results select is((public.materialize_recurring_reservations('b7100000-0000-4000-8000-000000000001',(select id from public.reservation_series where repeat_count is null),current_date+500)->>'created_count')::integer,0,'repeat materialization is idempotent and caps excessive horizon');
+select set_config('request.jwt.claims','{"sub":"b7000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+insert into admin_complementary_tap_results select lives_ok(format($$select public.create_admin_reservation_series('b7100000-0000-4000-8000-000000000002',pg_temp.payload(%L,false,true),null)$$,current_date+1),'permanent time_slot succeeds');
+insert into admin_complementary_tap_results select is((select count(*) from public.reservation_resources rr join public.reservations r on r.id=rr.reservation_id join public.reservation_series s on s.id=r.series_id where s.repeat_count is null and rr.start_time='18:30' and rr.end_time='19:30'),13::bigint,'permanent time_slot keeps interval throughout horizon');
+-- Start with a short materialization then grow it using the same permanent template.
+reset role;
+insert into public.reservation_series(id,business_id,starts_on,repeat_count,created_by,recurrence_payload)
+values('b7400000-0000-4000-8000-000000000001','b7100000-0000-4000-8000-000000000002',current_date+2,null,'b7000000-0000-4000-8000-000000000002',pg_temp.payload(current_date+2,false,true));
+set local role authenticated;
+insert into admin_complementary_tap_results select is((public.materialize_recurring_reservations('b7100000-0000-4000-8000-000000000002','b7400000-0000-4000-8000-000000000001',current_date+9)->>'created_count')::integer,2,'short horizon creates two occurrences');
+insert into admin_complementary_tap_results select is((public.materialize_recurring_reservations('b7100000-0000-4000-8000-000000000002','b7400000-0000-4000-8000-000000000001',null)->>'created_count')::integer,11,'rolling extension only creates missing weeks');
 set local role anon;
 insert into admin_complementary_tap_results select throws_ok($$select public.create_admin_reservation_series(null,'{}',3)$$,'42501','permission denied for function create_admin_reservation_series','no public recurrence');
 reset role;

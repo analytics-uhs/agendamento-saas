@@ -226,7 +226,8 @@ export interface Database {
       create_public_appointment: { Args: { p_slug: string; p_group_1_option_id: string | null; p_group_2_option_id: string | null; p_date: string; p_start_time: string; p_blocks: number; p_customer_name: string; p_customer_whatsapp: string }; Returns: Json };
       create_public_reservation: { Args: { p_slug: string; p_payload: Json }; Returns: Json };
       create_admin_reservation: { Args: { p_payload: Json }; Returns: Json };
-      create_admin_reservation_series: { Args: { p_business_id: string; p_payload: Json; p_repeat_count: number }; Returns: Json };
+      create_admin_reservation_series: { Args: { p_business_id: string; p_payload: Json; p_repeat_count: number | null }; Returns: Json };
+      materialize_recurring_reservations: { Args: { p_business_id: string; p_series_id: string; p_horizon_date?: string | null }; Returns: Json };
       cancel_admin_reservation_series: { Args: { p_business_id: string; p_reservation_id: string; p_scope: string }; Returns: Json };
       cancel_admin_reservation_resource: { Args: { p_resource_id: string }; Returns: Json };
       cancel_admin_reservation: { Args: { p_reservation_id: string }; Returns: Json };

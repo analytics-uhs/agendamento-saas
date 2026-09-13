@@ -34,12 +34,24 @@ test("one-off creation is unchanged",async()=>{
   const {api,calls}=repository();await api.createAdminReservation(input,"tenant");assert.equal(calls[0].name,"create_admin_reservation");
   assert.equal(calls.length,1);
 });
-test("Admin exposes finite complementary-only recurrence without new cancellation actions",()=>{
+test("Admin shares permanent/count choices without new cancellation actions",()=>{
   const form=readFileSync("src/components/admin/appointment-form-modal.tsx","utf8");
-  assert.ok(form.includes('repeatCount: recurring && intent === "complementary" ? repeatCount'));
+  assert.ok(form.includes('repeatCount: recurring && intent === "complementary" ? (recurrenceType === "count" ? repeatCount : null) : undefined'));
   assert.ok(form.includes('(intent === "primary" || (intent === "complementary" && complementaryOptionId))'));
   assert.match(form,/Quantidade de ocorrências semanais/);
+  assert.doesNotMatch(form,/!includesComplementary && <div/);
+  assert.ok(form.includes('{recurrenceType === "count" ? <div className="space-y-2">'));
+  assert.equal((form.match(/>Permanente<\/label>/g) ?? []).length,1);
   for(const file of ["appointment-details","complementary-reservation-details"])assert.doesNotMatch(readFileSync(`src/components/admin/${file}.tsx`,"utf8"),/ReservationSeriesCancellation/);
+});
+
+test("permanent day and time-slot send null count, not an arbitrary finite count",async()=>{
+  for(const occupancyMode of ["day","time_slot"] as const) {
+    const {api,calls}=repository();
+    await api.createAdminReservation({...input,repeatCount:null,complementary:{...input.complementary!,occupancyMode,startTime:occupancyMode==="day"?null:"18:15",endTime:occupancyMode==="day"?null:"19:15"}},"tenant");
+    assert.equal(calls.length,1);assert.equal(calls[0].name,"create_admin_reservation_series");
+    assert.equal(calls[0].args.p_repeat_count,null);
+  }
 });
 
 test("recurrence fails closed without server business or with combined intent",async()=>{

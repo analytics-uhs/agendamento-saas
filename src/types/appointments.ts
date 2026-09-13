@@ -113,7 +113,7 @@ export type AdminComplementaryReservation = {
 
 export type AdminReservationIntent = "primary" | "complementary" | "combined";
 export type ManualReservationInput = {
-  repeatCount?: number;
+  repeatCount?: number | null;
   intent: AdminReservationIntent;
   primary: ManualAppointmentInput | null;
   complementary: { optionId: string; occupancyMode: "day" | "time_slot"; date: string; startTime: string | null; endTime: string | null } | null;

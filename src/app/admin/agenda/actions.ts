@@ -94,7 +94,7 @@ export async function loadAdminComplementaryAvailability(input: { date: string; 
 
 export async function createManualReservation(input: ManualReservationInput): Promise<AppointmentActionResult<DailyCalendarData>> {
   if (input.repeatCount !== undefined && (input.intent !== "complementary" || input.primary !== null)) return { ok: false, message: "A recorrência está disponível somente para reservas do Grupo complementar." };
-  if (input.repeatCount !== undefined && (!input.complementary || !Number.isInteger(input.repeatCount) || input.repeatCount < 2 || input.repeatCount > 260)) return { ok: false, message: "Informe de 2 a 260 ocorrências." };
+  if (input.repeatCount !== undefined && input.repeatCount !== null && (!input.complementary || !Number.isInteger(input.repeatCount) || input.repeatCount < 2 || input.repeatCount > 260)) return { ok: false, message: "Informe de 2 a 260 ocorrências." };
   const hasPrimary = input.primary !== null;
   const hasComplementary = input.complementary !== null;
   const expectedComponents = input.intent === "combined"
