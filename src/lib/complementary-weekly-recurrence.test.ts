@@ -34,7 +34,7 @@ test("one-off creation is unchanged",async()=>{
   const {api,calls}=repository();await api.createAdminReservation(input,"tenant");assert.equal(calls[0].name,"create_admin_reservation");
   assert.equal(calls.length,1);
 });
-test("Admin shares permanent/count choices without new cancellation actions",()=>{
+test("Admin shares permanent/count choices without changing Principal cancellation",()=>{
   const form=readFileSync("src/components/admin/appointment-form-modal.tsx","utf8");
   assert.ok(form.includes('repeatCount: recurring && intent === "complementary" ? (recurrenceType === "count" ? repeatCount : null) : undefined'));
   assert.ok(form.includes('(intent === "primary" || (intent === "complementary" && complementaryOptionId))'));
@@ -42,7 +42,7 @@ test("Admin shares permanent/count choices without new cancellation actions",()=
   assert.doesNotMatch(form,/!includesComplementary && <div/);
   assert.ok(form.includes('{recurrenceType === "count" ? <div className="space-y-2">'));
   assert.equal((form.match(/>Permanente<\/label>/g) ?? []).length,1);
-  for(const file of ["appointment-details","complementary-reservation-details"])assert.doesNotMatch(readFileSync(`src/components/admin/${file}.tsx`,"utf8"),/ReservationSeriesCancellation/);
+  assert.doesNotMatch(readFileSync("src/components/admin/appointment-details.tsx","utf8"),/cancelComplementarySeriesOccurrence/);
 });
 
 test("permanent day and time-slot send null count, not an arbitrary finite count",async()=>{
@@ -59,4 +59,16 @@ test("recurrence fails closed without server business or with combined intent",a
   assert.equal((await api.createAdminReservation({...input,repeatCount:3}))?.code,"22023");
   assert.equal((await api.createAdminReservation({...input,intent:"combined",repeatCount:3},"tenant"))?.code,"22023");
   assert.equal(calls.length,0);
+});
+
+test("series cancellation sends explicit server tenant, reservation identity and scope",async()=>{
+  for (const scope of ["single", "future"] as const) {
+    const {api,calls}=repository();
+    assert.equal(await api.cancelAdminReservationSeries("server-tenant","reservation",scope),null);
+    assert.equal(calls.length,1);
+    assert.equal(calls[0].name,"cancel_admin_reservation_series");
+    assert.equal(calls[0].args.p_business_id,"server-tenant");
+    assert.equal(calls[0].args.p_reservation_id,"reservation");
+    assert.equal(calls[0].args.p_scope,scope);
+  }
 });

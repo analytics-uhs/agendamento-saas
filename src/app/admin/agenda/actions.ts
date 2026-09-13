@@ -9,7 +9,7 @@ import { formatNumericDate } from "@/lib/date";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
 import type { AppointmentActionResult, AppointmentAvailabilityResult, AdminAppointment, DailyCalendarData, ManualAppointmentInput, RecurringAppointmentInput, RecurringCancellationScope } from "@/types/appointments";
 import type { AppointmentStatus } from "@/types/database";
-import { cancelAdminReservation, cancelAdminReservationResource, createAdminReservation, getAdminComplementaryAvailability } from "@/lib/repositories/admin-reservations";
+import { cancelAdminReservation, cancelAdminReservationResource, cancelAdminReservationSeries, createAdminReservation, getAdminComplementaryAvailability } from "@/lib/repositories/admin-reservations";
 import type { ComplementaryAvailability } from "@/types/public-booking";
 import type { ManualReservationInput } from "@/types/appointments";
 
@@ -166,6 +166,21 @@ export async function cancelCompleteReservation(reservationId: string, date: str
   if (error) return actionError(error.message, error.code);
   revalidatePath("/admin"); revalidatePath("/admin/agenda");
   return { ok: true, message: "Reserva completa cancelada.", data: await refreshedCalendar(business.id, date) };
+}
+
+export async function cancelComplementarySeriesOccurrence(reservationId: string, date: string, scope: RecurringCancellationScope): Promise<AppointmentActionResult<DailyCalendarData>> {
+  if (!uuid.test(reservationId) || !datePattern.test(date) || !["single", "future"].includes(scope)) {
+    return { ok: false, message: "Cancelamento inválido." };
+  }
+  const business = await requireCurrentBusiness();
+  const error = await cancelAdminReservationSeries(business.id, reservationId, scope);
+  if (error) return { ok: false, message: "Não foi possível cancelar a recorrência. Atualize a agenda e verifique sua permissão." };
+  revalidatePath("/admin"); revalidatePath("/admin/agenda");
+  return {
+    ok: true,
+    message: scope === "single" ? "Ocorrência cancelada. As demais reservas foram mantidas." : "Esta ocorrência e as próximas foram canceladas. A série foi encerrada a partir desta data.",
+    data: await refreshedCalendar(business.id, date),
+  };
 }
 
 export async function loadAdminAvailability(input: Pick<ManualAppointmentInput, "date" | "group1OptionId" | "group2OptionId">): Promise<AppointmentAvailabilityResult> {

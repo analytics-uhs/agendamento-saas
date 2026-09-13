@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
 import { displayEndTime } from "@/lib/time-of-day";
-import type { AdminComplementaryReservation, ManualReservationInput } from "@/types/appointments";
+import type { AdminComplementaryReservation, ManualReservationInput, RecurringCancellationScope } from "@/types/appointments";
 import type { ComplementaryAvailability } from "@/types/public-booking";
 import type { Json } from "@/types/database";
 import type { AppointmentRepositoryError } from "@/lib/repositories/appointments";
@@ -53,5 +53,13 @@ export async function cancelAdminReservationResource(resourceId: string): Promis
 export async function cancelAdminReservation(reservationId: string): Promise<AppointmentRepositoryError | null> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_admin_reservation", { p_reservation_id: reservationId });
+  return error;
+}
+
+export async function cancelAdminReservationSeries(businessId: string, reservationId: string, scope: RecurringCancellationScope): Promise<AppointmentRepositoryError | null> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_admin_reservation_series", {
+    p_business_id: businessId, p_reservation_id: reservationId, p_scope: scope,
+  });
   return error;
 }
