@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as purchases from "./purchases";
 import * as catalog from "./product-catalog";
+import { Button } from "../components/ui/button";
 
 type Node = { type: string; props: Record<string, unknown> };
 function nodes(value: unknown): Node[] {
@@ -96,4 +97,23 @@ test("confirmed entry is read-only and Stock links to the same entry editor",()=
  assert.equal(ui.render().filter(n=>n.type==="form").length,0);
  const stock=readFileSync("src/components/admin/stock-page.tsx","utf8");
  assert.match(stock,/href="\/admin\/compras\/nova"[^]*?Nova entrada/);
+});
+
+test("real Button makes add/remove/save non-submit; only confirmation submits",async()=>{
+ const ui=editor();
+ ui.add(0,"1");ui.add(1,"1");
+ const buttons=ui.render().filter(n=>n.type==="Button").map(n=>Button(n.props));
+ assert.ok(buttons.every(button=>button.type==="button"));
+ const submitButtons=buttons.filter(button=>button.props.type==="submit");
+ assert.equal(submitButtons.length,1);
+ assert.equal(text(submitButtons[0].props.children),"Confirmar entrada");
+ for(const label of ["Adicionar","Remover Água","Salvar rascunho"]) {
+   const button=buttons.find(button=>(button.props["aria-label"]??text(button.props.children))===label);
+   assert.ok(button,label);
+   assert.equal(button.props.type,"button",label);
+   if(label!=="Adicionar") button.props.onClick();
+ }
+ await ui.finish();
+ assert.equal(ui.calls.filter(call=>call.name==="confirm").length,0);
+ assert.equal(ui.calls.filter(call=>call.name==="save").length,1);
 });
