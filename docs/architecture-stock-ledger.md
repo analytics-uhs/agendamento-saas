@@ -15,6 +15,14 @@ Quantidades usam `numeric(14,3)` e custo
 unitário opcional usa `numeric(12,2)`. O custo é histórico; não calcula custo
 médio nem altera o custo de referência do produto.
 
+Na operação da Copa, Estoque → Nova entrada reutiliza o editor de
+`/admin/compras/nova`: busca e adição sequencial de produtos, quantidade inteira
+positiva, custo editável, itens visíveis e total imediato. Fornecedor permanece
+opcional em “Mais opções”. A restrição a unidades é da interface operacional;
+a precisão numeric do ledger e o histórico existente permanecem intactos.
+Salvar rascunho não movimenta estoque; confirmar reutiliza as RPCs de compras,
+preservando origem única, isolamento e imutabilidade da entrada confirmada.
+
 Uma venda em rascunho também não altera saldo. A finalização cria um movimento
 `sale` negativo por item, com `source_type='sale'` e `source_id=sale_items.id`.
 Estoque negativo permanece permitido e cada origem só pode gerar uma saída.
