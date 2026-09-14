@@ -495,15 +495,20 @@ Essa exceção altera somente a validação de funcionamento. Ela não ignora in
 - materializa appointments;
 - não recebe automaticamente um Grupo complementar.
 
-Para adicionar um complemento a uma ocorrência já materializada:
+Recorrências de Grupo principal e Grupo complementar são independentes, por
+decisão definitiva de produto. O Complementar usa `reservation_series`, sem
+ser encaixado em `appointment_series`.
 
-1. localizar o appointment da ocorrência;
-2. criar ou reutilizar uma `reservation` para ele;
-3. adicionar somente o recurso complementar daquela data.
+Reservas Principal + Complementar (`combined`) podem ser criadas normalmente,
+mas são sempre avulsas e não suportam recorrência. O formulário nunca oferece
+“Repetir semanalmente” para essa intenção, e o backend deve continuar rejeitando
+qualquer tentativa de recorrência `combined`. Não há evolução futura prevista
+para recorrência combinada.
 
-Isso não altera a série nem ocorrências futuras.
-
-Recorrência complementar deve ser tratada depois, por entidade própria, como `reservation_resource_series`. Não deve ser encaixada artificialmente em `appointment_series`.
+Recorrência pública permanece fora do escopo atual. O job automático de
+renovação do horizonte das permanentes é uma melhoria futura; edição e exclusão
+de série ficam fora da PR de gerenciamento de cancelamento. Ver
+[recorrência complementar](architecture-complementary-weekly-recurrence.md).
 
 ## 12. Bloqueios
 
@@ -796,7 +801,6 @@ Implementada com séries semanais permanentes ou por quantidade, seleção atôm
 Apesar da divisão incremental, a funcionalidade não deve ser exposta ao usuário final antes da conclusão desta PR e dos demais requisitos do critério de produção.
 
 ### Evoluções posteriores
-- anexar complemento a ocorrências;
 - preços por componente;
 - preço de pacote;
 - pagamentos e cobrança.

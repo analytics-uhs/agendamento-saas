@@ -14,6 +14,12 @@ As exclusion constraints continuam sendo a última barreira contra concorrência
 
 ## Decisão
 
+Regra definitiva de produto: recorrências de Grupo principal e Grupo complementar
+são independentes. Reservas Principal + Complementar (`combined`) são sempre
+avulsas e não suportam recorrência. Essa intenção nunca oferece “Repetir
+semanalmente”, e o backend deve continuar rejeitando tentativas de recorrência
+combinada; não se trata de uma funcionalidade prevista para PR futura.
+
 Usar `reservation_series`, ligada a reservations com data da ocorrência,
 sem criar novo motor de ocupação.
 O orquestrador gera datas locais +7 dias, pré-valida todos os recursos/datas e
@@ -50,14 +56,34 @@ em ordem; allocations ativas (incluindo blocks) são verificadas com
 
 As migrations `20260911010000` e `20260911011000` foram aplicadas na execução
 anterior e permanecem intactas. A corretiva `20260912010000` restringe a criação
-a Complementar-only e revoga a execução pública/autenticada da RPC de cancelamento
-de série criada anteriormente, sem apagar função ou dados. Não existem novas
-ações de cancelamento de série na aplicação. O cancelamento individual existente
-continua disponível.
+a Complementar-only e revogou a execução da RPC de cancelamento de série até a
+implementação do gerenciamento abaixo.
 
-Ficam para PR futura: recorrência combinada, recorrência pública e
-gerenciamento/cancelamento de série. `appointment_series` e a
-recorrência do Principal não são alterados.
+## Cancelamento administrativo
+
+A migration aditiva `20260913020000` adiciona `cancelled_from`: corte inclusivo
+persistente para séries finitas e permanentes. Nulo significa sem encerramento.
+`cancel_admin_reservation_series(business_id, reservation_id, scope)` valida
+owner/admin e tenant explícito resolvido no servidor, aceita somente Complementar-only
+e reutiliza o cancelamento do agregado e a liberação de allocations existentes.
+
+- `single`: cancela somente a ocorrência, sem encerrar a série. A identidade e
+  `series_date` permanecem; o materializador não recria datas já existentes.
+- `future`: grava o menor corte já solicitado e cancela ocorrências com
+  `series_date >= cancelled_from`, preservando as anteriores e todo o histórico.
+  O materializador limita seu horizonte a `cancelled_from - 1`, inclusive para
+  semanas ainda não materializadas. Não depende do status das ocorrências.
+
+Cancelamento e materialização usam o mesmo lock `FOR UPDATE` da série.
+O corte e os cancelamentos são atômicos: qualquer falha reverte toda a operação.
+RLS e ausência de writes diretos autenticados permanecem; apenas a RPC recebe
+EXECUTE para authenticated, nunca anon. Reservas avulsas mantêm sua ação atual.
+A UI do detalhe complementar oferece os dois escopos antes da confirmação.
+
+Recorrência pública continua fora do escopo atual. O job automático de renovação
+do horizonte das permanentes continua como melhoria futura. Edição e exclusão
+de série permanecem fora desta PR. `appointment_series` e a recorrência do
+Principal não são alterados.
 
 Não alterar Auth, público, duração, financeiro, fiscal ou módulos. UI reutiliza
 o formulário Admin e seus controles. Validação visual detalhada fica para Preview.
