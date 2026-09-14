@@ -1,4 +1,4 @@
-import { parseCatalogDecimal, validCatalogId, type Product } from "@/lib/product-catalog";
+import { parseCatalogDecimal, validCatalogId } from "@/lib/product-catalog";
 
 export type PurchaseStatus="draft"|"confirmed";
 export type PurchaseItemInput={product_id:string;quantity:string;unit_cost:string};
@@ -16,4 +16,15 @@ export function parsePurchaseInput(input:unknown):PurchaseInput{
 }
 export function purchaseError(error:{code?:string;message?:string}){const message=error.message??"";if(message.includes("already_confirmed")||message.includes("confirmed_read_only"))return "Esta compra já foi confirmada e não pode ser alterada.";if(message.includes("cross_tenant")||message.includes("product_unavailable")||error.code==="23503")return "Um produto não está disponível para este negócio.";if(error.code==="23505")return "Não repita o mesmo produto na compra.";if(error.code==="42501")return "Você não tem acesso a esta operação.";return "Não foi possível salvar a compra. Revise os dados e tente novamente.";}
 export function purchaseSubtotal(quantity:string|number,cost:string|number){return Number(quantity)*Number(cost);}
-export function emptyPurchase(products:Product[]):PurchaseInput{return {supplier_name:"",purchase_date:new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"}),notes:"",items:products.length?[{product_id:products[0].id,quantity:"1",unit_cost:products[0].cost_price==null?"0":String(products[0].cost_price).replace(".",",")}]:[]};}
+export function emptyPurchase():PurchaseInput{return {supplier_name:"",purchase_date:new Date().toLocaleDateString("en-CA",{timeZone:"America/Sao_Paulo"}),notes:"",items:[]};}
+
+// Operational Copa UI only; the ledger retains its existing numeric precision.
+export function parseEntryItem(item: PurchaseItemInput): PurchaseItemInput {
+ if (!validCatalogId(item.product_id)) throw new Error("Selecione um produto.");
+ const quantity = parseCatalogDecimal(item.quantity, 3)!;
+ if (!Number.isSafeInteger(Number(quantity)) || Number(quantity) <= 0) throw new Error("Informe uma quantidade inteira maior que zero.");
+ let unit_cost: string;
+ try { unit_cost = parseCatalogDecimal(item.unit_cost, 2)!; }
+ catch { throw new Error("Informe um custo unitário válido, maior ou igual a zero."); }
+ return { product_id: item.product_id, quantity: String(Number(quantity)), unit_cost };
+}
