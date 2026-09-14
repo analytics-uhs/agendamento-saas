@@ -14,6 +14,12 @@ As exclusion constraints continuam sendo a última barreira contra concorrência
 
 ## Decisão
 
+Regra definitiva de produto: recorrências de Grupo principal e Grupo complementar
+são independentes. Reservas Principal + Complementar (`combined`) são sempre
+avulsas e não suportam recorrência. Essa intenção nunca oferece “Repetir
+semanalmente”, e o backend deve continuar rejeitando tentativas de recorrência
+combinada; não se trata de uma funcionalidade prevista para PR futura.
+
 Usar `reservation_series`, ligada a reservations com data da ocorrência,
 sem criar novo motor de ocupação.
 O orquestrador gera datas locais +7 dias, pré-valida todos os recursos/datas e
@@ -74,9 +80,10 @@ RLS e ausência de writes diretos autenticados permanecem; apenas a RPC recebe
 EXECUTE para authenticated, nunca anon. Reservas avulsas mantêm sua ação atual.
 A UI do detalhe complementar oferece os dois escopos antes da confirmação.
 
-Ficam para PR futura: recorrência combinada, recorrência pública, edição,
-exclusão de série e job automático de renovação. `appointment_series` e a
-recorrência do Principal não são alterados.
+Recorrência pública continua fora do escopo atual. O job automático de renovação
+do horizonte das permanentes continua como melhoria futura. Edição e exclusão
+de série permanecem fora desta PR. `appointment_series` e a recorrência do
+Principal não são alterados.
 
 Não alterar Auth, público, duração, financeiro, fiscal ou módulos. UI reutiliza
 o formulário Admin e seus controles. Validação visual detalhada fica para Preview.
