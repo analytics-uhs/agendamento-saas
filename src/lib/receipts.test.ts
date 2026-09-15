@@ -52,19 +52,22 @@ test("receipt repository always resolves current business and shares canonical R
 });
 test("real shared detail renders total, received, remaining and payer without changing operational state", () => {
   const data:receipts.OriginReceipts={total:"120",received:"50",remaining:"70",entries:[{id,amount:"30",payer_name:"João",payment_method:"pix",paid_at:"2026-09-14T12:00:00Z",status:"paid"},{id:"second",amount:"20",payer_name:null,payment_method:"cash",paid_at:"2026-09-14T12:00:00Z",status:"paid"}]};
-  function render(value:receipts.OriginReceipts) {
+  function render(value:receipts.OriginReceipts, presentation: "detail" | "compact" = "detail") {
     let slot=0;
-    const {OriginPayments}=load<{OriginPayments:React.ComponentType<{target:receipts.ReceiptTarget}>}>("src/components/admin/origin-payments.tsx", {
+    const {OriginPayments}=load<{OriginPayments:React.ComponentType<{target:receipts.ReceiptTarget;initialData?:receipts.OriginReceipts;presentation?:"detail"|"compact"}>}>("src/components/admin/origin-payments.tsx", {
       react:{...React,useEffect:()=>{},useState:(initial:unknown)=>[++slot===1?value:initial,()=>{}],useTransition:()=>[false,()=>{}]},
       "react/jsx-runtime":jsx,"@/app/admin/financeiro/receipt-actions":{},"@/components/ui/button":{Button},"@/components/ui/field":field,
       "@/components/ui/modal":{Modal:()=>null},"@/lib/financial":financial,"@/lib/product-catalog":catalog,"@/lib/receipts":receipts,
     });
-    return renderToStaticMarkup(React.createElement(OriginPayments,{target:{type:"reservation",id}}));
+    return renderToStaticMarkup(React.createElement(OriginPayments,{target:{type:"reservation",id},initialData:value,presentation}));
   }
   const html=render(data);
   for(const label of ["Total","Recebido","Restante","120,00","50,00","70,00","João","Pix","Dinheiro","Registrar pagamento"])assert.ok(html.includes(label),label);
   assert.match(render({...data,total:null,received:"0",remaining:null,entries:[]}),/Definir total devido/);
   assert.doesNotMatch(render({...data,received:"120",remaining:"0"}),/>Registrar pagamento</);
+  const compact = render(data, "compact");
+  assert.match(compact, />Receber</); assert.doesNotMatch(compact, /<h3|Nenhum recebimento registrado/);
+  assert.doesNotMatch(render({...data,received:"120",remaining:"0"}, "compact"), />Receber</);
 });
 
 test("real receipt form suggests a share and sends one bounded, idempotent receipt", async () => {
@@ -100,4 +103,30 @@ test("real receipt form suggests a share and sends one bounded, idempotent recei
   assert.equal(calls.length, 1);
   assert.equal(JSON.stringify(calls[0]), JSON.stringify([{ type: "sale", id }, { key: id, amount: "15.00", method: "pix", payer: "João" }]));
   assert.equal(state[3], false); assert.equal(state[2], "Pagamento registrado.");
+});
+
+test("compact Copa action refreshes the shared ledger before opening payment", async () => {
+  const initial: receipts.OriginReceipts = { total: "120", received: "30", remaining: "90", entries: [] };
+  const fresh: receipts.OriginReceipts = { total: "120", received: "70", remaining: "50", entries: [] };
+  const state: unknown[] = [initial, "", "", false, "", "", "", "", false, 0];
+  let stateIndex = 0, refIndex = 0; const refs = [{ current: null }, { current: false }];
+  const pending: Promise<unknown>[] = [], calls: unknown[] = [];
+  const { OriginPayments } = load<{ OriginPayments: (props: { target: receipts.ReceiptTarget; initialData: receipts.OriginReceipts; presentation: "compact" }) => React.ReactElement }>("src/components/admin/origin-payments.tsx", {
+    react: { ...React, useId: () => "compact", useEffect: () => {},
+      useState: () => { const index = stateIndex++; return [state[index], (value: unknown) => { state[index] = typeof value === "function" ? value(state[index]) : value; }]; },
+      useRef: () => refs[refIndex++], useTransition: () => [false, (fn: () => Promise<unknown>) => pending.push(fn())] },
+    "react/jsx-runtime": jsx, "@/app/admin/financeiro/receipt-actions": { readReceipts: async (target: unknown) => { calls.push(target); return fresh; } },
+    "@/components/ui/button": { Button }, "@/components/ui/field": field, "@/components/ui/modal": { Modal: () => null },
+    "@/lib/financial": financial, "@/lib/product-catalog": catalog, "@/lib/receipts": receipts,
+  });
+  function nodes(value: unknown): React.ReactElement<Record<string, unknown>>[] {
+    if (Array.isArray(value)) return value.flatMap(nodes);
+    if (!React.isValidElement<Record<string, unknown>>(value)) return [];
+    return [value, ...nodes(value.props.children)];
+  }
+  const tree = nodes(OriginPayments({ target: { type: "reservation", id }, initialData: initial, presentation: "compact" }));
+  (tree.find(node => node.props.children === "Receber")!.props.onClick as () => void)();
+  await Promise.all(pending);
+  assert.deepEqual(calls, [{ type: "reservation", id }]);
+  assert.deepEqual(state[0], fresh); assert.equal(state[4], "50"); assert.equal(state[3], true);
 });

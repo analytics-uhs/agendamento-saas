@@ -8,34 +8,49 @@ import { FINANCIAL_METHODS } from "@/lib/financial";
 import { formatCatalogBRL } from "@/lib/product-catalog";
 import { parseReceipt, receiptAmount, splitReceiptSuggestion, type OriginReceipts, type ReceiptTarget } from "@/lib/receipts";
 
-export function OriginPayments({ target, version, disabled = false }: { target: ReceiptTarget; version?: number; disabled?: boolean }) {
+export function OriginPayments({ target, version, disabled = false, initialData, presentation = "detail" }: { target: ReceiptTarget; version?: number; disabled?: boolean; initialData?: OriginReceipts; presentation?: "detail" | "compact" }) {
   const id = useId();
-  const [data, setData] = useState<OriginReceipts | null>(null), [error, setError] = useState("");
+  const [data, setData] = useState<OriginReceipts | null>(initialData ?? null), [error, setError] = useState("");
   const [notice, setNotice] = useState(""), [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(""), [payer, setPayer] = useState(""), [method, setMethod] = useState("");
   const [people, setPeople] = useState(""), [dividing, setDividing] = useState(false), [reload, setReload] = useState(0);
   const [pending, startTransition] = useTransition();
   const key = useRef<string | null>(null), busy = useRef(false);
   useEffect(() => {
+    if (initialData && reload === 0) return;
     let active = true;
     readReceipts({ type: target.type, id: target.id }).then(value => { if (active) { setData(value); setError(""); } })
       .catch(() => { if (active) setError("Não foi possível atualizar os recebimentos. Tente novamente."); });
     return () => { active = false; };
-  }, [target.type, target.id, version, reload]);
+  }, [target.type, target.id, version, reload, initialData]);
   const needsTotal = data?.total === null;
   function close() { if (!busy.current) { setEditing(false); document.getElementById(`${id}-open`)?.focus(); } }
-  return <section aria-label="Recebimentos" className="mt-4 space-y-3 border-t pt-4">
-    <h3 className="font-semibold">Recebimentos</h3>
+  function prepare(value: OriginReceipts) {
+    key.current ??= crypto.randomUUID();
+    setAmount(value.total === null ? "" : value.remaining!);
+    if (value.total !== null && Number(value.remaining) <= 0) { setNotice("Total recebido."); return; }
+    setEditing(true); setError(""); setNotice("");
+  }
+  function open() {
+    if (!data || presentation === "compact") {
+      startTransition(async () => {
+        try { const fresh = await readReceipts(target); setData(fresh); prepare(fresh); }
+        catch { setError("Não foi possível atualizar os recebimentos. Tente novamente."); }
+      });
+      return;
+    }
+    prepare(data);
+  }
+  return <section aria-label="Recebimentos" className={presentation === "detail" ? "mt-4 space-y-3 border-t pt-4" : "space-y-2"}>
+    {presentation === "detail" && <h3 className="font-semibold">Recebimentos</h3>}
     {data ? <>
-      <dl className="grid grid-cols-3 gap-3 text-sm tabular-nums">
+      {presentation === "detail" && <dl className="grid grid-cols-3 gap-3 text-sm tabular-nums">
         <div><dt className="text-muted">Total</dt><dd className="break-words font-semibold">{data.total === null ? "Não definido" : formatCatalogBRL(data.total)}</dd></div>
         <div><dt className="text-muted">Recebido</dt><dd className="break-words font-semibold">{formatCatalogBRL(data.received)}</dd></div>
         <div><dt className="text-muted">Restante</dt><dd className="break-words font-semibold">{data.remaining === null ? "—" : formatCatalogBRL(data.remaining)}</dd></div>
-      </dl>
-      {data.entries.length ? <ul className="divide-y text-sm">{data.entries.map(entry => <li key={entry.id} className="flex flex-wrap justify-between gap-2 py-2"><div className="min-w-0"><p className="break-words">{entry.payer_name || "Pagador não informado"}</p><p className="text-xs text-muted">{entry.payment_method ? FINANCIAL_METHODS[entry.payment_method as keyof typeof FINANCIAL_METHODS] : "Método não informado"} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(entry.paid_at))}{entry.status === "pending" ? " · Pendente (não recebido)" : ""}</p></div><span className="tabular-nums">{formatCatalogBRL(entry.amount)}</span></li>)}</ul> : <p className="text-sm text-muted">Nenhum recebimento registrado.</p>}
-      {needsTotal || Number(data.remaining) > 0 ? <Button id={`${id}-open`} type="button" variant="outline" disabled={disabled || pending} onClick={() => {
-        key.current ??= crypto.randomUUID(); setAmount(needsTotal ? "" : data.remaining!); setEditing(true); setError(""); setNotice("");
-      }}>{needsTotal ? "Definir total devido" : "Registrar pagamento"}</Button> : <p className="text-sm text-success">Total recebido.</p>}
+      </dl>}
+      {presentation === "detail" && (data.entries.length ? <ul className="divide-y text-sm">{data.entries.map(entry => <li key={entry.id} className="flex flex-wrap justify-between gap-2 py-2"><div className="min-w-0"><p className="break-words">{entry.payer_name || "Pagador não informado"}</p><p className="text-xs text-muted">{entry.payment_method ? FINANCIAL_METHODS[entry.payment_method as keyof typeof FINANCIAL_METHODS] : "Método não informado"} · {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(entry.paid_at))}{entry.status === "pending" ? " · Pendente (não recebido)" : ""}</p></div><span className="tabular-nums">{formatCatalogBRL(entry.amount)}</span></li>)}</ul> : <p className="text-sm text-muted">Nenhum recebimento registrado.</p>)}
+      {needsTotal || Number(data.remaining) > 0 ? <Button id={`${id}-open`} type="button" variant="outline" disabled={disabled || pending} onClick={open}>{pending ? "Atualizando…" : needsTotal ? "Definir total devido" : presentation === "compact" ? "Receber" : "Registrar pagamento"}</Button> : presentation === "detail" ? <p className="text-sm text-success">Total recebido.</p> : null}
     </> : !error && <p role="status" className="text-sm text-muted">Consultando recebimentos…</p>}
     {notice && <p role="status" className="text-sm text-success">{notice}</p>}
     {error && !editing && <div role="alert" className="space-y-2 text-sm text-danger"><p>{error}</p><Button variant="outline" onClick={() => setReload(value => value + 1)}>Atualizar recebimentos</Button></div>}

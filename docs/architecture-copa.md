@@ -66,8 +66,20 @@ Balcão e comanda com saldo continuam exigindo método no fechamento.
 
 ## Interface e compatibilidade
 
-`/admin/copa` lista todas as comandas abertas por updated_at, mais cinco últimas
-vendas. `/admin/copa/comandas/[saleId]` e `/admin/copa/venda-rapida?id=...` usam
+`/admin/copa` lista todas as comandas abertas por updated_at, os agendamentos de
+hoje e dos próximos seis dias e mais cinco últimas vendas. A seção Agenda é uma
+visão operacional de cobrança: exclui ocorrências canceladas, preserva o status
+operacional e não recria a Agenda completa. Agendamentos combinados aparecem uma
+única vez; `reservation_id` continua sendo a origem financeira canônica quando
+existe, e appointments legados sem reservation preservam sua origem.
+
+Total, recebido e restante vêm diretamente de `booking_financial_totals` e
+`financial_entries`. Definir total e receber na Copa reutilizam `OriginPayments`
+e as mesmas RPCs da Agenda, inclusive divisão sugestiva, idempotência e limite
+pelo saldo. A Copa não cria sale, saldo persistido ou ledger paralelo para uma
+reserva, e o pagamento não altera seu status operacional.
+
+`/admin/copa/comandas/[saleId]` e `/admin/copa/venda-rapida?id=...` usam
 CopaEditor. `/admin/pdv` redireciona; detalhes draft no histórico abrem esse editor.
 SaleEditor agora é somente leitura histórica, com integração Fiscal preservada.
 Navegação centralizada oferece Copa, sem itens redundantes PDV/Vendas; histórico
@@ -84,7 +96,7 @@ Estoque preserva saldo/histórico/reversões e destaca Entrada e Ajustar.
 ## Limites
 
 Sem mesas estruturadas, QR, divisão por item, caixa, impressão,
-reserva de estoque ou integração automática com Agenda/Fiscal. Histórico da última
+reserva de estoque, edição da Agenda pela Copa ou integração automática com Fiscal. Histórico da última
 alteração não é auditoria completa por item. Respostas de rede incertas exigem
 recarregar/conferir antes de tentar novamente.
 

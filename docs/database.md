@@ -179,6 +179,11 @@ existente (pago ou pendente). Não há recálculo do total com base em recebimen
 Novos totais são informados pelo Admin e imutáveis nesta versão. Pendentes legados
 continuam visíveis, mas não contam como recebidos; o pagamento é um novo registro pago.
 
+A Copa consulta essas mesmas estruturas para exibir cobranças operacionais de hoje
+e dos próximos seis dias. `reservation_id` é canônico quando existe; appointment
+legado sem reservation continua suportado. A visão não cria venda nem lançamento
+duplicado e exclui somente ocorrências operacionalmente canceladas.
+
 `register_admin_receipt`, `get_admin_origin_receipts` e
 `set_admin_booking_financial_total` recebem o current business do repository,
 revalidam `management`/tenant e canonicalizam appointment → reservation.

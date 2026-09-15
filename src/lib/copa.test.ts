@@ -11,10 +11,14 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { PageHeader } from "../components/ui/page-header";
 import { EmptyState } from "../components/ui/empty-state";
+import { Badge } from "../components/ui/badge";
+import { StatusBadge } from "../components/admin/status-badge";
 import * as field from "../components/ui/field";
 import * as copa from "./copa";
 import * as sales from "./sales";
 import * as catalog from "./product-catalog";
+import * as date from "./date";
+import * as receipts from "./receipts";
 import { getAdminNavigation } from "./admin-navigation-items";
 
 function load<T>(path: string, dependencies: Record<string, unknown>): T {
@@ -30,15 +34,20 @@ function load<T>(path: string, dependencies: Record<string, unknown>): T {
 const sale: copa.CopaSale = { id: "ce690000-0000-4000-8000-000000000001", sale_type: "tab", tab_name: "João", status: "draft", revision: 2, updated_at: "2026-09-07", created_at: "2026-09-07", completed_at: null, customer_name: null, payment_method: null, total_amount: 10, item_count: 1 };
 const product: catalog.Product = { id: "de690000-0000-4000-8000-000000000001", name: "Água", unit: "UN", sale_price: 99, cost_price: null, category_id: null, active: true, minimum_stock: 0, sku: "AGUA", barcode: "123" };
 const items: sales.SaleItem[] = [{ id: "item", product_id: product.id, quantity: 2, unit_price: 5, product }];
+const bookingId = "ce740000-0000-4000-8000-000000000001";
+const reservationId = "ce740000-0000-4000-8000-000000000002";
+const optionId = "ce740000-0000-4000-8000-000000000003";
+const booking: copa.CopaBookingCharge = { id: `reservation:${reservationId}`, target: { type: "reservation", id: reservationId }, customerName: "Pablo", resourceName: "Quadra 1", date: "2026-09-18", startTime: "20:00", status: "scheduled", total: "120.00", received: "60.00", remaining: "60.00" };
 const dependencies = {
   "@/app/admin/financeiro/receipt-actions": { readReceipts: async () => ({ remaining: "0.00" }) },
-  "./origin-payments": { OriginPayments: () => React.createElement("section", { "aria-label": "Recebimentos" }) },
+  "./origin-payments": { OriginPayments: ({ target }: { target: receipts.ReceiptTarget }) => React.createElement("button", { "data-receipt-target": `${target.type}:${target.id}` }, "Receber") },
   react: React, "react/jsx-runtime": jsx, "lucide-react": icons,
   "next/link": { default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => React.createElement("a", props, children) },
   "next/navigation": { useRouter: () => ({ push() {}, replace() {}, refresh() {} }) },
   "@/app/admin/copa/actions": {}, "@/components/ui/card": { Card }, "@/components/ui/button": { Button },
   "@/components/ui/page-header": { PageHeader }, "@/components/ui/empty-state": { EmptyState }, "@/components/ui/field": field,
-  "@/lib/copa": copa, "@/lib/sales": sales, "@/lib/product-catalog": catalog,
+  "@/components/ui/badge": { Badge }, "@/components/admin/status-badge": { StatusBadge }, "@/components/admin/origin-payments": { OriginPayments: ({ target }: { target: receipts.ReceiptTarget }) => React.createElement("button", { "data-receipt-target": `${target.type}:${target.id}` }, "Receber") },
+  "@/lib/copa": copa, "@/lib/sales": sales, "@/lib/product-catalog": catalog, "@/lib/date": date,
 };
 
 test("Copa quantities and totals preserve the saved price, not today's price", () => {
@@ -49,12 +58,50 @@ test("Copa quantities and totals preserve the saved price, not today's price", (
 });
 
 test("Copa home renders open tabs, recent sales, history and empty states", () => {
-  const { CopaHome } = load<{ CopaHome: React.ComponentType<{ tabs: copa.CopaSale[]; recent: copa.CopaSale[] }> }>("src/components/admin/copa-home.tsx", dependencies);
-  const html = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [sale], recent: [{ ...sale, status: "completed", payment_method: "pix" }] }));
+  const { CopaHome } = load<{ CopaHome: React.ComponentType<{ tabs: copa.CopaSale[]; recent: copa.CopaSale[]; bookings: copa.CopaBookingCharge[]; windowStart: string; windowEnd: string }> }>("src/components/admin/copa-home.tsx", dependencies);
+  const html = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [sale], recent: [{ ...sale, status: "completed", payment_method: "pix" }], bookings: [booking], windowStart: "2026-09-18", windowEnd: "2026-09-24" }));
   assert.match(html, /Abrir comanda/); assert.match(html, /Balcão/); assert.match(html, /João/); assert.match(html, /Pix/);
   assert.match(html, /\/admin\/copa\/comandas\//); assert.match(html, /Ver histórico/);
-  const empty = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [], recent: [] }));
+  for (const value of ["Agenda", "Quadra 1", "Hoje", "20:00", "Pablo", "120,00", "60,00", "Parcial", "Receber"]) assert.match(html, new RegExp(value));
+  assert.match(html, new RegExp(`data-receipt-target="reservation:${reservationId}"`));
+  const empty = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [], recent: [], bookings: [], windowStart: "2026-09-18", windowEnd: "2026-09-24" }));
   assert.match(empty, /Nenhuma comanda aberta/); assert.match(empty, /Nenhuma venda finalizada/);
+  assert.match(empty, /Nenhum agendamento para cobrança neste período/);
+});
+
+test("Copa booking list canonicalizes reservations, derives balances and excludes cancelled duplicates", () => {
+  const legacyId = "ce740000-0000-4000-8000-000000000004";
+  const complementaryId = "ce740000-0000-4000-8000-000000000005";
+  const rows = copa.buildCopaBookingCharges({
+    appointments: [
+      { id: bookingId, reservation_id: reservationId, customer_name: "Pablo", appointment_date: "2026-09-18", start_time: "20:00:00", status: "scheduled", group_1_option_id: optionId },
+      { id: legacyId, reservation_id: null, customer_name: "Ana", appointment_date: "2026-09-19", start_time: "18:15:00", status: "completed", group_1_option_id: null },
+      { id: "ce740000-0000-4000-8000-000000000006", reservation_id: null, customer_name: "Cancelado", appointment_date: "2026-09-19", start_time: "19:00:00", status: "cancelled", group_1_option_id: null },
+    ],
+    resources: [
+      { reservation_id: reservationId, reservation_date: "2026-09-18", start_time: "20:00:00", status: "scheduled", option_name_snapshot: "Churrasqueira" },
+      { reservation_id: complementaryId, reservation_date: "2026-09-18", start_time: null, status: "no_show", option_name_snapshot: "Quiosque" },
+      { reservation_id: "ce740000-0000-4000-8000-000000000007", reservation_date: "2026-09-18", start_time: null, status: "cancelled", option_name_snapshot: "Cancelado" },
+    ],
+    reservations: [{ id: reservationId, customer_name: "Pablo" }, { id: complementaryId, customer_name: "Bia" }],
+    options: [{ id: optionId, name: "Quadra 1" }],
+    totals: [
+      { source_type: "reservation", source_id: reservationId, total_amount: "120.00" },
+      { source_type: "appointment", source_id: legacyId, total_amount: "80.00" },
+    ],
+    entries: [
+      { source_type: "reservation", source_id: reservationId, amount: "30.00", status: "paid" },
+      { source_type: "reservation", source_id: reservationId, amount: "20.00", status: "paid" },
+      { source_type: "appointment", source_id: legacyId, amount: "80.00", status: "paid" },
+      { source_type: "appointment", source_id: legacyId, amount: "10.00", status: "pending" },
+    ],
+  });
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map(row => [row.target.type, row.resourceName, row.status]), [["reservation", "Quiosque", "no_show"], ["reservation", "Quadra 1", "scheduled"], ["appointment", "Agendamento", "completed"]]);
+  assert.deepEqual(rows.find(row => row.target.id === reservationId), { ...booking, received: "50.00", remaining: "70.00" });
+  assert.equal(rows.find(row => row.target.id === legacyId)?.remaining, "0.00");
+  assert.equal(rows.find(row => row.target.id === complementaryId)?.total, null);
+  assert.ok(!rows.some(row => row.customerName === "Cancelado"));
 });
 
 test("both Copa flows share touch controls and the existing snapshot total", () => {
@@ -74,7 +121,7 @@ test("Copa server mutations bind current business, gate management, and send one
   }>("src/lib/repositories/copa.ts", {
     "@/lib/auth/business-module": { requireBusinessModule: async (module: string) => { assert.equal(module, "management"); if (!allowed) throw Error("DENIED"); return { id: "CURRENT-B" }; } },
     "@/lib/supabase/server": { createClient: async () => ({ rpc: async (name: string, args: unknown) => { calls.push([name, args]); return { data: sale.id, error: null }; } }) },
-    "@/lib/repositories/sales": {}, "@/lib/product-catalog": catalog, "@/lib/copa": copa, "@/lib/sales": sales,
+    "@/lib/repositories/sales": {}, "@/lib/product-catalog": catalog, "@/lib/copa": copa, "@/lib/sales": sales, "@/lib/date": date,
   });
   assert.equal((await repo.openCopa(sale.id, "tab", "João")).ok, true);
   assert.equal((await repo.mutateCopa(sale.id, "tab", 2, { product: product.id, quantity: 3 })).ok, true);
