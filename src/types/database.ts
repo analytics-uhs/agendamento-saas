@@ -276,7 +276,7 @@ export interface Database {
       set_platform_business_active: { Args: { p_business_id: string; p_active: boolean }; Returns: Json };
       open_admin_copa_sale: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_tab_name: string | null }; Returns: string };
       set_admin_copa_item: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_revision: number; p_product_id: string; p_quantity: number }; Returns: number };
-      complete_admin_copa_sale: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_revision: number; p_payment_method: string }; Returns: string };
+      complete_admin_copa_sale: { Args: { p_business_id: string; p_sale_id: string; p_sale_type: string; p_revision: number; p_payment_method: string | null }; Returns: string };
       get_platform_business_modules: { Args: { p_business_id: string }; Returns: Json };
       set_platform_business_module_enabled: { Args: { p_business_id: string; p_module: string; p_enabled: boolean }; Returns: Json };
     };

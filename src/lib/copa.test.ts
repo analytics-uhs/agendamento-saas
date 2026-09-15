@@ -31,6 +31,7 @@ const sale: copa.CopaSale = { id: "ce690000-0000-4000-8000-000000000001", sale_t
 const product: catalog.Product = { id: "de690000-0000-4000-8000-000000000001", name: "Água", unit: "UN", sale_price: 99, cost_price: null, category_id: null, active: true, minimum_stock: 0, sku: "AGUA", barcode: "123" };
 const items: sales.SaleItem[] = [{ id: "item", product_id: product.id, quantity: 2, unit_price: 5, product }];
 const dependencies = {
+  "@/app/admin/financeiro/receipt-actions": { readReceipts: async () => ({ remaining: "0.00" }) },
   "./origin-payments": { OriginPayments: () => React.createElement("section", { "aria-label": "Recebimentos" }) },
   react: React, "react/jsx-runtime": jsx, "lucide-react": icons,
   "next/link": { default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => React.createElement("a", props, children) },
@@ -81,6 +82,10 @@ test("Copa server mutations bind current business, gate management, and send one
   assert.equal(JSON.stringify(calls[2]), JSON.stringify(["complete_admin_copa_sale", { p_business_id: "CURRENT-B", p_sale_id: sale.id, p_sale_type: "tab", p_revision: 3, p_payment_method: "pix" }]));
   assert.equal((await repo.mutateCopa(sale.id, "tab", 3, { product: product.id, quantity: 1.5 })).ok, false);
   assert.equal(calls.length, 3);
+  assert.equal((await repo.mutateCopa(sale.id, "tab", 3, { payment: "" })).ok, true);
+  assert.equal(JSON.stringify(calls[3]), JSON.stringify(["complete_admin_copa_sale", { p_business_id: "CURRENT-B", p_sale_id: sale.id, p_sale_type: "tab", p_revision: 3, p_payment_method: null }]));
+  assert.equal((await repo.mutateCopa(sale.id, "quick", 3, { payment: "" })).ok, false);
+  assert.equal(calls.length, 4);
   allowed = false;
   await assert.rejects(repo.openCopa(sale.id, "tab", "João"), /DENIED/);
 });
@@ -135,4 +140,10 @@ test("real shared editor wires increment, quick opening and a single payment act
   assert.equal(JSON.stringify(calls.slice(2)), JSON.stringify([
     ["open", sale.id, "quick", ""], ["update", sale.id, "quick", 0, { product: product.id, quantity: 1 }],
   ]));
+  stateIndex = 0; paying = false;
+  tree = nodes(CopaEditor({ sale, items, products: [product] }));
+  assert.ok(!tree.some(node => node.type === "form"));
+  (tree.find(node => node.props.children === "Fechar comanda")!.props.onClick as () => void)();
+  await running;
+  assert.equal(JSON.stringify(calls[4]), JSON.stringify(["update", sale.id, "tab", 2, { payment: "" }]));
 });

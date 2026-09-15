@@ -57,6 +57,13 @@ o restante e cada recebimento explícito possui chave de idempotência. Estoque 
 continua permitido. Fiscal permanece uma ação explícita no detalhe completed;
 nenhuma chamada Focus acontece ao pagar.
 
+Comanda integralmente quitada fecha sem escolher outra forma de pagamento e sem
+novo lançamento (nem valor zero). A UI consulta o restante ao clicar em Fechar;
+as RPCs revalidam o saldo sob lock. A corretiva `20260915010000_close_paid_tabs.sql`
+permite payment_method nulo em completed somente para tab quitada, validada pelo
+trigger contra o ledger. Não inventa um método a partir dos recebimentos.
+Balcão e comanda com saldo continuam exigindo método no fechamento.
+
 ## Interface e compatibilidade
 
 `/admin/copa` lista todas as comandas abertas por updated_at, mais cinco últimas

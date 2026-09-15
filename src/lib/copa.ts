@@ -12,6 +12,7 @@ export function copaTotal(items: SaleItem[]) {
   return items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unit_price), 0);
 }
 export function copaError(error: { message?: string }) {
+  if (error.message?.includes("sale_payment_required")) return "Ainda há saldo a receber. Confira os recebimentos e escolha a forma de pagamento para fechar.";
   if (error.message?.includes("financial_total_below_received")) return "O total da comanda não pode ficar abaixo do valor já recebido.";
   if (error.message?.includes("copa_stale")) return "Esta venda mudou em outra tela. Os dados foram recarregados; confira antes de tentar novamente.";
   if (error.message?.includes("already_completed")) return "Esta venda já foi finalizada. Consulte o histórico.";

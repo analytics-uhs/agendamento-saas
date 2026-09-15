@@ -54,7 +54,7 @@ export function OriginPayments({ target, version, disabled = false }: { target: 
           finally { busy.current = false; }
         });
       }}>
-        <p className="text-sm text-muted">{needsTotal ? "Informe o total devido antes do primeiro recebimento. Esse valor ficará fixo nesta versão e não altera a reserva." : `Saldo restante: ${formatCatalogBRL(data.remaining!)}. Registrar pagamento não altera o status da reserva ou fecha a comanda.`}</p>
+        <p className="text-sm text-muted">{needsTotal ? "Informe o total devido antes do primeiro recebimento. Esse valor ficará fixo nesta versão e não altera a reserva." : `Saldo restante: ${formatCatalogBRL(data.remaining!)}. ${target.type === "sale" ? "O recebimento não altera o status da venda." : "O recebimento não altera o status da reserva."}`}</p>
         <fieldset disabled={pending} className="space-y-4">
           <div className="space-y-2"><Label htmlFor={`${id}-amount`}>{needsTotal ? "Total devido (R$)" : "Valor (R$)"}</Label><Input id={`${id}-amount`} autoFocus required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} /></div>
           {!needsTotal && <>

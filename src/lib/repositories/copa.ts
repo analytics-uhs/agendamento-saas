@@ -41,8 +41,9 @@ export async function mutateCopa(id: string, type: CopaType, revision: number, o
   if (!validCatalogId(id) || !["quick", "tab"].includes(type) || !Number.isSafeInteger(revision) || revision < 0 || !operation || typeof operation !== "object") return { ok: false, message: "Venda inválida." };
   const args = { p_business_id: business.id, p_sale_id: id, p_sale_type: type, p_revision: revision };
   if ("payment" in operation) {
-    if (!Object.hasOwn(PAYMENT_METHODS, operation.payment)) return { ok: false, message: "Selecione Pix, Dinheiro ou Cartão." };
-    const { error } = await supabase.rpc("complete_admin_copa_sale", { ...args, p_payment_method: operation.payment });
+    if (!(type === "tab" && operation.payment === "") && !Object.hasOwn(PAYMENT_METHODS, operation.payment)) return { ok: false, message: "Selecione Pix, Dinheiro ou Cartão." };
+    // The database, not the browser, proves whether the tab is already paid.
+    const { error } = await supabase.rpc("complete_admin_copa_sale", { ...args, p_payment_method: operation.payment || null });
     return error ? { ok: false, message: copaError(error) } : { ok: true, message: "Pagamento finalizado." };
   }
   try { copaQuantity(operation.quantity); } catch { return { ok: false, message: "Use uma quantidade inteira válida." }; }
