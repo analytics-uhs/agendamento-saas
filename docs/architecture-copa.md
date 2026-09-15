@@ -1,25 +1,32 @@
-# Copa — comandas e venda rápida
+# Copa — comandas e venda no balcão
 
 ## Auditoria e reutilização
 
 Antes desta PR, `sales` já persistia drafts e `sale_items` permitia sua edição.
 O PDV salvava todas as linhas e depois chamava `complete_admin_sale`. Essa RPC
 bloqueia a venda, valida draft/pagamento/itens e grava, na mesma transação,
-completed, um movimento negativo por item e uma entrada financeira paga.
-Triggers tornam completed imutável; índices únicos por origem impedem duplicação.
+completed, um movimento negativo por item e o recebimento do saldo restante.
+Triggers tornam completed imutável; locks/status impedem fechamento duplicado.
 Essas regras e a RPC de conclusão permanecem como motor único.
 
 ## Modelo
 
 Migration `20260906040000_copa_tabs.sql`: `sales.sale_type` (`quick|tab`, default
 `quick`), `tab_name` obrigatório apenas para tab, e `revision` incremental.
+Na interface, `quick` é **Balcão** e `tab` é **Comanda**. Valores e rotas técnicas
+permanecem iguais; não há um novo motor por causa dessa nomenclatura.
 Vendas anteriores correspondem ao PDV rápido; defaults não recriam vendas nem
 alteram valores/itens. Identificação de comanda não ocupa customer_name.
 
 Comanda é `tab + draft`. Abrir, adicionar, diminuir e remover persistem no servidor,
-sem estoque reservado, sem movimentos financeiros e sem documento fiscal.
+sem estoque reservado, sem financeiro automático e sem documento fiscal.
+Recebimentos explícitos podem ser registrados no detalhe, sem fechar a comanda.
+Total/recebido/restante e histórico vêm da camada financeira compartilhada com Agenda.
+O total dos itens pode mudar, mas nunca ficar abaixo do já recebido; essa regra
+é garantida no banco e uma falha reverte itens, total e revisão. Preços já salvos
+continuam sendo snapshots. Não existe estorno automático.
 O UUID de abertura é estável por tentativa, impedindo abertura duplicada no retry.
-Venda rápida usa o mesmo editor e cria seu draft no primeiro produto; a URL
+Balcão usa o mesmo editor e cria seu draft no primeiro produto; a URL
 preserva o ID para recarregar/retomar. Drafts rápidos também podem ser retomados
 pelo histórico. Omitir a identificação não cria um cliente fictício.
 
@@ -45,9 +52,17 @@ Limite de 200 produtos distintos conserva o limite do editor anterior.
 
 Fechar valida revisão/pagamento e delega à **mesma** complete_admin_sale na mesma
 transação. Falha reverte também a forma de pagamento. Double-submit é rejeitado
-por status/lock, além das unicidades de origem dos ledgers. Estoque negativo
+por status/lock, além da unicidade de origem do estoque. O financeiro cobra apenas
+o restante e cada recebimento explícito possui chave de idempotência. Estoque negativo
 continua permitido. Fiscal permanece uma ação explícita no detalhe completed;
 nenhuma chamada Focus acontece ao pagar.
+
+Comanda integralmente quitada fecha sem escolher outra forma de pagamento e sem
+novo lançamento (nem valor zero). A UI consulta o restante ao clicar em Fechar;
+as RPCs revalidam o saldo sob lock. A corretiva `20260915010000_close_paid_tabs.sql`
+permite payment_method nulo em completed somente para tab quitada, validada pelo
+trigger contra o ledger. Não inventa um método a partir dos recebimentos.
+Balcão e comanda com saldo continuam exigindo método no fechamento.
 
 ## Interface e compatibilidade
 
@@ -68,7 +83,7 @@ Estoque preserva saldo/histórico/reversões e destaca Entrada e Ajustar.
 
 ## Limites
 
-Sem mesas estruturadas, QR, conta dividida, pagamento parcial, caixa, impressão,
+Sem mesas estruturadas, QR, divisão por item, caixa, impressão,
 reserva de estoque ou integração automática com Agenda/Fiscal. Histórico da última
 alteração não é auditoria completa por item. Respostas de rede incertas exigem
 recarregar/conferir antes de tentar novamente.

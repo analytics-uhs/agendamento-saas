@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { OriginPayments } from "./origin-payments";
+import { readReceipts } from "@/app/admin/financeiro/receipt-actions";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2 } from "lucide-react";
@@ -29,6 +31,24 @@ export function CopaEditor({ sale, items, products }: { sale: CopaSale | null; i
   const available = products.filter(product => product.active && product.unit === "UN"
     && `${product.name} ${product.sku ?? ""} ${product.barcode ?? ""}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));
   const total = copaTotal(visible);
+  async function finish(method: string) {
+    if (!sale) return;
+    const result = await updateCopaSale(sale.id, sale.sale_type, sale.revision, { payment: method });
+    if (!result.ok) { setError(result.message); setPaying(false); router.refresh(); return; }
+    router.push(`/admin/vendas/${sale.id}`); router.refresh();
+  }
+  function beginClosing() {
+    if (!sale || pending) return;
+    setError("");
+    if (sale.sale_type === "quick") { setPaying(true); return; }
+    startTransition(async () => {
+      try {
+        const receipts = await readReceipts({ type: "sale", id: sale.id });
+        if (receipts.remaining !== null && Number(receipts.remaining) === 0) await finish("");
+        else setPaying(true);
+      } catch { setError("Não foi possível fechar. Confira os recebimentos e tente novamente."); router.refresh(); }
+    });
+  }
   function change(product: Product, quantity: number) {
     setError("");
     startTransition(async () => {
@@ -46,7 +66,7 @@ export function CopaEditor({ sale, items, products }: { sale: CopaSale | null; i
       } catch { setError("Não foi possível salvar. Atualize a página para conferir os itens antes de tentar novamente."); router.refresh(); }
     });
   }
-  return <><PageHeader title={sale ? copaTitle(sale) : "Venda rápida"} description={sale?.sale_type === "tab" ? "Itens salvos a cada alteração. Estoque e financeiro somente ao pagar." : "Adicione os produtos e finalize o pagamento."} />
+  return <><PageHeader title={sale ? copaTitle(sale) : "Balcão"} description={sale?.sale_type === "tab" ? "Itens salvos a cada alteração. Recebimentos não fecham a comanda." : "Adicione os produtos e finalize o pagamento."} />
     <Link href="/admin/copa" className="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm text-primary">Voltar à Copa</Link>
     {error && <p role="alert" className="my-3 text-sm text-danger">{error}</p>}
     <div className="mt-4 grid gap-6 lg:grid-cols-2">
@@ -66,15 +86,14 @@ export function CopaEditor({ sale, items, products }: { sale: CopaSale | null; i
             event.preventDefault(); if (!sale) return; setError("");
             startTransition(async () => {
               try {
-                const result = await updateCopaSale(sale.id, sale.sale_type, sale.revision, { payment });
-                if (!result.ok) { setError(result.message); setPaying(false); router.refresh(); return; }
-                router.push(`/admin/vendas/${sale.id}`); router.refresh();
+                await finish(payment);
               } catch { setError("Não foi possível confirmar o pagamento. Consulte o histórico antes de tentar novamente."); router.refresh(); }
             });
           }}><Label htmlFor="copa-payment">Forma de pagamento</Label><Select id="copa-payment" autoFocus required value={payment} disabled={pending} onChange={event => setPayment(event.target.value)}><option value="">Selecione</option>{Object.entries(PAYMENT_METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select><Button type="submit" className="w-full" disabled={pending || !payment}>{pending ? "Finalizando…" : "Finalizar pagamento"}</Button><Button variant="ghost" disabled={pending} onClick={() => setPaying(false)}>Voltar aos itens</Button></form>
-          : <Button className="w-full" disabled={pending || !visible.length || !sale} onClick={() => setPaying(true)}>{sale?.sale_type === "tab" ? "Fechar comanda" : "Pagar venda"}</Button>}
+          : <Button className="w-full" disabled={pending || !visible.length || !sale} onClick={beginClosing}>{sale?.sale_type === "tab" ? "Fechar comanda" : "Pagar venda"}</Button>}
           <p role="status" className="text-xs text-muted">{pending ? "Salvando…" : error ? "Confira os dados antes de continuar." : sale ? "Alterações salvas no servidor." : "Adicione o primeiro produto."}</p>
         </Card>
+        {sale?.sale_type === "tab" && <OriginPayments target={{ type: "sale", id: sale.id }} version={sale.revision} disabled={pending || paying} />}
       </section>
     </div>
   </>;

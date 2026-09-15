@@ -18,9 +18,9 @@ export function CopaHome({ tabs, recent }: { tabs: CopaSale[]; recent: CopaSale[
   const [opening, setOpening] = useState(false), [name, setName] = useState(""), [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const requestId = useRef<string | null>(null);
-  return <><PageHeader title="Copa" description="Abra uma comanda ou registre uma venda rápida." />
+  return <><PageHeader title="Copa" description="Abra uma comanda ou registre uma venda no balcão." />
     <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setOpening(true)}><Plus className="h-4 w-4" />Abrir comanda</Button>
-      <Link href="/admin/copa/venda-rapida" className="focus-ring inline-flex h-11 items-center rounded-xl border px-4 text-sm font-semibold hover:bg-surface">Venda rápida</Link></div>
+      <Link href="/admin/copa/venda-rapida" className="focus-ring inline-flex h-11 items-center rounded-xl border px-4 text-sm font-semibold hover:bg-surface">Balcão</Link></div>
     {opening && <Card padding="md" className="mt-4"><form className="space-y-3" onSubmit={event => {
       event.preventDefault(); setError(""); requestId.current ??= crypto.randomUUID();
       startTransition(async () => {

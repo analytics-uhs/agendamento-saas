@@ -22,21 +22,6 @@ export async function getFinancialMonth(month?: string, page = 1) {
   if (rows.error || summary.error) throw new Error("Não foi possível carregar o financeiro.");
   return { period, page: currentPage, count: rows.count ?? 0, entries: rows.data.map(entry), summary: summary.data as { income: string; expense: string; balance: string } };
 }
-export async function getBookingFinancialEntry(input: unknown) {
-  const { business, supabase } = await context();
-  const target = parsePaymentTarget(input);
-  if (target.type === "appointment") {
-    const result = await supabase.from("appointments").select("reservation_id").eq("id", target.id).eq("business_id", business.id).single();
-    if (result.error) throw new Error("Agendamento indisponível.");
-    if (result.data.reservation_id) { target.type = "reservation"; target.id = result.data.reservation_id; }
-  } else {
-    const result = await supabase.from("reservations").select("id").eq("id", target.id).eq("business_id", business.id).single();
-    if (result.error) throw new Error("Agendamento indisponível.");
-  }
-  const result = await supabase.from("financial_entries").select("*").eq("business_id", business.id).eq("source_type", target.type).eq("source_id", target.id).maybeSingle();
-  if (result.error) throw new Error("Não foi possível consultar o pagamento.");
-  return result.data ? entry(result.data) : null;
-}
 export async function createFinancialEntry(input: unknown, targetInput?: unknown): Promise<ActionResult<FinancialEntry>> {
   const { business, supabase } = await context();
   let value, target;
