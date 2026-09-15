@@ -136,11 +136,12 @@ somente pagos: entradas menos saídas; pendentes não entram no saldo realizado.
 Origens: `manual`, `sale`, `reservation` e `appointment` legado. A reserva agregada
 é a origem comercial quando há `appointments.reservation_id`; sem esse vínculo,
 o próprio appointment (incluindo ocorrências recorrentes) é a origem estável.
-A RPC canonicaliza a origem e o índice único `(source_type,source_id)` impede
-cobrança duplicada via componentes diferentes da mesma reserva. FKs compostas
+A RPC canonicaliza a origem antes de validar o saldo. Vários recebimentos podem
+pertencer à mesma origem; uma chave de tentativa impede duplicação em retries. FKs compostas
 validam sale/reservation; appointments usam a PK existente e trigger de tenant,
 sem alterar o schema operacional. Não existe cadastro `clients` nem preço
-persistido no booking: o Admin informa o valor total manualmente no detalhe.
+persistido no booking operacional: o Admin define explicitamente o total devido
+em `booking_financial_totals` antes do primeiro recebimento. Esse total é estável.
 
 `create_admin_financial_entry` permite manual ou Agenda, exige owner/admin e
 `management`. O repository resolve o negócio com `requireBusinessModule` e passa
@@ -162,7 +163,37 @@ backfill de vendas históricas. Estoque negativo permanece permitido.
 
 Agenda não gera financeiro ao criar/concluir/cancelar: registro é explícito,
 sem alterar status operacional. Compras confirmadas não geram expense.
-Sem caixa, parcelas, pagamento parcial, financeiro recorrente, estorno ou fiscal.
+Sem caixa, parcelas, financeiro recorrente, estorno ou fiscal.
+
+### Recebimentos fracionados
+
+`20260914010000_partial_receipts.sql` mantém `financial_entries` como ledger único.
+Cada recebimento é `income/paid`, com `payer_name` opcional, `paid_at` e
+`receipt_key` única por negócio. Registros históricos usam `created_at` na leitura
+quando não há `paid_at`. Valores/histórico existentes não são alterados.
+O antigo índice único de origem dá lugar a índice de consulta por negócio/origem.
+
+`booking_financial_totals` guarda somente o total devido da Agenda, não saldo.
+A migration inicializa uma vez o total de origens legadas a partir do lançamento
+existente (pago ou pendente). Não há recálculo do total com base em recebimentos.
+Novos totais são informados pelo Admin e imutáveis nesta versão. Pendentes legados
+continuam visíveis, mas não contam como recebidos; o pagamento é um novo registro pago.
+
+`register_admin_receipt`, `get_admin_origin_receipts` e
+`set_admin_booking_financial_total` recebem o current business do repository,
+revalidam `management`/tenant e canonicalizam appointment → reservation.
+Total da venda vem de `sales.total_amount`; recebido é a soma dos pagos;
+restante é total menos recebido. Parent-row locks serializam recebimentos,
+edições e fechamento. Valores positivos com duas casas e limite pelo restante
+são garantidos no banco, inclusive pelo caminho legado da RPC financeira.
+
+Comanda com recebimentos segue draft e aceita itens, mas um trigger rejeita total
+inferior ao já recebido, revertendo a alteração inteira. `complete_admin_sale`
+mantém atomicidade com estoque e registra **somente o restante**; se já quitada,
+não gera outro recebimento. Balcão preserva pagamento integral no fechamento.
+Nenhum recebimento muda status operacional da Agenda ou fecha a comanda.
+Não há hard delete, estorno ou alteração fiscal. O detalhamento fiscal continua
+no fluxo existente e não passa a derivar múltiplas formas dos recebimentos nesta PR.
 
 Todas as tabelas expostas têm RLS habilitado. Funções auxiliares em `private` consultam membership sem recursão de policies e usam `security definer` com `search_path` fixo:
 

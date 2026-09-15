@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { OriginPayments } from "./origin-payments";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, Trash2 } from "lucide-react";
@@ -46,7 +47,7 @@ export function CopaEditor({ sale, items, products }: { sale: CopaSale | null; i
       } catch { setError("Não foi possível salvar. Atualize a página para conferir os itens antes de tentar novamente."); router.refresh(); }
     });
   }
-  return <><PageHeader title={sale ? copaTitle(sale) : "Venda rápida"} description={sale?.sale_type === "tab" ? "Itens salvos a cada alteração. Estoque e financeiro somente ao pagar." : "Adicione os produtos e finalize o pagamento."} />
+  return <><PageHeader title={sale ? copaTitle(sale) : "Balcão"} description={sale?.sale_type === "tab" ? "Itens salvos a cada alteração. Recebimentos não fecham a comanda." : "Adicione os produtos e finalize o pagamento."} />
     <Link href="/admin/copa" className="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm text-primary">Voltar à Copa</Link>
     {error && <p role="alert" className="my-3 text-sm text-danger">{error}</p>}
     <div className="mt-4 grid gap-6 lg:grid-cols-2">
@@ -75,6 +76,7 @@ export function CopaEditor({ sale, items, products }: { sale: CopaSale | null; i
           : <Button className="w-full" disabled={pending || !visible.length || !sale} onClick={() => setPaying(true)}>{sale?.sale_type === "tab" ? "Fechar comanda" : "Pagar venda"}</Button>}
           <p role="status" className="text-xs text-muted">{pending ? "Salvando…" : error ? "Confira os dados antes de continuar." : sale ? "Alterações salvas no servidor." : "Adicione o primeiro produto."}</p>
         </Card>
+        {sale?.sale_type === "tab" && <OriginPayments target={{ type: "sale", id: sale.id }} version={sale.revision} disabled={pending || paying} />}
       </section>
     </div>
   </>;

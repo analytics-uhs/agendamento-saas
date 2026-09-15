@@ -31,6 +31,7 @@ const sale: copa.CopaSale = { id: "ce690000-0000-4000-8000-000000000001", sale_t
 const product: catalog.Product = { id: "de690000-0000-4000-8000-000000000001", name: "Água", unit: "UN", sale_price: 99, cost_price: null, category_id: null, active: true, minimum_stock: 0, sku: "AGUA", barcode: "123" };
 const items: sales.SaleItem[] = [{ id: "item", product_id: product.id, quantity: 2, unit_price: 5, product }];
 const dependencies = {
+  "./origin-payments": { OriginPayments: () => React.createElement("section", { "aria-label": "Recebimentos" }) },
   react: React, "react/jsx-runtime": jsx, "lucide-react": icons,
   "next/link": { default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => React.createElement("a", props, children) },
   "next/navigation": { useRouter: () => ({ push() {}, replace() {}, refresh() {} }) },
@@ -49,7 +50,7 @@ test("Copa quantities and totals preserve the saved price, not today's price", (
 test("Copa home renders open tabs, recent sales, history and empty states", () => {
   const { CopaHome } = load<{ CopaHome: React.ComponentType<{ tabs: copa.CopaSale[]; recent: copa.CopaSale[] }> }>("src/components/admin/copa-home.tsx", dependencies);
   const html = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [sale], recent: [{ ...sale, status: "completed", payment_method: "pix" }] }));
-  assert.match(html, /Abrir comanda/); assert.match(html, /Venda rápida/); assert.match(html, /João/); assert.match(html, /Pix/);
+  assert.match(html, /Abrir comanda/); assert.match(html, /Balcão/); assert.match(html, /João/); assert.match(html, /Pix/);
   assert.match(html, /\/admin\/copa\/comandas\//); assert.match(html, /Ver histórico/);
   const empty = renderToStaticMarkup(React.createElement(CopaHome, { tabs: [], recent: [] }));
   assert.match(empty, /Nenhuma comanda aberta/); assert.match(empty, /Nenhuma venda finalizada/);
@@ -61,7 +62,7 @@ test("both Copa flows share touch controls and the existing snapshot total", () 
   assert.match(html, /Fechar comanda/); assert.match(html, /Diminuir Água/); assert.match(html, /Aumentar Água/); assert.match(html, /Remover Água/);
   assert.match(html, /10,00/); assert.match(html, /5,00/);
   const quick = renderToStaticMarkup(React.createElement(CopaEditor, { sale: null, items: [], products: [] }));
-  assert.match(quick, /Venda rápida/); assert.match(quick, /Selecione um produto para começar/);
+  assert.match(quick, /Balcão/); assert.match(quick, /Selecione um produto para começar/);
 });
 
 test("Copa server mutations bind current business, gate management, and send one operation", async () => {

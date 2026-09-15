@@ -42,5 +42,4 @@ test("real repository allowlists origin and derives tenant through guard", async
   allowed=false;
   await assert.rejects(exports.createFinancialEntry(input),/denied/);
   await assert.rejects(exports.getFinancialMonth("2026-09"),/denied/);
-  await assert.rejects(exports.getBookingFinancialEntry({}),/denied/);
 });

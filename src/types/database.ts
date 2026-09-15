@@ -72,7 +72,11 @@ export interface Database {
         Insert: never; Update: never; Relationships: [];
       };
       financial_entries: {
-        Row: { id: string; business_id: string; entry_type: "income" | "expense"; amount: number; description: string | null; payment_method: "pix" | "cash" | "card" | "other" | null; entry_date: string; source_type: "manual" | "sale" | "appointment" | "reservation"; source_id: string | null; status: "paid" | "pending"; created_by: string | null; sale_id: string | null; appointment_id: string | null; reservation_id: string | null } & Timestamps;
+        Row: { id: string; business_id: string; entry_type: "income" | "expense"; amount: number; description: string | null; payment_method: "pix" | "cash" | "card" | "other" | null; entry_date: string; source_type: "manual" | "sale" | "appointment" | "reservation"; source_id: string | null; status: "paid" | "pending"; created_by: string | null; sale_id: string | null; appointment_id: string | null; reservation_id: string | null; payer_name: string | null; paid_at: string | null; receipt_key: string | null } & Timestamps;
+        Insert: never; Update: never; Relationships: [];
+      };
+      booking_financial_totals: {
+        Row: { business_id: string; source_type: "appointment" | "reservation"; source_id: string; total_amount: number; created_by: string | null; created_at: string; reservation_id: string | null; appointment_id: string | null };
         Insert: never; Update: never; Relationships: [];
       };
       sales: {
@@ -198,6 +202,9 @@ export interface Database {
       product_stock_balances: { Row: { business_id: string; product_id: string; category_id: string | null; name: string; sku: string | null; barcode: string | null; unit: ProductUnit; minimum_stock: number; active: boolean; quantity: number; stock_status: "normal" | "low" | "negative" }; Relationships: [] };
     };
     Functions: {
+      get_admin_origin_receipts: { Args: { p_business_id: string; p_source_type: string; p_source_id: string }; Returns: Json };
+      register_admin_receipt: { Args: { p_business_id: string; p_source_type: string; p_source_id: string; p_amount: string; p_payment_method: string; p_payer_name: string | null; p_receipt_key: string }; Returns: string };
+      set_admin_booking_financial_total: { Args: { p_business_id: string; p_source_type: string; p_source_id: string; p_total: string }; Returns: undefined };
       create_platform_provisioned_business: { Args: { p_name: string; p_slug: string; p_whatsapp?: string | null }; Returns: string };
       authorize_platform_business_configuration: { Args: { p_business_id: string }; Returns: Json };
       replace_platform_business_hours: { Args: { p_business_id: string; p_hours: Json }; Returns: boolean };
